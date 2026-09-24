@@ -46,6 +46,16 @@ describe("CLI adapters", () => {
     expect(adapters.omp.promptArgs("hello")).toEqual(["-p", "hello"]);
   });
 
+  test("pi buildPromptArgs resumes with the specific native session", () => {
+    const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
+
+    const withResume = adapters.pi.buildPromptArgs?.({
+      prompt: "continue work",
+      nativeSessionId: "session-xyz-123",
+    });
+    expect(withResume).toEqual(["-p", "--session", "session-xyz-123", "continue work"]);
+  });
+
   test("codex buildPromptArgs resumes with nativeSessionId without --last", () => {
     const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
 

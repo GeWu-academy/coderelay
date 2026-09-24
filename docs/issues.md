@@ -1,7 +1,7 @@
 # GitHub Issues 分类
 
 仓库：[AlkaidSTART/coderelay](https://github.com/AlkaidSTART/coderelay)
-共 67 个 Issue：Open 35，Closed 32。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
+共 67 个 Issue：Open 33，Closed 34。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
 
 重新生成：`bun run issues:doc`（需安装并登录 GitHub CLI）。
 
@@ -79,16 +79,16 @@
 - [#58 fix(wsl): toWslPath 硬编码 /mnt 无法支持自定义 automount root](https://github.com/AlkaidSTART/coderelay/issues/58) — Closed
 - [#85 fix(wsl): distro 列表不能通过删除 NUL 正确解码非 ASCII UTF-16LE 名称](https://github.com/AlkaidSTART/coderelay/issues/85) — Open
 
-## 会话与持久化 (11：Open 7 / Closed 4)
+## 会话与持久化 (11：Open 5 / Closed 6)
 
 - [#23 fix(session): native session ID 无法从 agent 输出中被记录](https://github.com/AlkaidSTART/coderelay/issues/23) — Open
 - [#25 fix(codex): native resume 忽略 session ID 并始终使用 --last](https://github.com/AlkaidSTART/coderelay/issues/25) — Closed
 - [#26 fix(session): 跨 CLI 切回旧 agent 时会错误复用其 native session](https://github.com/AlkaidSTART/coderelay/issues/26) — Open
 - [#28 fix(session): sessions.db 路径不会跟随实际发现的项目配置](https://github.com/AlkaidSTART/coderelay/issues/28) — Closed
-- [#39 fix(pi): native resume 应使用 --session 而不是 --resume](https://github.com/AlkaidSTART/coderelay/issues/39) — Open
+- [#39 fix(pi): native resume 应使用 --session 而不是 --resume](https://github.com/AlkaidSTART/coderelay/issues/39) — Closed
 - [#60 fix(workspace): 切换工作区时未重置 session/native context 导致跨项目串上下文](https://github.com/AlkaidSTART/coderelay/issues/60) — Open
 - [#64 fix(session): 全局 sessions.db 的 retention 会跨 workspace 删除历史会话](https://github.com/AlkaidSTART/coderelay/issues/64) — Closed
 - [#67 fix(session): 超长历史 prompt 会让 transcript 上下文整体被丢弃](https://github.com/AlkaidSTART/coderelay/issues/67) — Open
-- [#69 fix(session): SQLite foreign key constraint 声明后未显式启用](https://github.com/AlkaidSTART/coderelay/issues/69) — Open
+- [#69 fix(session): SQLite foreign key constraint 声明后未显式启用](https://github.com/AlkaidSTART/coderelay/issues/69) — Closed
 - [#76 fix(session): 全局 sessions.db 缺少 busy_timeout 导致并发写入静默丢历史](https://github.com/AlkaidSTART/coderelay/issues/76) — Open
 - [#90 fix(session): migration 不应把所有 ALTER TABLE 异常都当作已存在列忽略](https://github.com/AlkaidSTART/coderelay/issues/90) — Closed

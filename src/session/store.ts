@@ -235,6 +235,7 @@ function migrateTurnColumns(db: { exec: (sql: string) => void }): void {
 export function createSessionStore(dbPath: string): SessionStore {
   mkdirSync(crossPlatformDirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
+  db.exec("PRAGMA foreign_keys = ON;");
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec(SCHEMA);
   migrateSessionColumns(db);

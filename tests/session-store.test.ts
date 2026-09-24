@@ -54,6 +54,24 @@ describe("session store", () => {
     store.close();
   });
 
+  test("rejects turns that reference a missing session", () => {
+    const store = createSessionStore(tempDbPath());
+
+    expect(() =>
+      store.appendTurn({
+        sessionId: "missing-session",
+        cliId: "claude",
+        prompt: "orphan turn",
+        output: "must not persist",
+        exitCode: 0,
+        signal: null,
+        durationMs: 12,
+      }),
+    ).toThrow();
+    expect(store.listTurns("missing-session")).toEqual([]);
+    store.close();
+  });
+
   test("reopening the same database reads sessions across processes", () => {
     const path = tempDbPath();
     const first = createSessionStore(path);

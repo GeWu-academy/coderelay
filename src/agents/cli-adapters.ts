@@ -393,7 +393,7 @@ function buildArgsFor(
     case "pi": {
       const args: string[] = ["-p", ...modelArgs, ...extra];
       if (options.nativeSessionId) {
-        args.push("--resume", options.nativeSessionId);
+        args.push("--session", options.nativeSessionId);
       }
       args.push(options.prompt);
       return Object.freeze(args);
