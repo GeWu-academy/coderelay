@@ -300,7 +300,7 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
     stderrTail: string,
   ): AgentRunResult => {
     const text = outputParts.length > 0
-      ? outputParts.join("").trim()
+      ? outputParts.join("")
       : summarizeEvents(events);
     if (status === "completed") {
       emit({ kind: "completed", text, exitCode: code });
