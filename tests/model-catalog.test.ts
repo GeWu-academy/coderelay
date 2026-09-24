@@ -89,7 +89,7 @@ describe("probeModelCatalog", () => {
       enabled: true,
       activationDecided: true,
       models: [
-        { id: "gpt-5-mini", label: "Mini!", strengths: [], cost: 1 },
+        { id: "gpt-5-mini", label: "Mini!", strengths: [], cost: 1, contextWindow: 64_000 },
         { id: "ghost-model", label: "Ghost", strengths: [], cost: 1 },
       ],
       extraArgs: [],
@@ -108,6 +108,9 @@ describe("probeModelCatalog", () => {
     expect(catalog.options.map((o) => o.modelId)).toEqual(["gpt-5-mini", "gpt-5"]);
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.label).toBe("Mini!");
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.cost).toBe(1);
+    expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.contextWindow).toBe(64_000);
+    const candidate = toRouteCandidates(catalog, config).find((item) => item.model === "gpt-5-mini");
+    expect(candidate?.contextWindow).toBe(64_000);
   });
 
   test("config strengths preserves all valid MODEL_STRENGTHS and filters invalid entries", async () => {

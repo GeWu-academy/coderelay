@@ -224,14 +224,14 @@ export function compareScores(
   left: ScoredCandidate,
   right: ScoredCandidate,
 ): number {
-  if (right.score !== left.score) {
-    return right.score - left.score;
-  }
-
   const leftPriority = left.ruleMatches[0]?.rule.priority ?? Number.MIN_SAFE_INTEGER;
   const rightPriority = right.ruleMatches[0]?.rule.priority ?? Number.MIN_SAFE_INTEGER;
   if (leftPriority !== rightPriority) {
     return rightPriority - leftPriority;
+  }
+
+  if (right.score !== left.score) {
+    return right.score - left.score;
   }
 
   if (left.candidate.isDefault !== right.candidate.isDefault) {
