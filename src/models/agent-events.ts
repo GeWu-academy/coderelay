@@ -162,8 +162,8 @@ export function parseStructuredLine(line: string): AgentEvent | null {
 export function summarizeEvents(events: readonly AgentEvent[]): string {
   const parts: string[] = [];
   for (const event of events) {
-    if (event.kind === "assistant_text" || event.kind === "completed") {
-      parts.push("text" in event ? event.text : "");
+    if (event.kind === "assistant_text") {
+      parts.push(event.text);
     } else if (event.kind === "tool_started") {
       parts.push(`[tool:${event.tool}]`);
     }
