@@ -1,7 +1,7 @@
 # GitHub Issues 分类
 
 仓库：[AlkaidSTART/coderelay](https://github.com/AlkaidSTART/coderelay)
-共 67 个 Issue：Open 48，Closed 19。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
+共 67 个 Issue：Open 35，Closed 32。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
 
 重新生成：`bun run issues:doc`（需安装并登录 GitHub CLI）。
 
@@ -43,32 +43,32 @@
 - [#80 fix(codex): 模型探测不应暴露 visibility=hide 的内部模型](https://github.com/AlkaidSTART/coderelay/issues/80) — Open
 - [#81 fix(scanner): CODEX_CLI_PATH 被错误地当作 config.toml 键读取](https://github.com/AlkaidSTART/coderelay/issues/81) — Closed
 
-## 路由与 Jev 决策 (12：Open 8 / Closed 4)
+## 路由与 Jev 决策 (12：Open 3 / Closed 9)
 
 - [#16 fix(router): 配置中的 model strengths 会在模型目录构建时被静默丢弃](https://github.com/AlkaidSTART/coderelay/issues/16) — Closed
 - [#18 fix(jev): 未知 choice 会静默回退到第一个候选](https://github.com/AlkaidSTART/coderelay/issues/18) — Closed
 - [#43 fix(router): 各 CLI 的 native default model 会同时获得全局 default bonus](https://github.com/AlkaidSTART/coderelay/issues/43) — Open
 - [#45 fix(jev): 路由请求会丢弃 files/language/contextSize/requiredStrengths](https://github.com/AlkaidSTART/coderelay/issues/45) — Open
 - [#59 fix(jev): env.locaj 拼写错误已被运行时与测试共同固化](https://github.com/AlkaidSTART/coderelay/issues/59) — Closed
-- [#68 fix(router): hybrid 策略不会用 rule priority 处理冲突或 tie](https://github.com/AlkaidSTART/coderelay/issues/68) — Open
+- [#68 fix(router): hybrid 策略不会用 rule priority 处理冲突或 tie](https://github.com/AlkaidSTART/coderelay/issues/68) — Closed
 - [#72 fix(jev): 成功响应只做 TypeScript 强转，malformed JSON shape 可泄漏 TypeError](https://github.com/AlkaidSTART/coderelay/issues/72) — Closed
-- [#78 fix(router): contextWindow 配置当前完全不会进入路由逻辑](https://github.com/AlkaidSTART/coderelay/issues/78) — Open
+- [#78 fix(router): contextWindow 配置当前完全不会进入路由逻辑](https://github.com/AlkaidSTART/coderelay/issues/78) — Closed
 - [#82 fix(models): 带冒号的 model id 会被 parseModelRef 误判为 agent:model](https://github.com/AlkaidSTART/coderelay/issues/82) — Open
-- [#87 fix(jev): candidate cost 元数据未进入 Jev criteria](https://github.com/AlkaidSTART/coderelay/issues/87) — Open
-- [#88 fix(router): strength inference 的 substring 匹配会被普通单词误触发](https://github.com/AlkaidSTART/coderelay/issues/88) — Open
-- [#89 fix(router): buildRouteCandidates 会排除未显式配置但默认 enabled 的 CLI](https://github.com/AlkaidSTART/coderelay/issues/89) — Open
+- [#87 fix(jev): candidate cost 元数据未进入 Jev criteria](https://github.com/AlkaidSTART/coderelay/issues/87) — Closed
+- [#88 fix(router): strength inference 的 substring 匹配会被普通单词误触发](https://github.com/AlkaidSTART/coderelay/issues/88) — Closed
+- [#89 fix(router): buildRouteCandidates 会排除未显式配置但默认 enabled 的 CLI](https://github.com/AlkaidSTART/coderelay/issues/89) — Closed
 
-## Runtime 与事件协议 (10：Open 9 / Closed 1)
+## Runtime 与事件协议 (10：Open 1 / Closed 9)
 
-- [#24 perf(runtime): stderrRest 会重复累积完整 stderr 且未被使用](https://github.com/AlkaidSTART/coderelay/issues/24) — Open
-- [#27 fix(runtime): completed 事件会导致 eventSummary 重复包含完整输出](https://github.com/AlkaidSTART/coderelay/issues/27) — Open
+- [#24 perf(runtime): stderrRest 会重复累积完整 stderr 且未被使用](https://github.com/AlkaidSTART/coderelay/issues/24) — Closed
+- [#27 fix(runtime): completed 事件会导致 eventSummary 重复包含完整输出](https://github.com/AlkaidSTART/coderelay/issues/27) — Closed
 - [#38 fix(omp): JSON event stream 与统一 structured parser 不兼容](https://github.com/AlkaidSTART/coderelay/issues/38) — Open
-- [#49 fix(runtime): AgentRunResult.text 被 summarizeEvents 截断到 4000 字符](https://github.com/AlkaidSTART/coderelay/issues/49) — Open
-- [#50 fix(runtime): text protocol 被强制按行缓冲并会丢失空行](https://github.com/AlkaidSTART/coderelay/issues/50) — Open
-- [#56 perf(runtime): events 数组会保留完整生命周期全部事件](https://github.com/AlkaidSTART/coderelay/issues/56) — Open
-- [#57 fix(runtime): 已经 aborted 的 AbortSignal 在启动时不会立即终止任务](https://github.com/AlkaidSTART/coderelay/issues/57) — Open
-- [#74 fix(parser): text protocol 不应把普通 JSON 回答解析为 structured event](https://github.com/AlkaidSTART/coderelay/issues/74) — Open
-- [#75 fix(runtime): structured terminal events 不会影响最终 AgentRunResult.status](https://github.com/AlkaidSTART/coderelay/issues/75) — Open
+- [#49 fix(runtime): AgentRunResult.text 被 summarizeEvents 截断到 4000 字符](https://github.com/AlkaidSTART/coderelay/issues/49) — Closed
+- [#50 fix(runtime): text protocol 被强制按行缓冲并会丢失空行](https://github.com/AlkaidSTART/coderelay/issues/50) — Closed
+- [#56 perf(runtime): events 数组会保留完整生命周期全部事件](https://github.com/AlkaidSTART/coderelay/issues/56) — Closed
+- [#57 fix(runtime): 已经 aborted 的 AbortSignal 在启动时不会立即终止任务](https://github.com/AlkaidSTART/coderelay/issues/57) — Closed
+- [#74 fix(parser): text protocol 不应把普通 JSON 回答解析为 structured event](https://github.com/AlkaidSTART/coderelay/issues/74) — Closed
+- [#75 fix(runtime): structured terminal events 不会影响最终 AgentRunResult.status](https://github.com/AlkaidSTART/coderelay/issues/75) — Closed
 - [#83 fix(runtime): 用户 abort 可被后续 timeout 覆盖为 timeout](https://github.com/AlkaidSTART/coderelay/issues/83) — Closed
 
 ## Bash/WSL 与跨平台命令执行 (5：Open 4 / Closed 1)
