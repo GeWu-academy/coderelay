@@ -1,4 +1,5 @@
 import type { Config, RouteRule, RoutingMode } from "../config/schema";
+import { CLI_IDS } from "../models/cli";
 import { formatModelRef, parseModelRef } from "../models/types";
 import { matchRules, ruleMatchesCandidate } from "./rules";
 import {
@@ -31,6 +32,7 @@ function candidateForModel(
         label?: string;
         strengths: string[];
         cost?: number;
+        contextWindow?: number;
         default?: boolean;
       }
     | undefined,
@@ -53,7 +55,8 @@ function candidateForModel(
     label: model?.label,
     strengths,
     cost: toModelCost(model?.cost),
-    isDefault: isTopLevelDefault || model?.default === true,
+    contextWindow: model?.contextWindow,
+    isDefault: isTopLevelDefault || (agentId === defaultAgent && model?.default === true),
   };
 }
 
@@ -85,11 +88,10 @@ export function buildRouteCandidates(
   const available = options.availableAgents
     ? new Set(options.availableAgents)
     : null;
-  const configured = configuredAgentIds(config);
-  const ids =
-    configured.length === 0
-      ? [...(options.availableAgents ?? [config.defaultAgent])]
-      : [...new Set([...configured, config.defaultAgent])];
+  const ids = [...new Set([
+    ...(options.availableAgents ?? CLI_IDS),
+    config.defaultAgent,
+  ])];
   const defaultModel = config.defaultModel
     ? parseModelRef(config.defaultModel, config.defaultAgent)
     : { agent: config.defaultAgent, model: "" };
@@ -119,6 +121,7 @@ export function buildRouteCandidates(
         ? {
             id: defaultModel.model,
             strengths: [],
+            contextWindow: undefined,
             default: true,
           }
         : undefined;

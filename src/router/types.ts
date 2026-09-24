@@ -26,6 +26,7 @@ export interface RouteCandidate {
   readonly label?: string;
   readonly strengths: readonly ModelStrength[];
   readonly cost?: ModelCost;
+  readonly contextWindow?: number;
   readonly isDefault: boolean;
 }
 

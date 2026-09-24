@@ -36,6 +36,7 @@ export interface ModelOption {
   readonly capabilities: CliCapabilities;
   readonly strengths: readonly ModelStrength[];
   readonly cost?: number;
+  readonly contextWindow?: number;
   readonly available: boolean;
   /** 不可用时的具体原因；可用时为 undefined。 */
   readonly reason?: string;
@@ -126,10 +127,11 @@ export async function probeModelCatalog(
           modelId: model.id,
           label: override?.label ?? model.label ?? model.id,
           description: override?.description ?? model.description,
-          isDefault: isTopDefault || override?.default === true || model.isDefault === true,
+          isDefault: isTopDefault || override?.default === true || (cliId === config.defaultAgent && model.isDefault === true),
           capabilities: result.capabilities,
           strengths: configStrengths(config, cliId, model.id),
           cost: override?.cost,
+          contextWindow: override?.contextWindow,
           available: true,
         };
       });
@@ -231,6 +233,7 @@ export function toRouteCandidates(
         label: option.label,
         strengths: option.strengths,
         cost: toModelCost(option.cost),
+        contextWindow: option.contextWindow,
         isDefault: isTopDefault || option.isDefault,
       };
     });

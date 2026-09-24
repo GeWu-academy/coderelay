@@ -171,7 +171,7 @@ export async function resolveTypesafeApiKey(
 
 /** Build the structured Jev systemone request body from candidates. */
 export function buildJevRequest(
-  prompt: string,
+  request: RouteRequest,
   candidates: readonly RouteCandidate[],
   model = TYPESAFE_DEFAULT_MODEL,
 ): JevRequestBody {
@@ -187,6 +187,12 @@ export function buildJevRequest(
     if (candidate.strengths.length > 0) {
       parts.push(`strengths: ${candidate.strengths.join(", ")}`);
     }
+    if (candidate.cost !== undefined) {
+      parts.push(`cost: ${candidate.cost}/5`);
+    }
+    if (candidate.contextWindow !== undefined) {
+      parts.push(`context window: ${candidate.contextWindow} tokens`);
+    }
     if (candidate.isDefault) {
       parts.push("default agent");
     }
@@ -195,7 +201,13 @@ export function buildJevRequest(
   }
 
   return {
-    state: prompt,
+    state: [
+      request.prompt,
+      request.language ? `Language: ${request.language}` : undefined,
+      request.files?.length ? `Files: ${request.files.join(", ")}` : undefined,
+      request.contextSize !== undefined ? `Context size: ${request.contextSize} tokens` : undefined,
+      request.requiredStrengths?.length ? `Required strengths: ${request.requiredStrengths.join(", ")}` : undefined,
+    ].filter((part): part is string => part !== undefined).join("\n"),
     model,
     questions: {
       decision: {
@@ -240,7 +252,7 @@ export async function routeWithJev(
   const timeoutMs = options.timeoutMs ?? 5000;
   const fetcher = options.fetchFn ?? fetch;
 
-  const payload = buildJevRequest(request.prompt, candidates, model);
+  const payload = buildJevRequest(request, candidates, model);
 
   const controller = new AbortController();
   const timer = setTimeout(() => {
