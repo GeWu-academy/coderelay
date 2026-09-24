@@ -1,13 +1,13 @@
 # GitHub Issues 分类
 
 仓库：[AlkaidSTART/coderelay](https://github.com/AlkaidSTART/coderelay)
-共 67 个 Issue：Open 33，Closed 34。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
+共 67 个 Issue：Open 32，Closed 35。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
 
 重新生成：`bun run issues:doc`（需安装并登录 GitHub CLI）。
 
-## CLI 与 TUI (6：Open 5 / Closed 1)
+## CLI 与 TUI (6：Open 4 / Closed 2)
 
-- [#17 fix(tui): hybrid 模式下歧义判断未使用 routing rules](https://github.com/AlkaidSTART/coderelay/issues/17) — Open
+- [#17 fix(tui): hybrid 模式下歧义判断未使用 routing rules](https://github.com/AlkaidSTART/coderelay/issues/17) — Closed
 - [#20 fix(tui): 无效配置会被静默忽略并回退到默认配置](https://github.com/AlkaidSTART/coderelay/issues/20) — Closed
 - [#63 fix(run): manual 模式在非交互 run 命令中会静默执行自动路由](https://github.com/AlkaidSTART/coderelay/issues/63) — Open
 - [#66 fix(tui): 自动路由不应被当前 activeId 的安装状态提前拦截](https://github.com/AlkaidSTART/coderelay/issues/66) — Open

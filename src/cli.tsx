@@ -27,8 +27,7 @@ import {
 } from "./models/agent-events";
 import type { SessionTurn, TurnContextSource } from "./models/session";
 import { routeWithJev } from "./router/jev";
-import { resolveRoutingMode, route } from "./router/router";
-import { compareScores, scoreCandidates } from "./router/scorer";
+import { hasAmbiguousRoute, resolveRoutingMode, route } from "./router/router";
 import { runAgentStream } from "./runtime/agent-run";
 import { buildLaunchCmd, launchInteractive, resolveLaunchCwd } from "./runtime/launcher";
 import { resolveCommand } from "./runtime/process";
@@ -500,9 +499,10 @@ async function runPromptFlow(prompt: string): Promise<void> {
   }
 
   // 歧义（前两名分数相同）或探测不完整时进入统一选择器，由用户确认。
-  const scored = scoreCandidates({ prompt: text }, candidates, config.routing.weights, []).sort(compareScores);
-  const tied = scored.length > 1 && scored[0]?.score === scored[1]?.score;
-  if (tied || needsSelecting(catalog)) {
+  if (
+    hasAmbiguousRoute({ prompt: text }, config, candidates) ||
+    needsSelecting(catalog)
+  ) {
     pendingPrompt = text;
     pendingCatalog = catalog;
     pendingConfig = config;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { ConfigSchema } from "../src/config/schema";
-import { buildRouteCandidates, route } from "../src/router/router";
+import { buildRouteCandidates, hasAmbiguousRoute, route } from "../src/router/router";
 import { inferStrengths } from "../src/router/scorer";
 import type { RouteCandidate } from "../src/router/types";
 
@@ -15,6 +15,36 @@ const baseConfig = ConfigSchema.parse({
 });
 
 describe("routing issue regressions", () => {
+  test("hybrid ambiguity check applies matching routing rules", () => {
+    const config = ConfigSchema.parse({
+      defaultAgent: "codex",
+      routing: {
+        strategy: "hybrid",
+        weights: { default: 0, rule: 1 },
+        rules: [
+          {
+            name: "prefer-claude",
+            priority: 10,
+            score: 5,
+            when: { keywords: ["deploy"] },
+            use: { agent: "claude" },
+          },
+        ],
+      },
+    });
+    const candidates: RouteCandidate[] = [
+      { agent: "codex", strengths: [], isDefault: false },
+      { agent: "claude", strengths: [], isDefault: false },
+    ];
+
+    expect(
+      hasAmbiguousRoute({ prompt: "deploy this change" }, config, candidates),
+    ).toBe(false);
+    expect(
+      hasAmbiguousRoute({ prompt: "summarize this change" }, config, candidates),
+    ).toBe(true);
+  });
+
   test("hybrid routing prefers the matching higher-priority rule over a larger low-priority score", () => {
     const config = ConfigSchema.parse({
       defaultAgent: "codex",

@@ -240,6 +240,26 @@ function routeByScore(
   return decisionFromScore(strategy, best, matchedRule);
 }
 
+/** Check whether local score-based routing needs a user confirmation. */
+export function hasAmbiguousRoute(
+  request: RouteRequest,
+  config: Config,
+  candidates: readonly RouteCandidate[],
+): boolean {
+  const rules =
+    config.routing.strategy === "hybrid"
+      ? config.routing.rules
+      : ([] as RouteRule[]);
+  const scored = scoreCandidates(
+    request,
+    candidates,
+    config.routing.weights,
+    rules,
+  ).sort(compareScores);
+
+  return scored.length > 1 && scored[0]?.score === scored[1]?.score;
+}
+
 /** Select an agent/model pair according to the configured strategy. */
 export function route(
   request: RouteRequest,
