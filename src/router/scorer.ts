@@ -57,7 +57,13 @@ const STRENGTH_KEYWORDS: Readonly<Record<ModelStrength, readonly string[]>> = {
 };
 
 function includesKeyword(prompt: string, keyword: string): boolean {
-  return prompt.toLocaleLowerCase().includes(keyword.toLocaleLowerCase());
+  const escaped = keyword
+    .toLocaleLowerCase()
+    .split(/\s+/u)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+    .join("\\s+");
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "u")
+    .test(prompt.toLocaleLowerCase());
 }
 
 /** Infer model strengths from a routing request. */
@@ -118,7 +124,20 @@ function contextBonus(
     strengths.includes("long-context") ||
     (request.contextSize ?? 0) >= 100_000;
 
-  return needsLongContext && candidate.strengths.includes("long-context")
+  const fitsRequestedContext =
+    request.contextSize !== undefined &&
+    candidate.contextWindow !== undefined &&
+    candidate.contextWindow >= request.contextSize;
+  const hasKnownTooSmallWindow =
+    request.contextSize !== undefined &&
+    candidate.contextWindow !== undefined &&
+    candidate.contextWindow < request.contextSize;
+
+  if (hasKnownTooSmallWindow) {
+    return -weights.context;
+  }
+  return fitsRequestedContext ||
+    (needsLongContext && candidate.strengths.includes("long-context"))
     ? weights.context
     : 0;
 }
@@ -127,10 +146,13 @@ function ruleBonus(
   matches: readonly RuleMatch[],
   weights: RoutingWeights,
 ): number {
-  return matches.reduce(
-    (total, match) => total + match.rule.score * weights.rule,
-    0,
-  );
+  const highestPriority = matches[0]?.rule.priority;
+  if (highestPriority === undefined) {
+    return 0;
+  }
+  return matches
+    .filter((match) => match.rule.priority === highestPriority)
+    .reduce((total, match) => total + match.rule.score * weights.rule, 0);
 }
 
 export function scoreCandidate(
@@ -202,6 +224,12 @@ export function compareScores(
   left: ScoredCandidate,
   right: ScoredCandidate,
 ): number {
+  const leftPriority = left.ruleMatches[0]?.rule.priority ?? Number.MIN_SAFE_INTEGER;
+  const rightPriority = right.ruleMatches[0]?.rule.priority ?? Number.MIN_SAFE_INTEGER;
+  if (leftPriority !== rightPriority) {
+    return rightPriority - leftPriority;
+  }
+
   if (right.score !== left.score) {
     return right.score - left.score;
   }

@@ -97,6 +97,8 @@ describe("buildJevRequest", () => {
       agent: "claude",
       label: "Claude Code",
       strengths: ["reasoning", "coding"],
+      cost: 2,
+      contextWindow: 128_000,
       isDefault: true,
     },
     {
@@ -104,13 +106,25 @@ describe("buildJevRequest", () => {
       model: "o3-mini",
       label: "Codex Fast",
       strengths: ["fast"],
+      cost: 1,
+      contextWindow: 32_000,
       isDefault: false,
     },
   ];
 
   test("builds typed choice question with candidate criteria", () => {
-    const req = buildJevRequest("Fix bug in backend", candidates);
-    expect(req.state).toBe("Fix bug in backend");
+    const req = buildJevRequest({
+      prompt: "Fix bug in backend",
+      language: "typescript",
+      files: ["src/router.ts"],
+      contextSize: 24_000,
+      requiredStrengths: ["coding"],
+    }, candidates);
+    expect(req.state).toContain("Fix bug in backend");
+    expect(req.state).toContain("Language: typescript");
+    expect(req.state).toContain("Files: src/router.ts");
+    expect(req.state).toContain("Context size: 24000 tokens");
+    expect(req.state).toContain("Required strengths: coding");
     expect(req.model).toBe("jev-latest");
     const question = req.questions["decision"];
     expect(question?.type).toBe("choice");
@@ -118,8 +132,12 @@ describe("buildJevRequest", () => {
     const criteria = question!.criteria;
     expect(criteria["claude"]).toContain("Claude Code");
     expect(criteria["claude"]).toContain("strengths: reasoning, coding");
+    expect(criteria["claude"]).toContain("cost: 2/5");
+    expect(criteria["claude"]).toContain("context window: 128000 tokens");
     expect(criteria["claude"]).toContain("default agent");
     expect(criteria["codex:o3-mini"]).toContain("Codex Fast");
+    expect(criteria["codex:o3-mini"]).toContain("cost: 1/5");
+    expect(criteria["codex:o3-mini"]).toContain("context window: 32000 tokens");
   });
 });
 

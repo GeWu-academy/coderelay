@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { runFavoriteCommand } from "../src/commands/favorite";
+import { createProgram } from "../src/cli.ts";
 import { createSessionStore } from "../src/session/store";
 
 function tempDbPath(): string {
@@ -81,6 +82,13 @@ describe("favorite command", () => {
     expect(output).toContain("已清除最喜欢的初始化 agent 偏好");
     expect(store.getFavoriteAgent()).toBeNull();
     store.close();
+  });
+
+
+  test("does not expose the unused cwd option", () => {
+    const favorite = createProgram().commands.find((command) => command.name() === "favorite");
+
+    expect(favorite?.options.some((option) => option.long === "--cwd")).toBe(false);
   });
 
   test("rejects unknown agent with exit code 1", async () => {

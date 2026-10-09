@@ -146,7 +146,16 @@ export async function runRunCommand(
         : { config: options.config };
     const config = loaded.config;
     const detected = await scan(options.scanner);
-    const cliAdapters = createCliAdapters(dependencies.adapters);
+    const cliAdapters = createCliAdapters({
+      ...dependencies.adapters,
+      agentEnvs: {
+        ...dependencies.adapters?.agentEnvs,
+        codex: { ...dependencies.adapters?.agentEnvs?.codex, ...config.agents.codex?.env },
+        claude: { ...dependencies.adapters?.agentEnvs?.claude, ...config.agents.claude?.env },
+        pi: { ...dependencies.adapters?.agentEnvs?.pi, ...config.agents.pi?.env },
+        omp: { ...dependencies.adapters?.agentEnvs?.omp, ...config.agents.omp?.env },
+      },
+    });
 
     // 统一探测：以 CLI 原生配置为事实来源，失败带原因且禁止执行。
     const catalog = await probeModelCatalog(detected, cliAdapters, config);
@@ -165,6 +174,10 @@ export async function runRunCommand(
       );
       agent = explicit.cliId;
       model = explicit.modelId;
+    } else if (routingMode === "manual") {
+      throw new Error(
+        "routing.mode=manual 时，非交互 run 必须显式提供 --agent 或 --model",
+      );
     } else if (routingMode === "jev") {
       const candidates = toRouteCandidates(catalog, config);
       if (candidates.length === 0) {

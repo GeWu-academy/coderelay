@@ -39,3 +39,5 @@ env.local
 AGENTS.md
 # 本地会话数据（SQLite）
 .coderelay/
+scripts/*
+docs/*

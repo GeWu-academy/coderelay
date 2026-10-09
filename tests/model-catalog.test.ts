@@ -83,13 +83,40 @@ describe("probeModelCatalog", () => {
     expect(catalog.options.map((o) => o.modelId)).toEqual(["gpt-5", "gpt-5-mini"]);
   });
 
+  test("keeps native defaults separate from the CodeRelay global default", async () => {
+    const config = defaultConfig();
+    const adapters = fakeAdapters({
+      codex: {
+        ok: true,
+        models: [{ id: "codex-native", isDefault: true }],
+        capabilities: CAPS,
+      },
+      claude: {
+        ok: true,
+        models: [{ id: "claude-native", isDefault: true }],
+        capabilities: CAPS,
+      },
+      pi: { ok: false, reason: "x" },
+      omp: { ok: false, reason: "x" },
+    });
+
+    const catalog = await probeModelCatalog(DETECTED, adapters, config);
+    const codex = catalog.options.find((option) => option.modelId === "codex-native");
+    const claude = catalog.options.find((option) => option.modelId === "claude-native");
+    expect(codex?.isDefault).toBe(false);
+    expect(codex?.isNativeDefault).toBe(true);
+    expect(claude?.isDefault).toBe(false);
+    expect(claude?.isNativeDefault).toBe(true);
+    expect(toRouteCandidates(catalog, config).every((candidate) => !candidate.isDefault)).toBe(true);
+  });
+
   test("config overlays metadata and order but cannot invent models", async () => {
     const config = defaultConfig();
     config.agents["codex"] = {
       enabled: true,
       activationDecided: true,
       models: [
-        { id: "gpt-5-mini", label: "Mini!", strengths: [], cost: 1 },
+        { id: "gpt-5-mini", label: "Mini!", strengths: [], cost: 1, contextWindow: 64_000 },
         { id: "ghost-model", label: "Ghost", strengths: [], cost: 1 },
       ],
       extraArgs: [],
@@ -108,6 +135,9 @@ describe("probeModelCatalog", () => {
     expect(catalog.options.map((o) => o.modelId)).toEqual(["gpt-5-mini", "gpt-5"]);
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.label).toBe("Mini!");
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.cost).toBe(1);
+    expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.contextWindow).toBe(64_000);
+    const candidate = toRouteCandidates(catalog, config).find((item) => item.model === "gpt-5-mini");
+    expect(candidate?.contextWindow).toBe(64_000);
   });
 
   test("config strengths preserves all valid MODEL_STRENGTHS and filters invalid entries", async () => {
@@ -160,6 +190,21 @@ describe("probeModelCatalog", () => {
       cliId: "codex",
       modelId: "gpt-5",
     });
+  });
+
+  test("preserves colon-containing model ids when agent is explicit", async () => {
+    const config = defaultConfig();
+    const adapters = fakeAdapters({
+      codex: { ok: false, reason: "down" },
+      claude: { ok: false, reason: "down" },
+      pi: { ok: false, reason: "down" },
+      omp: { ok: true, models: [{ id: "ollama/qwen3:8b" }], capabilities: CAPS },
+    });
+    const catalog = await probeModelCatalog(DETECTED, adapters, config);
+
+    expect(
+      validateExplicitTarget(catalog, "omp", "ollama/qwen3:8b", "codex"),
+    ).toEqual({ cliId: "omp", modelId: "ollama/qwen3:8b" });
   });
 
   test("toRouteCandidates only exposes available options", async () => {

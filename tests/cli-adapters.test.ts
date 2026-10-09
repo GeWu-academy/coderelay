@@ -37,6 +37,55 @@ describe("CLI adapters", () => {
     expect(adapter.configDir).toBe("/custom/claude");
   });
 
+  test("honors native config directory environment variables", () => {
+    const adapters = createCliAdapters({
+      homeDir: "/home/tester",
+      env: {},
+      agentEnvs: {
+        codex: { CODEX_HOME: "/custom/codex" },
+        pi: { PI_CODING_AGENT_DIR: "/custom/pi-agent" },
+        omp: { PI_CONFIG_DIR: "/custom/omp" },
+      },
+    });
+
+    expect(adapters.codex.configDir).toBe("/custom/codex");
+    expect(adapters.pi.configDir).toBe("/custom/pi-agent");
+    expect(adapters.omp.configDir).toBe("/custom/omp");
+  });
+
+  test("PI_CODING_AGENT_DIR takes precedence for OMP agent files", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "coderelay-omp-env-test-"));
+    try {
+      const agentDir = join(tempDir, "custom-agent");
+      await mkdir(agentDir, { recursive: true });
+      await writeFile(
+        join(agentDir, "config.yml"),
+        "modelRoles:\n  default: custom/from-agent-dir\n",
+      );
+
+      const adapters = createCliAdapters({
+        homeDir: tempDir,
+        env: {},
+        agentEnvs: {
+          omp: {
+            PI_CONFIG_DIR: join(tempDir, "wrong-root"),
+            PI_CODING_AGENT_DIR: agentDir,
+          },
+        },
+      });
+      const result = await adapters.omp.probeModels?.();
+
+      expect(result?.ok).toBe(true);
+      if (result?.ok) {
+        expect(result.models).toEqual([
+          { id: "custom/from-agent-dir", isDefault: true },
+        ]);
+      }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   test("builds prompt arguments for all four CLIs", () => {
     const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
 
@@ -44,6 +93,16 @@ describe("CLI adapters", () => {
     expect(adapters.claude.promptArgs("hello")).toEqual(["-p", "hello"]);
     expect(adapters.pi.promptArgs("hello")).toEqual(["-p", "hello"]);
     expect(adapters.omp.promptArgs("hello")).toEqual(["-p", "hello"]);
+  });
+
+  test("pi buildPromptArgs resumes with the specific native session", () => {
+    const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
+
+    const withResume = adapters.pi.buildPromptArgs?.({
+      prompt: "continue work",
+      nativeSessionId: "session-xyz-123",
+    });
+    expect(withResume).toEqual(["-p", "--session", "session-xyz-123", "continue work"]);
   });
 
   test("codex buildPromptArgs resumes with nativeSessionId without --last", () => {
@@ -214,16 +273,21 @@ describe("Pi model probing", () => {
     }
   });
 
-  test("returns error when models.json missing", async () => {
+  test("falls back to Pi native default when models.json is missing", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "coderelay-pi-test-"));
     try {
       const adapters = createCliAdapters({ homeDir: tempDir });
       const result = await adapters.pi.probeModels?.();
 
-      expect(result?.ok).toBe(false);
-      if (result && !result.ok) {
-        expect(result.reason).toContain("models.json");
+      expect(result?.ok).toBe(true);
+      if (result?.ok) {
+        expect(result.models).toEqual([
+          { id: "", label: "Pi 默认模型", isDefault: true },
+        ]);
       }
+      expect(
+        adapters.pi.buildPromptArgs?.({ prompt: "hello", model: "" }),
+      ).toEqual(["-p", "hello"]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -246,6 +310,107 @@ describe("Pi model probing", () => {
       if (result && !result.ok) {
         expect(result.reason).toContain("pi 模型列表为空");
       }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("OMP model probing", () => {
+  test("reads model roles and explicit provider models without scanning unrelated YAML lists", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "coderelay-omp-test-"));
+    try {
+      const agentDir = join(tempDir, ".omp", "agent");
+      await mkdir(agentDir, { recursive: true });
+      await writeFile(
+        join(agentDir, "config.yml"),
+        [
+          "modelRoles:",
+          "  default: anthropic/claude-sonnet-4-5",
+          "  plan: custom/planner:high",
+          "cycleOrder:",
+          "  - unrelated/provider",
+          "enabledModels:",
+          "  - another/provider",
+          "",
+        ].join("\n"),
+      );
+      await writeFile(
+        join(agentDir, "models.yml"),
+        [
+          "providers:",
+          "  custom:",
+          "    models:",
+          "      - id: local-fast",
+          "        name: Local Fast",
+          "",
+        ].join("\n"),
+      );
+
+      const adapters = createCliAdapters({ homeDir: tempDir });
+      const result = await adapters.omp.probeModels?.();
+
+      expect(result?.ok).toBe(true);
+      if (result?.ok) {
+        expect(result.models).toEqual([
+          { id: "anthropic/claude-sonnet-4-5", isDefault: true },
+          { id: "custom/planner:high" },
+          { id: "custom/local-fast", label: "Local Fast" },
+        ]);
+        expect(result.models.some((model) => model.id === "unrelated/provider")).toBe(false);
+        expect(result.models.some((model) => model.id === "another/provider")).toBe(false);
+      }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("uses configured provider models when modelRoles is absent", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "coderelay-omp-test-"));
+    try {
+      const agentDir = join(tempDir, ".omp", "agent");
+      await mkdir(agentDir, { recursive: true });
+      await writeFile(
+        join(agentDir, "models.yaml"),
+        [
+          "providers:",
+          "  local:",
+          "    models:",
+          "      - id: only-model",
+          "        name: Only Model",
+          "",
+        ].join("\n"),
+      );
+
+      const adapters = createCliAdapters({ homeDir: tempDir });
+      const result = await adapters.omp.probeModels?.();
+
+      expect(result?.ok).toBe(true);
+      if (result?.ok) {
+        expect(result.models).toEqual([
+          { id: "local/only-model", label: "Only Model" },
+        ]);
+      }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test("falls back to the OMP native default when no local model catalog is present", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "coderelay-omp-test-"));
+    try {
+      const adapters = createCliAdapters({ homeDir: tempDir });
+      const result = await adapters.omp.probeModels?.();
+
+      expect(result?.ok).toBe(true);
+      if (result?.ok) {
+        expect(result.models).toEqual([
+          { id: "", label: "OMP 默认模型", isDefault: true },
+        ]);
+      }
+      expect(
+        adapters.omp.buildPromptArgs?.({ prompt: "hello", model: "" }),
+      ).toEqual(["-p", "--mode", "json", "hello"]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

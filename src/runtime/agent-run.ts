@@ -8,6 +8,7 @@
  * - 结束时统一关闭 stdin、解除监听器、释放流。
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 
 import {
   parseStructuredLine,
@@ -74,6 +75,7 @@ export interface AgentRunHandle {
 }
 
 const STDERR_TAIL_CHARS = 8_000;
+const MAX_RETAINED_EVENTS = 2_000;
 const KILL_GRACE_MS = 2_000;
 
 function defaultParse(
@@ -197,8 +199,23 @@ export function resolveAgentShell(
 export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
   const startedAt = Date.now();
   const events: AgentEvent[] = [];
+  const outputParts: string[] = [];
+  let terminalStatus: "completed" | "failed" | null = null;
   const emit = (event: AgentEvent): void => {
+    if (event.kind === "assistant_text") {
+      outputParts.push(event.text);
+    } else if (event.kind === "completed") {
+      terminalStatus = "completed";
+      if (outputParts.length === 0 && event.text) {
+        outputParts.push(event.text);
+      }
+    } else if (event.kind === "failed") {
+      terminalStatus = "failed";
+    }
     events.push(event);
+    if (events.length > MAX_RETAINED_EVENTS) {
+      events.shift();
+    }
     options.onEvent(event);
   };
   const parse = options.parseChunk ?? defaultParse;
@@ -206,6 +223,25 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
   const platform = options.dependencies?.platform ?? process.platform;
 
   const [bin, ...args] = options.cmd;
+  if (options.signal?.aborted) {
+    const child = new EventEmitter() as ChildProcess;
+    const event: AgentEvent = { kind: "aborted", reason: "用户取消，已终止进程组" };
+    emit(event);
+    return {
+      child,
+      done: Promise.resolve({
+        status: "aborted",
+        code: null,
+        signal: null,
+        durationMs: Date.now() - startedAt,
+        timedOut: false,
+        text: "",
+        stderrTail: "",
+        events,
+      }),
+      abort: () => undefined,
+    };
+  }
   const result = ((): AgentRunHandle | { readonly spawnError: Error } => {
     try {
       if (!bin) {
@@ -263,7 +299,9 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
     timedOut: boolean,
     stderrTail: string,
   ): AgentRunResult => {
-    const text = summarizeEvents(events);
+    const text = outputParts.length > 0
+      ? outputParts.join("")
+      : summarizeEvents(events);
     if (status === "completed") {
       emit({ kind: "completed", text, exitCode: code });
     } else if (status === "aborted" || status === "timeout") {
@@ -340,11 +378,15 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
 
   // 分块 JSON 跨 chunk 拼接：按流各自缓存未成行部分。
   let stdoutRest = "";
-  let stderrRest = "";
   let stderrTail = "";
 
   const handleStdout = (data: Buffer | string): void => {
-    const text = stdoutRest + data.toString();
+    const chunk = data.toString();
+    if (options.protocol === "text") {
+      emit({ kind: "assistant_text", text: chunk });
+      return;
+    }
+    const text = stdoutRest + chunk;
     const lines = text.split("\n");
     stdoutRest = lines.pop() ?? "";
     for (const line of lines) {
@@ -362,17 +404,12 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
           emit(event);
         }
         emit({ kind: "status", text: "structured parse fallback: raw text" });
-      } else {
-        for (const event of parse(`${line}\n`, "stdout")) {
-          emit(event);
-        }
       }
     }
   };
 
   const handleStderr = (data: Buffer | string): void => {
     const text = data.toString();
-    stderrRest += text;
     stderrTail = tail(stderrTail + text, STDERR_TAIL_CHARS);
     // stderr 实时消费，绝不阻塞 stdout。
     for (const event of parse(text, "stderr")) {
@@ -391,15 +428,17 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
         return;
       }
       settled = true;
-      // flush 行缓冲残留
-      if (stdoutRest.trim()) {
-        for (const event of parse(stdoutRest, "stdout")) {
-          emit(event);
+      // Flush any trailing structured line after stdout has closed.
+      if (stdoutRest) {
+        const structured = parseStructuredLine(stdoutRest);
+        if (structured) {
+          emit(structured);
+        } else {
+          for (const event of parse(stdoutRest, "stdout")) {
+            emit(event);
+          }
         }
         stdoutRest = "";
-      }
-      if (stderrRest.trim()) {
-        stderrRest = "";
       }
       cleanup();
       resolve(finish(status, code, signal, timedOut, tail(stderrTail, STDERR_TAIL_CHARS)));
@@ -422,11 +461,13 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
         settle("aborted", code, signal, false);
         return;
       }
-      if (signal !== null || (code !== null && code !== 0)) {
+      if (terminalStatus === "failed" || signal !== null || (code !== null && code !== 0)) {
         settle("failed", code, signal, false);
         return;
       }
-      settle("completed", code, signal, false);
+      if (terminalStatus === "completed" || code === 0 || code === null) {
+        settle("completed", code, signal, false);
+      }
     });
   });
 

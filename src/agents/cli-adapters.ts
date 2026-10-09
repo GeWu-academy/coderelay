@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
+import { parse as parseYaml } from "yaml";
+
 import {
   CLI_IDS,
   DEFAULT_VERSION_ARGS,
@@ -23,11 +25,36 @@ import {
 export interface CliAdapterOptions {
   readonly homeDir?: string;
   readonly env?: NodeJS.ProcessEnv;
+  /** Per-CLI environment overrides used while resolving native config paths. */
+  readonly agentEnvs?: Partial<Record<CliId, NodeJS.ProcessEnv>>;
+}
+
+function configuredPath(homeDir: string, value: string | undefined, fallback: string): string {
+  const configured = value?.trim();
+  if (!configured) return fallback;
+  return path.isAbsolute(configured) ? configured : path.join(homeDir, configured);
+}
+
+function codexConfigDir(homeDir: string, env: NodeJS.ProcessEnv): string {
+  return configuredPath(homeDir, env.CODEX_HOME, path.join(homeDir, ".codex"));
 }
 
 function claudeConfigDir(homeDir: string, env: NodeJS.ProcessEnv): string {
   const configured = env.CLAUDE_CONFIG_DIR?.trim();
   return configured || path.join(homeDir, ".claude");
+}
+
+function piConfigDir(homeDir: string, env: NodeJS.ProcessEnv): string {
+  return configuredPath(homeDir, env.PI_CODING_AGENT_DIR, path.join(homeDir, ".pi", "agent"));
+}
+
+function ompConfigDirs(
+  homeDir: string,
+  env: NodeJS.ProcessEnv,
+): { readonly rootDir: string; readonly agentDir: string } {
+  const rootDir = configuredPath(homeDir, env.PI_CONFIG_DIR, path.join(homeDir, ".omp"));
+  const agentDir = configuredPath(homeDir, env.PI_CODING_AGENT_DIR, path.join(rootDir, "agent"));
+  return { rootDir, agentDir };
 }
 
 async function readJsonFile(file: string): Promise<unknown> {
@@ -239,8 +266,23 @@ async function probePiModels(configDir: string): Promise<ProbeResult> {
       let raw: unknown;
       try {
         raw = await readJsonFile(modelsFile);
-      } catch {
-        return { ok: false, reason: `pi 模型配置缺失：${modelsFile}` };
+      } catch (error) {
+        // models.json only defines custom providers. Pi ships built-in models and
+        // can use its native default without passing --model at all.
+        if (isRecord(error) && error["code"] === "ENOENT") {
+          return {
+            ok: true,
+            models: [{ id: "", label: "Pi 默认模型", isDefault: true }],
+            capabilities: {
+              structuredEvents: false,
+              nativeResume: true,
+              nonInteractivePrompt: true,
+              explicitModel: true,
+              toolEvents: false,
+            },
+          };
+        }
+        return { ok: false, reason: `pi 模型配置读取失败：${modelsFile}` };
       }
       if (!isRecord(raw) || !isRecord(raw["providers"])) {
         return { ok: false, reason: `pi 模型配置格式非法：${modelsFile}` };
@@ -283,42 +325,134 @@ async function probePiModels(configDir: string): Promise<ProbeResult> {
   }
 }
 
-async function probeOmpModels(configDir: string): Promise<ProbeResult> {
+function isOmpModelId(value: string): boolean {
+  const trimmed = value.trim();
+  const separator = trimmed.indexOf("/");
+  return separator > 0 && separator < trimmed.length - 1 && !/[\s]/.test(trimmed);
+}
+
+function addOmpModel(
+  models: Map<string, ProbedModel>,
+  id: string,
+  label?: string,
+  isDefault?: boolean,
+): void {
+  const trimmedId = id.trim();
+  if (!isOmpModelId(trimmedId)) return;
+  const previous = models.get(trimmedId);
+  const model: ProbedModel = { id: trimmedId };
+  const resolvedLabel = label?.trim() || previous?.label;
+  if (resolvedLabel) model.label = resolvedLabel;
+  if (isDefault || previous?.isDefault) model.isDefault = true;
+  models.set(trimmedId, model);
+}
+
+function collectOmpRoleModels(
+  raw: unknown,
+  models: Map<string, ProbedModel>,
+): string | undefined {
+  if (!isRecord(raw) || !isRecord(raw["modelRoles"])) return undefined;
+  let defaultId: string | undefined;
+  for (const [role, value] of Object.entries(raw["modelRoles"])) {
+    if (typeof value !== "string") continue;
+    const modelId = value.trim();
+    if (!isOmpModelId(modelId)) continue;
+    addOmpModel(models, modelId, undefined, role === "default");
+    if (role === "default") defaultId = modelId;
+  }
+  return defaultId;
+}
+
+function collectOmpProviderModels(
+  raw: unknown,
+  models: Map<string, ProbedModel>,
+): void {
+  if (!isRecord(raw) || !isRecord(raw["providers"])) return;
+  for (const [providerKey, provider] of Object.entries(raw["providers"])) {
+    const providerId = providerKey.trim();
+    if (!providerId || !isRecord(provider)) continue;
+
+    const configuredModels = provider["models"];
+    if (Array.isArray(configuredModels)) {
+      for (const entry of configuredModels) {
+        if (!isRecord(entry) || typeof entry["id"] !== "string") continue;
+        const rawId = entry["id"].trim();
+        const modelId = rawId.startsWith(`${providerId}/`)
+          ? rawId
+          : `${providerId}/${rawId}`;
+        const label = typeof entry["name"] === "string" ? entry["name"] : undefined;
+        addOmpModel(models, modelId, label);
+      }
+    }
+
+    const modelOverrides = provider["modelOverrides"];
+    if (isRecord(modelOverrides)) {
+      for (const modelKey of Object.keys(modelOverrides)) {
+        const modelId = modelKey.startsWith(`${providerId}/`)
+          ? modelKey
+          : `${providerId}/${modelKey}`;
+        addOmpModel(models, modelId);
+      }
+    }
+  }
+}
+
+function parseOmpConfig(text: string): unknown {
+  return parseYaml(text) as unknown;
+}
+
+async function readOmpModelFile(file: string): Promise<unknown> {
+  const text = await readFile(file, "utf8");
+  return file.endsWith(".json") ? JSON.parse(text) as unknown : parseOmpConfig(text);
+}
+
+function ompNativeDefault(): ProbeResult {
+  return {
+    ok: true,
+    models: [{ id: "", label: "OMP 默认模型", isDefault: true }],
+    capabilities: {
+      structuredEvents: true,
+      nativeResume: true,
+      nonInteractivePrompt: true,
+      explicitModel: true,
+      toolEvents: true,
+    },
+  };
+}
+
+async function probeOmpModels(agentDir: string): Promise<ProbeResult> {
   try {
     const run = async (): Promise<ProbeResult> => {
-      const configFile = path.join(configDir, "agent", "config.yml");
-      let text: string;
+      const models = new Map<string, ProbedModel>();
+      let defaultId: string | undefined;
+
       try {
-        text = await readFile(configFile, "utf8");
+        const config = await readFile(path.join(agentDir, "config.yml"), "utf8");
+        defaultId = collectOmpRoleModels(parseOmpConfig(config), models);
       } catch {
-        return { ok: false, reason: `omp 配置缺失：${configFile}` };
+        // OMP has built-in models and can use its native default without config.yml.
       }
-      const ids = new Set<string>();
-      const roleMatch = text.match(/modelRoles:\s*\n((?:\s+\w+:.*\n?)+)/);
-      if (roleMatch?.[1]) {
-        for (const line of (roleMatch[1] as string).split("\n")) {
-          const value = line.match(/:\s*([A-Za-z0-9_@./:+-]+)/)?.[1]?.trim();
-          if (value) ids.add(value);
+
+      for (const fileName of ["models.yml", "models.yaml", "models.json"]) {
+        try {
+          const configuredModels = await readOmpModelFile(path.join(agentDir, fileName));
+          collectOmpProviderModels(configuredModels, models);
+        } catch {
+          // Invalid or absent custom model files do not disable OMP's built-in catalog.
         }
       }
-      const fallbackMatch = text.match(/-\s*([A-Za-z0-9_@./:+-]+\/[A-Za-z0-9_@.+-]+)/g);
-      if (fallbackMatch) {
-        for (const item of fallbackMatch) {
-          const value = item.replace(/^-\s*/, "").trim();
-          if (value) ids.add(value);
+
+      if (defaultId) {
+        const defaultModel = models.get(defaultId);
+        if (defaultModel) {
+          models.set(defaultId, { ...defaultModel, isDefault: true });
         }
       }
-      if (ids.size === 0) {
-        return { ok: false, reason: `omp 未在 ${configFile} 中找到可用模型` };
-      }
-      const defaultMatch = text.match(/default:\s*([A-Za-z0-9_@./:+-]+)/)?.[1]?.trim();
-      const models: ProbedModel[] = [...ids].map((id) => ({
-        id,
-        isDefault: defaultMatch ? id === defaultMatch : undefined,
-      }));
+      if (models.size === 0) return ompNativeDefault();
+
       return {
         ok: true,
-        models,
+        models: [...models.values()],
         capabilities: {
           structuredEvents: true,
           nativeResume: true,
@@ -393,7 +527,7 @@ function buildArgsFor(
     case "pi": {
       const args: string[] = ["-p", ...modelArgs, ...extra];
       if (options.nativeSessionId) {
-        args.push("--resume", options.nativeSessionId);
+        args.push("--session", options.nativeSessionId);
       }
       args.push(options.prompt);
       return Object.freeze(args);
@@ -414,12 +548,20 @@ export function createCliAdapters(
   options: CliAdapterOptions = {},
 ): Readonly<Record<CliId, CliAdapter>> {
   const homeDir = options.homeDir ?? homedir();
-  const env = options.env ?? process.env;
+  const baseEnv = options.env ?? process.env;
+  const envFor = (id: CliId): NodeJS.ProcessEnv => ({
+    ...baseEnv,
+    ...options.agentEnvs?.[id],
+  });
+  const codexEnv = envFor("codex");
+  const claudeEnv = envFor("claude");
+  const piEnv = envFor("pi");
+  const ompEnv = envFor("omp");
 
-  const codexDir = path.join(homeDir, ".codex");
-  const claudeDir = claudeConfigDir(homeDir, env);
-  const piDir = path.join(homeDir, ".pi", "agent");
-  const ompDir = path.join(homeDir, ".omp");
+  const codexDir = codexConfigDir(homeDir, codexEnv);
+  const claudeDir = claudeConfigDir(homeDir, claudeEnv);
+  const piDir = piConfigDir(homeDir, piEnv);
+  const ompDirs = ompConfigDirs(homeDir, ompEnv);
 
   const staticCapabilities: Record<CliId, CliCapabilities> = {
     codex: {
@@ -497,11 +639,11 @@ export function createCliAdapters(
     omp: Object.freeze({
       id: "omp",
       bin: "omp",
-      configDir: ompDir,
+      configDir: ompDirs.rootDir,
       versionArgs: DEFAULT_VERSION_ARGS,
       interactiveArgs: Object.freeze([]),
       promptArgs: (prompt: string) => ["-p", prompt],
-      probeModels: () => probeOmpModels(ompDir),
+      probeModels: () => probeOmpModels(ompDirs.agentDir),
       probeCapabilities: () => staticCapabilities.omp,
       buildPromptArgs: (promptOptions: PromptBuildOptions) => buildArgsFor("omp", promptOptions),
       parseOutputChunk: (chunk: string, source: "stdout" | "stderr"): readonly AgentEvent[] => parseChunk(chunk, source),

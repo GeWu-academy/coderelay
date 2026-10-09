@@ -158,10 +158,10 @@ describe("runAgentStream", () => {
   });
 
   test("pre-aborted signal terminates as aborted and ignores timeout", async () => {
-    const child = fakeChild();
     const controller = new AbortController();
     controller.abort();
     const events: AgentEvent[] = [];
+    let spawnCount = 0;
     const handle = runAgentStream({
       cmd: ["dummy"],
       protocol: "text",
@@ -169,17 +169,62 @@ describe("runAgentStream", () => {
       timeoutMs: 40,
       onEvent: (event) => events.push(event),
       dependencies: {
-        spawn: () => child,
+        spawn: () => {
+          spawnCount += 1;
+          return fakeChild();
+        },
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 80));
-    child.emit("close", null, "SIGTERM");
-
     const result = await handle.done;
+    expect(spawnCount).toBe(0);
     expect(result.status).toBe("aborted");
     expect(result.timedOut).toBe(false);
     expect(events.some((e) => e.kind === "aborted" && e.reason.includes("用户取消"))).toBe(true);
+  });
+
+  test("text protocol preserves JSON-looking answers and blank lines", async () => {
+    const child = fakeChild();
+    const handle = runAgentStream({
+      cmd: ["dummy"],
+      protocol: "text",
+      onEvent: () => undefined,
+      dependencies: { spawn: () => child },
+    });
+    child.stdout?.emit("data", Buffer.from('{"type":"error","message":"example"}\n\nnext'));
+    child.emit("close", 0, null);
+    const result = await handle.done;
+    expect(result.status).toBe("completed");
+    expect(result.text).toBe('{"type":"error","message":"example"}\n\nnext');
+    expect(result.events.some((event) => event.kind === "failed")).toBe(false);
+  });
+
+  test("keeps complete output beyond the event summary limit", async () => {
+    const child = fakeChild();
+    const payload = "x".repeat(5_000);
+    const handle = runAgentStream({
+      cmd: ["dummy"],
+      protocol: "text",
+      onEvent: () => undefined,
+      dependencies: { spawn: () => child },
+    });
+    child.stdout?.emit("data", Buffer.from(payload));
+    child.emit("close", 0, null);
+    const result = await handle.done;
+    expect(result.text).toBe(payload);
+  });
+
+  test("structured failure event wins over a zero exit code", async () => {
+    const child = fakeChild();
+    const handle = runAgentStream({
+      cmd: ["dummy"],
+      protocol: "structured",
+      onEvent: () => undefined,
+      dependencies: { spawn: () => child },
+    });
+    child.stdout?.emit("data", Buffer.from('{"type":"error","message":"rejected"}\n'));
+    child.emit("close", 0, null);
+    expect((await handle.done).status).toBe("failed");
   });
 
   test("cleans up streams and listeners after exit", async () => {

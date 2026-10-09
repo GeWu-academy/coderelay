@@ -28,7 +28,8 @@
     "dev": "bun src/cli.tsx",
     "start": "bun src/cli.tsx",
     "test": "bun test",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "issues:doc": "bun scripts/generate-issues-doc.ts"
   },
   "bin": {
     "coderelay": "src/cli.ts",

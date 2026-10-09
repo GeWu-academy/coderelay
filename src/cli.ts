@@ -182,13 +182,8 @@ export function createProgram(): Command {
     .alias("fav")
     .description("Set or show favorite initial agent stored in SQLite.")
     .argument("[agent]", "agent id (codex, claude, pi, omp)")
-    .option("-C, --cwd <path>", "directory containing session database")
-    .action(async (agent: string | undefined, options: CommandCliOptions) => {
-      await applyExitCode(() =>
-        runFavoriteCommand(
-          { agent, cwd: options.cwd },
-        ),
-      );
+    .action(async (agent: string | undefined) => {
+      await applyExitCode(() => runFavoriteCommand({ agent }));
     });
 
   return program;
