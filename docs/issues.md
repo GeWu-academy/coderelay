@@ -1,18 +1,18 @@
 # GitHub Issues 分类
 
 仓库：[AlkaidSTART/coderelay](https://github.com/AlkaidSTART/coderelay)
-共 67 个 Issue：Open 32，Closed 35。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
+共 67 个 Issue：Open 21，Closed 46。每个 Issue 按主要涉及层归入一个分类；标题、状态和链接来自 GitHub。
 
 重新生成：`bun run issues:doc`（需安装并登录 GitHub CLI）。
 
-## CLI 与 TUI (6：Open 4 / Closed 2)
+## CLI 与 TUI (6：Open 0 / Closed 6)
 
 - [#17 fix(tui): hybrid 模式下歧义判断未使用 routing rules](https://github.com/AlkaidSTART/coderelay/issues/17) — Closed
 - [#20 fix(tui): 无效配置会被静默忽略并回退到默认配置](https://github.com/AlkaidSTART/coderelay/issues/20) — Closed
-- [#63 fix(run): manual 模式在非交互 run 命令中会静默执行自动路由](https://github.com/AlkaidSTART/coderelay/issues/63) — Open
-- [#66 fix(tui): 自动路由不应被当前 activeId 的安装状态提前拦截](https://github.com/AlkaidSTART/coderelay/issues/66) — Open
-- [#73 fix(tui): 取消 Jev 决策后旧 flow 仍可能启动 agent](https://github.com/AlkaidSTART/coderelay/issues/73) — Open
-- [#91 fix(favorite): -C/--cwd 参数当前完全未使用](https://github.com/AlkaidSTART/coderelay/issues/91) — Open
+- [#63 fix(run): manual 模式在非交互 run 命令中会静默执行自动路由](https://github.com/AlkaidSTART/coderelay/issues/63) — Closed
+- [#66 fix(tui): 自动路由不应被当前 activeId 的安装状态提前拦截](https://github.com/AlkaidSTART/coderelay/issues/66) — Closed
+- [#73 fix(tui): 取消 Jev 决策后旧 flow 仍可能启动 agent](https://github.com/AlkaidSTART/coderelay/issues/73) — Closed
+- [#91 fix(favorite): -C/--cwd 参数当前完全未使用](https://github.com/AlkaidSTART/coderelay/issues/91) — Closed
 
 ## 配置与工作区 (7：Open 4 / Closed 3)
 
@@ -24,18 +24,18 @@
 - [#84 fix(config): defaultAgent 禁用校验忽略未显式配置但默认启用的 agents](https://github.com/AlkaidSTART/coderelay/issues/84) — Open
 - [#86 fix(workspace): last_workspace 持久化值从未恢复且启动时会立即被覆盖](https://github.com/AlkaidSTART/coderelay/issues/86) — Closed
 
-## 扫描与模型探测 (16：Open 11 / Closed 5)
+## 扫描与模型探测 (16：Open 5 / Closed 11)
 
 - [#21 fix(catalog): 自定义 agent command 在默认 CLI 未被扫描到时会被判定为未安装](https://github.com/AlkaidSTART/coderelay/issues/21) — Closed
 - [#22 fix(codex): 模型探测不应强依赖 cc-switch-model-catalog.json](https://github.com/AlkaidSTART/coderelay/issues/22) — Closed
 - [#40 fix(claude): 模型探测不应要求 settings.json 必须存在](https://github.com/AlkaidSTART/coderelay/issues/40) — Closed
-- [#41 fix(pi): 模型探测不应强依赖 models.json](https://github.com/AlkaidSTART/coderelay/issues/41) — Open
-- [#42 fix(omp): 模型探测不应仅依赖 config.yml 中的 modelRoles](https://github.com/AlkaidSTART/coderelay/issues/42) — Open
-- [#44 fix(catalog): agents.<id>.env 未应用到模型探测环境](https://github.com/AlkaidSTART/coderelay/issues/44) — Open
+- [#41 fix(pi): 模型探测不应强依赖 models.json](https://github.com/AlkaidSTART/coderelay/issues/41) — Closed
+- [#42 fix(omp): 模型探测不应仅依赖 config.yml 中的 modelRoles](https://github.com/AlkaidSTART/coderelay/issues/42) — Closed
+- [#44 fix(catalog): agents.<id>.env 未应用到模型探测环境](https://github.com/AlkaidSTART/coderelay/issues/44) — Closed
 - [#47 fix(wsl): WSL CLI 的模型探测错误读取宿主机配置目录](https://github.com/AlkaidSTART/coderelay/issues/47) — Open
-- [#52 fix(codex): 模型探测忽略 CODEX_HOME](https://github.com/AlkaidSTART/coderelay/issues/52) — Open
-- [#53 fix(pi): 模型探测忽略 PI_CODING_AGENT_DIR](https://github.com/AlkaidSTART/coderelay/issues/53) — Open
-- [#54 fix(omp): 模型探测忽略 PI_CONFIG_DIR / PI_CODING_AGENT_DIR](https://github.com/AlkaidSTART/coderelay/issues/54) — Open
+- [#52 fix(codex): 模型探测忽略 CODEX_HOME](https://github.com/AlkaidSTART/coderelay/issues/52) — Closed
+- [#53 fix(pi): 模型探测忽略 PI_CODING_AGENT_DIR](https://github.com/AlkaidSTART/coderelay/issues/53) — Closed
+- [#54 fix(omp): 模型探测忽略 PI_CONFIG_DIR / PI_CODING_AGENT_DIR](https://github.com/AlkaidSTART/coderelay/issues/54) — Closed
 - [#55 fix(pi): models.json 探测会丢失 provider identity](https://github.com/AlkaidSTART/coderelay/issues/55) — Closed
 - [#70 fix(codex): 模型探测未按当前 Codex 配置层/profile 解析实际运行模型](https://github.com/AlkaidSTART/coderelay/issues/70) — Open
 - [#71 fix(scanner): 首个 version probe 失败的候选仍会压过后续可用安装](https://github.com/AlkaidSTART/coderelay/issues/71) — Open
@@ -43,11 +43,11 @@
 - [#80 fix(codex): 模型探测不应暴露 visibility=hide 的内部模型](https://github.com/AlkaidSTART/coderelay/issues/80) — Open
 - [#81 fix(scanner): CODEX_CLI_PATH 被错误地当作 config.toml 键读取](https://github.com/AlkaidSTART/coderelay/issues/81) — Closed
 
-## 路由与 Jev 决策 (12：Open 3 / Closed 9)
+## 路由与 Jev 决策 (12：Open 2 / Closed 10)
 
 - [#16 fix(router): 配置中的 model strengths 会在模型目录构建时被静默丢弃](https://github.com/AlkaidSTART/coderelay/issues/16) — Closed
 - [#18 fix(jev): 未知 choice 会静默回退到第一个候选](https://github.com/AlkaidSTART/coderelay/issues/18) — Closed
-- [#43 fix(router): 各 CLI 的 native default model 会同时获得全局 default bonus](https://github.com/AlkaidSTART/coderelay/issues/43) — Open
+- [#43 fix(router): 各 CLI 的 native default model 会同时获得全局 default bonus](https://github.com/AlkaidSTART/coderelay/issues/43) — Closed
 - [#45 fix(jev): 路由请求会丢弃 files/language/contextSize/requiredStrengths](https://github.com/AlkaidSTART/coderelay/issues/45) — Open
 - [#59 fix(jev): env.locaj 拼写错误已被运行时与测试共同固化](https://github.com/AlkaidSTART/coderelay/issues/59) — Closed
 - [#68 fix(router): hybrid 策略不会用 rule priority 处理冲突或 tie](https://github.com/AlkaidSTART/coderelay/issues/68) — Closed

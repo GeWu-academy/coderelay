@@ -1023,7 +1023,7 @@ export function App({
                 }
               >
                 {cursor ? "❯" : " "} {option.modelId} {option.label}
-                {option.isDefault ? " [默认]" : ""}
+                {option.isDefault || option.isNativeDefault ? " [默认]" : ""}
                 {capabilityTags(option)}
                 {state}
               </Text>

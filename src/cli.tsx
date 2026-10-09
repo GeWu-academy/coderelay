@@ -402,7 +402,14 @@ async function runPromptFlow(prompt: string): Promise<void> {
   }
   const effectiveMode = resolveRoutingMode(config.routing.mode, userModeOverride);
   currentRoutingMode = effectiveMode;
-  const adapters = createCliAdapters();
+  const adapters = createCliAdapters({
+    agentEnvs: {
+      codex: config.agents.codex?.env,
+      claude: config.agents.claude?.env,
+      pi: config.agents.pi?.env,
+      omp: config.agents.omp?.env,
+    },
+  });
   const catalog = await probeModelCatalog(clis, adapters, config);
   if (flow !== flowSeq) {
     return;
@@ -463,12 +470,18 @@ async function runPromptFlow(prompt: string): Promise<void> {
           endpoint: config.routing.typesafeEndpoint,
         },
       );
+      if (flow !== flowSeq) {
+        return;
+      }
       if (!isAgentId(jevResult.agent)) {
         throw new Error(`Jev 选择了不支持的 agent: ${jevResult.agent}`);
       }
       await startExecution(jevResult.agent, jevResult.model, text, catalog, config, flow);
       return;
     } catch (error) {
+      if (flow !== flowSeq) {
+        return;
+      }
       // Jev 决策失败或无 key，绝不走自动推断，转入让用户手动选择
       pendingPrompt = text;
       pendingCatalog = catalog;
@@ -755,7 +768,18 @@ async function requestModelSelector(): Promise<void> {
   if (flow !== flowSeq) {
     return;
   }
-  const catalog = await probeModelCatalog(clis, createCliAdapters(), config);
+  const catalog = await probeModelCatalog(
+    clis,
+    createCliAdapters({
+      agentEnvs: {
+        codex: config.agents.codex?.env,
+        claude: config.agents.claude?.env,
+        pi: config.agents.pi?.env,
+        omp: config.agents.omp?.env,
+      },
+    }),
+    config,
+  );
   if (flow !== flowSeq) {
     return;
   }
@@ -872,15 +896,14 @@ async function launch(request: LaunchRequest): Promise<void> {
     (cli) => cli.id === request.id && cli.available,
   );
   const target = detected ? cliLaunchTarget(detected) : null;
-
-  if (!target) {
-    return;
-  }
-
   const adapter = getCliAdapter(request.id);
   initialId = request.id;
 
   if (request.mode === "interactive") {
+    if (!target) {
+      return;
+    }
+
     // 交互模式必须继承 stdio：Ink 先卸载，把终端完整交给 agent 的
     // REPL，退出后重挂载。交互输出无法捕获，不写入会话层。
     app?.unmount();

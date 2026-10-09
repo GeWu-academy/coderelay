@@ -32,7 +32,10 @@ export interface ModelOption {
   readonly modelId: string;
   readonly label: string;
   readonly description?: string;
+  /** CodeRelay global default target; used by routing scores. */
   readonly isDefault: boolean;
+  /** Native default reported by the CLI; it must not receive global routing bonus. */
+  readonly isNativeDefault?: boolean;
   readonly capabilities: CliCapabilities;
   readonly strengths: readonly ModelStrength[];
   readonly cost?: number;
@@ -127,7 +130,8 @@ export async function probeModelCatalog(
           modelId: model.id,
           label: override?.label ?? model.label ?? model.id,
           description: override?.description ?? model.description,
-          isDefault: isTopDefault || override?.default === true || (cliId === config.defaultAgent && model.isDefault === true),
+          isDefault: isTopDefault || override?.default === true,
+          isNativeDefault: model.isDefault,
           capabilities: result.capabilities,
           strengths: configStrengths(config, cliId, model.id),
           cost: override?.cost,
@@ -170,9 +174,15 @@ export function validateExplicitTarget(
   model: string | undefined,
   defaultAgent: string,
 ): { readonly cliId: CliId; readonly modelId?: string } {
+  const modelPrefix =
+    model !== undefined ? model.slice(0, model.indexOf(":")) : undefined;
+  const hasKnownAgentPrefix =
+    modelPrefix !== undefined && CLI_IDS.includes(modelPrefix as CliId);
   const reference =
     model !== undefined
-      ? parseModelRef(model, agent ?? defaultAgent)
+      ? agent !== undefined && !hasKnownAgentPrefix
+        ? { agent, model }
+        : parseModelRef(model, agent ?? defaultAgent)
       : agent !== undefined
         ? { agent, model: "" }
         : undefined;

@@ -15,7 +15,6 @@ export const AGENT_LABELS: Readonly<Record<CliId, string>> = {
 
 export interface FavoriteCommandOptions {
   readonly agent?: string;
-  readonly cwd?: string;
   readonly homeDir?: string;
 }
 
