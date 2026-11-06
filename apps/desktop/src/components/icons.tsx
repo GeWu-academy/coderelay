@@ -44,6 +44,15 @@ export function HistoryIcon() {
   );
 }
 
+export function StatsIcon({ size = 18 }: { size?: number } = {}) {
+  return (
+    <Icon size={size}>
+      <path d="M3 3v18h18" />
+      <path d="m19 9-5 5-4-4-3 3" />
+    </Icon>
+  );
+}
+
 export function FolderIcon({ size = 16 }: { size?: number } = {}) {
   return (
     <Icon size={size}>

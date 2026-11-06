@@ -70,6 +70,18 @@ export interface ModelCatalog {
   options: ModelOption[];
 }
 
+export interface PermissionOption {
+  id: string;
+  label: string;
+  description: string;
+  dangerous: boolean;
+}
+
+export interface AgentPermissions {
+  cliId: string;
+  options: PermissionOption[];
+}
+
 export interface DiscoveryPayload {
   cwd: string;
   configPath: string | null;
@@ -77,6 +89,7 @@ export interface DiscoveryPayload {
   routingModes: string[];
   agents: AgentEntry[];
   catalog: ModelCatalog;
+  permissions: AgentPermissions[];
   recentWorkspaces: string[];
 }
 
@@ -192,9 +205,10 @@ export interface RouteForm {
   mode: string;
   agent: string;
   model: string;
+  permission: string;
 }
 
-export const WORKSPACE_VIEWS = ["workspace", "sessions", "config", "apikeys"] as const;
+export const WORKSPACE_VIEWS = ["workspace", "sessions", "stats", "config", "apikeys"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
 export function isWorkspaceView(value: unknown): value is WorkspaceView {

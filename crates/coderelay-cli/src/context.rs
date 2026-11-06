@@ -296,17 +296,25 @@ impl CliContext {
         agent: AgentId,
         model: Option<String>,
         prompt: &str,
+        permission: Option<&str>,
     ) -> anyhow::Result<PreparedAgent> {
         let target = self.resolve_agent_target(agent)?;
         let agent_config = self.config().agents.get(&agent);
+        // Permission flags go first so user-configured extra_args can still override them.
+        let mut extra_args: Vec<String> = coderelay_core::permission_args(agent, permission)
+            .map_err(anyhow::Error::msg)?
+            .iter()
+            .map(|arg| (*arg).to_owned())
+            .collect();
+        if let Some(config) = agent_config {
+            extra_args.extend(config.extra_args.clone());
+        }
         let prompt_args = build_prompt_args(
             agent,
             &coderelay_core::PromptBuildOptions {
                 prompt: prompt.to_owned(),
                 model: model.clone(),
-                extra_args: agent_config
-                    .map(|config| config.extra_args.clone())
-                    .unwrap_or_default(),
+                extra_args,
                 native_session_id: None,
             },
         );

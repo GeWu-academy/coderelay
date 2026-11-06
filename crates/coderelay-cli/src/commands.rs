@@ -617,7 +617,7 @@ async fn run_inner(args: RunArgs) -> anyhow::Result<i32> {
         eprintln!("coderelay: {reason}");
     }
 
-    let prepared = context.prepare_agent(agent, model, prompt)?;
+    let prepared = context.prepare_agent(agent, model, prompt, None)?;
     if prepared.target.runtime == CliRuntime::Wsl && prepared.cwd.is_none() {
         eprintln!("coderelay: 无法把工作目录转换为 WSL 路径，将在 WSL 当前目录执行");
     }

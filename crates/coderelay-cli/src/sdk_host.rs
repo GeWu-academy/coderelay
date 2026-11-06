@@ -274,20 +274,24 @@ fn spawn_run(
     };
     let context_source = (!history.is_empty()).then_some(TurnContextSource::Transcript);
     let effective_prompt = build_prompt_with_context(&history, &prompt);
-    let prepared =
-        match context.prepare_agent(selection_agent, selection_model.clone(), &effective_prompt) {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                send_json(
-                    &writer,
-                    &error_response(
-                        &request_id,
-                        protocol_error(ErrorCode::Internal, format!("{error:#}"), false),
-                    ),
-                );
-                return;
-            }
-        };
+    let prepared = match context.prepare_agent(
+        selection_agent,
+        selection_model.clone(),
+        &effective_prompt,
+        None,
+    ) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            send_json(
+                &writer,
+                &error_response(
+                    &request_id,
+                    protocol_error(ErrorCode::Internal, format!("{error:#}"), false),
+                ),
+            );
+            return;
+        }
+    };
     let protocol = if prepared.structured {
         TurnProtocol::Structured
     } else {

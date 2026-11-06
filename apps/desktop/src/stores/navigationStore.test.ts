@@ -7,6 +7,7 @@ import {
   isNewChatRouteActive,
   isSessionRouteActive,
   isSessionsRouteActive,
+  isStatsRouteActive,
   useNavigationStore,
 } from "./navigationStore";
 import {
@@ -30,11 +31,12 @@ describe("useNavigationStore & sidebar activation state", () => {
   });
 
   it("maintains SSOT with WORKSPACE_VIEWS and validates views correctly", () => {
-    expect(WORKSPACE_VIEWS).toEqual(["workspace", "sessions", "config", "apikeys"]);
+    expect(WORKSPACE_VIEWS).toEqual(["workspace", "sessions", "stats", "config", "apikeys"]);
 
     // Test valid views (non-empty real values)
     expect(isWorkspaceView("workspace")).toBe(true);
     expect(isWorkspaceView("sessions")).toBe(true);
+    expect(isWorkspaceView("stats")).toBe(true);
     expect(isWorkspaceView("config")).toBe(true);
     expect(isWorkspaceView("apikeys")).toBe(true);
 
@@ -56,6 +58,8 @@ describe("useNavigationStore & sidebar activation state", () => {
     // Test non-conversation views (valid workspace views but not conversation routes)
     expect(isConversationView("sessions")).toBe(false);
     expect(isConversationRouteActive("sessions")).toBe(false);
+    expect(isConversationView("stats")).toBe(false);
+    expect(isConversationRouteActive("stats")).toBe(false);
     expect(isConversationView("config")).toBe(false);
     expect(isConversationRouteActive("config")).toBe(false);
     expect(isConversationView("apikeys")).toBe(false);
@@ -101,7 +105,7 @@ describe("useNavigationStore & sidebar activation state", () => {
   });
 
   it("fixes the bug: session does NOT remain active when navigating to config, sessions, or apikeys", () => {
-    const { navigateToSession, navigateToConfig, navigateToSessions, navigateToApiKeys } = useNavigationStore.getState();
+    const { navigateToSession, navigateToConfig, navigateToSessions, navigateToStats, navigateToApiKeys } = useNavigationStore.getState();
     const testSessionId = "sess-debug-task-55";
 
     // 1. Open a session first
@@ -119,7 +123,16 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(isApiKeysRouteActive(configState.view)).toBe(false);
     expect(getActiveSidebarRoute(configState.view, configState.activeSessionId)).toBe("config");
 
-    // 3. Switch to sessions view
+    // 3. Switch to stats view
+    navigateToStats();
+    const statsState = useNavigationStore.getState();
+    expect(statsState.view).toBe("stats");
+    expect(isSessionRouteActive(statsState.view, statsState.activeSessionId, testSessionId)).toBe(false);
+    expect(isNewChatRouteActive(statsState.view, statsState.activeSessionId)).toBe(false);
+    expect(isStatsRouteActive(statsState.view)).toBe(true);
+    expect(getActiveSidebarRoute(statsState.view, statsState.activeSessionId)).toBe("stats");
+
+    // 4. Switch to sessions view
     navigateToSessions();
     const sessionsState = useNavigationStore.getState();
     expect(sessionsState.view).toBe("sessions");

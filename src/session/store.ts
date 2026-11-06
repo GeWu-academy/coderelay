@@ -45,6 +45,7 @@ export interface SessionStore {
   getFavoriteAgent(): CliId | null;
   setFavoriteAgent(cliId: CliId): void;
   clearFavoriteAgent(): void;
+  recordWorkspace(workspace: string): void;
   getRecentWorkspaces(limit?: number): readonly string[];
   close(): void;
 }
@@ -105,6 +106,10 @@ CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, id);
 CREATE TABLE IF NOT EXISTS preferences (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS recent_workspaces (
+  workspace TEXT PRIMARY KEY,
   updated_at INTEGER NOT NULL
 );
 `;
@@ -257,7 +262,21 @@ export function createSessionStore(dbPath: string): SessionStore {
     `SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC, id DESC LIMIT ?`,
   );
   const selectRecentWorkspaces = db.query<{ workspace: string }, [number]>(
-    "SELECT workspace FROM sessions WHERE workspace IS NOT NULL AND workspace != '' GROUP BY workspace ORDER BY MAX(updated_at) DESC LIMIT ?",
+    `SELECT workspace FROM (
+       SELECT workspace, updated_at FROM recent_workspaces
+       WHERE workspace IS NOT NULL AND workspace != ''
+       UNION ALL
+       SELECT workspace, MAX(updated_at) AS updated_at FROM sessions
+       WHERE workspace IS NOT NULL AND workspace != ''
+       GROUP BY workspace
+     )
+     GROUP BY workspace
+     ORDER BY MAX(updated_at) DESC
+     LIMIT ?`,
+  );
+  const insertRecentWorkspace = db.query<unknown, [string, number]>(
+    `INSERT INTO recent_workspaces (workspace, updated_at) VALUES (?, ?)
+     ON CONFLICT(workspace) DO UPDATE SET updated_at = excluded.updated_at`,
   );
   const touchSession = db.query<unknown, [number, string]>(
     "UPDATE sessions SET updated_at = ? WHERE id = ?",
@@ -322,6 +341,9 @@ export function createSessionStore(dbPath: string): SessionStore {
       const now = Date.now();
       const id = randomUUID();
       insertSession.run(id, cliId, title, now, now, workspace);
+      if (workspace && workspace.trim()) {
+        insertRecentWorkspace.run(workspace.trim(), now);
+      }
       const row = selectSession.get(id);
       if (!row) {
         throw new Error(`session insert failed: ${id}`);
@@ -409,6 +431,14 @@ export function createSessionStore(dbPath: string): SessionStore {
 
     clearFavoriteAgent() {
       this.deletePreference("favorite_agent");
+    },
+
+    recordWorkspace(workspace: string) {
+      const trimmed = workspace.trim();
+      if (!trimmed) {
+        return;
+      }
+      insertRecentWorkspace.run(trimmed, Date.now());
     },
 
     getRecentWorkspaces(limit = 10) {

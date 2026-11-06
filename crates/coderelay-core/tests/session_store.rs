@@ -197,6 +197,18 @@ fn workspace_queries_recent_workspaces_and_preferences_round_trip() {
         ]
     );
 
+    // Recording an opened workspace without sessions persists to SQLite and shows in recent workspaces
+    let opened_gamma = "/project/gamma-opened";
+    store.record_workspace(opened_gamma).expect("record workspace");
+    assert_eq!(
+        store.get_recent_workspaces(10).expect("workspaces with gamma"),
+        vec![
+            opened_gamma.to_owned(),
+            alpha.to_string_lossy().into_owned(),
+            beta.to_string_lossy().into_owned()
+        ]
+    );
+
     store
         .set_preference("theme", "paper")
         .expect("set preference");

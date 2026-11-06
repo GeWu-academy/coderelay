@@ -10,6 +10,7 @@ import { IconRail } from "./components/IconRail";
 import { RightSidebar } from "./components/RightSidebar";
 import { SessionsView } from "./components/SessionsView";
 import { Sidebar } from "./components/Sidebar";
+import { StatsView } from "./components/StatsView";
 import { Titlebar } from "./components/Titlebar";
 import { WorkspaceView } from "./components/WorkspaceView";
 import { isConversationRouteActive, useNavigationStore } from "./stores/navigationStore";
@@ -34,9 +35,12 @@ import type {
 import {
   eventActivity,
   getAvailableModelsForCli,
+  loadPermission,
   mergeRecentWorkspaces,
   messageOf,
   resolveRouteSelection,
+  sanitizePermission,
+  savePermission,
 } from "./utils";
 
 const INITIAL_STATE: WorkbenchState = {
@@ -71,8 +75,17 @@ export function App() {
     mode: "local",
     agent: "",
     model: "",
+    permission: "",
   });
   const [workspaceInput, setWorkspaceInput] = useState("");
+
+  // Restore the remembered permission whenever the workspace or CLI changes.
+  useEffect(() => {
+    const permission = loadPermission(workspaceInput.trim(), form.agent);
+    setForm((current) =>
+      current.permission === permission ? current : { ...current, permission },
+    );
+  }, [workspaceInput, form.agent]);
 
   const activeRunId = useRef<string | null>(null);
   const currentWorkspace = useRef("");
@@ -482,6 +495,12 @@ export function App() {
           mode: form.mode,
           agent: form.agent || null,
           model: form.model || null,
+          permission:
+            sanitizePermission(
+              form.permission,
+              discovery?.permissions.find((item) => item.cliId === form.agent)
+                ?.options ?? [],
+            ) || null,
           timeoutMs: null,
           sessionId: activeSessionId,
         },
@@ -534,7 +553,7 @@ export function App() {
   function handleSelectView(nextView: WorkspaceViewType): void {
     setView(nextView);
     setState((current) => ({ ...current, view: nextView }));
-    if (nextView === "sessions") {
+    if (nextView === "sessions" || nextView === "stats") {
       void refreshSessions(currentWorkspace.current);
     } else if (nextView === "config") {
       void loadConfigSource();
@@ -596,8 +615,18 @@ export function App() {
         agent={form.agent}
         model={form.model}
         onAgentModelChange={(agentId, modelId) =>
-          setForm((c) => ({ ...c, agent: agentId, model: modelId }))
+          setForm((c) => ({
+            ...c,
+            agent: agentId,
+            model: modelId,
+          }))
         }
+        permission={form.permission}
+        permissions={discovery?.permissions ?? []}
+        onPermissionChange={(permission) => {
+          savePermission(workspaceInput.trim(), form.agent, permission);
+          setForm((c) => ({ ...c, permission }));
+        }}
         agents={agents}
         catalogOptions={discovery?.catalog.options ?? []}
         selectedAgentLabel={selectedAgent?.label}
@@ -633,7 +662,6 @@ export function App() {
         <IconRail
           currentView={view}
           onSelectView={handleSelectView}
-          onStartNewTask={startNewTask}
         />
 
         {isConversationRoute ? (
@@ -680,6 +708,20 @@ export function App() {
                 onRefreshSessions={() => void refreshSessions(currentWorkspace.current)}
                 onOpenSession={handleOpenSession}
                 onContinueSession={handleContinueSession}
+              />
+            ) : view === "stats" ? (
+              <StatsView
+                key="stats"
+                workspaceInput={workspaceInput}
+                sessions={state.sessions}
+                agents={agents}
+                catalogOptions={discovery?.catalog.options ?? []}
+                onRefreshSessions={() => void refreshSessions(currentWorkspace.current)}
+                onOpenSession={handleOpenSession}
+                loadSessionTurns={async (sessionId) => {
+                  const detail = await invoke<SessionDetail>("get_session", { sessionId });
+                  return detail.turns;
+                }}
               />
             ) : view === "apikeys" ? (
               <ApiKeyView

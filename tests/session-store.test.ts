@@ -251,6 +251,14 @@ describe("session store", () => {
     const recent = first.getRecentWorkspaces();
     expect(recent).toEqual(["/projects/alpha", "/projects/beta"]);
 
+    // Opening an empty folder persists to SQLite and shows in recent workspaces
+    first.recordWorkspace("/projects/gamma-opened");
+    expect(first.getRecentWorkspaces()).toEqual([
+      "/projects/gamma-opened",
+      "/projects/alpha",
+      "/projects/beta",
+    ]);
+
     first.close();
   });
 

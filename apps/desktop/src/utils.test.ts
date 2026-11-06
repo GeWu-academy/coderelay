@@ -9,6 +9,10 @@ import {
   getTimePeriod,
   getWelcomeTimeSnapshot,
   groupSessionsByWorkspace,
+  loadPermission,
+  PERMISSION_STORAGE_KEY,
+  sanitizePermission,
+  savePermission,
   mergeRecentWorkspaces,
   PERIOD_GREETINGS,
   resolveRouteSelection,
@@ -284,12 +288,13 @@ describe("groupSessionsByWorkspace", () => {
     workspace,
   });
 
-  it("archives sessions by folder and gathers folder-less ones last", () => {
+  it("archives sessions by folder and preserves opened workspaces even when empty", () => {
     const groups = groupSessionsByWorkspace(
       [make("a", "/p/alpha"), make("x"), make("b", "/p/beta"), make("c", "/p/alpha"), make("y", "")],
       ["/p/beta", "/p/alpha", "/p/empty"],
     );
     expect(groups.map((g) => g.workspace)).toEqual(["/p/beta", "/p/alpha", "/p/empty", null]);
+    expect(groups[0]?.sessions.map((s) => s.id)).toEqual(["b"]);
     expect(groups[1]?.sessions.map((s) => s.id)).toEqual(["a", "c"]);
     expect(groups[2]?.sessions).toEqual([]);
     expect(groups[3]?.sessions.map((s) => s.id)).toEqual(["x", "y"]);
@@ -298,5 +303,52 @@ describe("groupSessionsByWorkspace", () => {
   it("adds folders only known from sessions and omits the loose group when unused", () => {
     const groups = groupSessionsByWorkspace([make("a", "/p/new")], []);
     expect(groups).toEqual([{ workspace: "/p/new", sessions: [make("a", "/p/new")] }]);
+  });
+});
+
+describe("permission persistence", () => {
+  function fakeStorage(initial: Record<string, string> = {}) {
+    const data = { ...initial };
+    return {
+      data,
+      getItem: (key: string) => data[key] ?? null,
+      setItem: (key: string, value: string) => {
+        data[key] = value;
+      },
+    };
+  }
+
+  it("remembers levels per workspace and CLI independently", () => {
+    const storage = fakeStorage();
+    savePermission("/repo/a", "claude", "plan", storage);
+    savePermission("/repo/a", "codex", "read-only", storage);
+    savePermission("/repo/b", "claude", "auto", storage);
+    expect(loadPermission("/repo/a", "claude", storage)).toBe("plan");
+    expect(loadPermission("/repo/a", "codex", storage)).toBe("read-only");
+    expect(loadPermission("/repo/b", "claude", storage)).toBe("auto");
+    expect(loadPermission("/repo/b", "codex", storage)).toBe("");
+  });
+
+  it("overwrites a previous choice and falls back on corrupt data", () => {
+    const storage = fakeStorage();
+    savePermission("/repo", "pi", "read-only", storage);
+    savePermission("/repo", "pi", "default", storage);
+    expect(loadPermission("/repo", "pi", storage)).toBe("default");
+    const corrupt = fakeStorage({ [PERMISSION_STORAGE_KEY]: "{not json" });
+    expect(loadPermission("/repo", "pi", corrupt)).toBe("");
+    const wrongShape = fakeStorage({ [PERMISSION_STORAGE_KEY]: "[1,2]" });
+    expect(loadPermission("/repo", "pi", wrongShape)).toBe("");
+  });
+
+  it("returns empty without storage or CLI id", () => {
+    expect(loadPermission("/repo", "claude", null)).toBe("");
+    expect(loadPermission("/repo", "", fakeStorage())).toBe("");
+  });
+
+  it("sanitizes levels the CLI does not offer", () => {
+    const options = [{ id: "default" }, { id: "plan" }];
+    expect(sanitizePermission("plan", options)).toBe("plan");
+    expect(sanitizePermission("yolo", options)).toBe("");
+    expect(sanitizePermission("plan", [])).toBe("");
   });
 });

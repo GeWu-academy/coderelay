@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import "./mockTauri";
 import { App } from "./App";
 import "./stores/themeStore";
 import "./styles.css";

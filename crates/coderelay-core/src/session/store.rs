@@ -42,6 +42,10 @@ CREATE TABLE IF NOT EXISTS preferences (
   value TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS recent_workspaces (
+  workspace TEXT PRIMARY KEY,
+  updated_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -275,8 +279,11 @@ impl SessionStore {
         self.connection.execute(
             "INSERT INTO sessions (id, cli_id, title, created_at, updated_at, workspace)
              VALUES (?1, ?2, ?3, ?4, ?4, ?5)",
-            params![&id, cli_id.as_str(), title.into(), now as i64, workspace],
+            params![&id, cli_id.as_str(), title.into(), now as i64, &workspace],
         )?;
+        if let Some(ref ws) = workspace {
+            let _ = self.record_workspace(ws);
+        }
         self.get_session(&id)?
             .ok_or(SessionStoreError::SessionInsert(id))
     }
@@ -522,11 +529,42 @@ impl SessionStore {
         self.delete_preference(TYPESAFE_API_KEY_PREFERENCE)
     }
 
+    pub fn record_workspace(&mut self, workspace: &str) -> Result<(), SessionStoreError> {
+        let workspace = workspace.trim();
+        if workspace.is_empty() {
+            return Ok(());
+        }
+        let now = now_ms();
+        self.connection.execute(
+            "INSERT INTO recent_workspaces (workspace, updated_at)
+             VALUES (?1, ?2)
+             ON CONFLICT(workspace) DO UPDATE SET updated_at = excluded.updated_at",
+            params![workspace, now as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn remove_recent_workspace(&mut self, workspace: &str) -> Result<bool, SessionStoreError> {
+        let count = self.connection.execute(
+            "DELETE FROM recent_workspaces WHERE workspace = ?1",
+            [workspace],
+        )?;
+        Ok(count > 0)
+    }
+
     pub fn get_recent_workspaces(&self, limit: u32) -> Result<Vec<String>, SessionStoreError> {
         let mut statement = self.connection.prepare(
-            "SELECT workspace FROM sessions
-             WHERE workspace IS NOT NULL AND workspace != ''
-             GROUP BY workspace ORDER BY MAX(updated_at) DESC LIMIT ?1",
+            "SELECT workspace FROM (
+                 SELECT workspace, updated_at FROM recent_workspaces
+                 WHERE workspace IS NOT NULL AND workspace != ''
+                 UNION ALL
+                 SELECT workspace, MAX(updated_at) AS updated_at FROM sessions
+                 WHERE workspace IS NOT NULL AND workspace != ''
+                 GROUP BY workspace
+             )
+             GROUP BY workspace
+             ORDER BY MAX(updated_at) DESC
+             LIMIT ?1",
         )?;
         let rows = statement.query_map([limit], |row| row.get(0))?;
         let mut workspaces = Vec::new();

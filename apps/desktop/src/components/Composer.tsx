@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import type { AgentEntry, ModelOption } from "../types";
+import type { AgentEntry, AgentPermissions, ModelOption } from "../types";
 import {
   formatModeLabel,
   getAvailableModelsForCli,
@@ -34,13 +34,16 @@ export interface ComposerProps {
   onAgentModelChange: (agent: string, model: string) => void;
   agents: AgentEntry[];
   catalogOptions: ModelOption[];
+  permission: string;
+  permissions: AgentPermissions[];
+  onPermissionChange: (permission: string) => void;
   selectedAgentLabel?: string;
 }
 
 const ACTION_BTN_BASE =
-  "grid h-[30px] w-[30px] place-items-center rounded-lg transition-all duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-30";
+  "grid h-7 w-7 place-items-center rounded-md transition-all duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-30";
 
-type ActiveMenu = "mode" | "cli" | "model" | null;
+type ActiveMenu = "mode" | "cli" | "model" | "permission" | null;
 
 interface DropdownOption {
   value: string;
@@ -58,6 +61,7 @@ interface CustomSelectPillProps {
   title?: string;
   maxLabelWidth?: string;
   minDropdownWidth?: string;
+  isDangerous?: boolean;
 }
 
 function CustomSelectPill({
@@ -70,7 +74,8 @@ function CustomSelectPill({
   disabled = false,
   title,
   maxLabelWidth = "max-w-[100px]",
-  minDropdownWidth = "min-w-[140px]",
+  minDropdownWidth = "min-w-[130px]",
+  isDangerous = false,
 }: CustomSelectPillProps) {
   return (
     <div className="relative inline-flex items-center" title={title}>
@@ -80,19 +85,23 @@ function CustomSelectPill({
         onClick={onToggle}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`relative inline-flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1.5 font-code text-[11.5px] font-medium transition-all duration-140 select-none ${
+        className={`group relative inline-flex h-[26px] cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-medium transition-all duration-140 select-none ${
           open
-            ? "border-black/20 bg-surface-hover text-ink shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-            : "border-black/[0.06] bg-surface-subtle/80 text-ink shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-black/[0.14] hover:bg-surface-hover"
+            ? isDangerous
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : "border-line-strong bg-surface-hover text-ink"
+            : isDangerous
+              ? "border-amber-500/30 bg-amber-500/5 text-amber-700 hover:border-amber-500/50 hover:bg-amber-500/10 dark:text-amber-300"
+              : "border-line/70 bg-surface-subtle/50 text-muted-strong hover:border-line-strong hover:bg-surface-subtle hover:text-ink"
         } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
         <span className={`truncate ${maxLabelWidth}`}>{label}</span>
         <span
-          className={`text-muted transition-transform duration-180 ${
-            open ? "rotate-180" : ""
+          className={`transition-transform duration-150 ${
+            open ? "rotate-180 text-ink" : "text-muted/60 group-hover:text-muted"
           }`}
         >
-          <ChevronDownIcon size={11} />
+          <ChevronDownIcon size={10} />
         </span>
       </button>
 
@@ -100,11 +109,11 @@ function CustomSelectPill({
         {open && !disabled ? (
           <motion.div
             role="listbox"
-            initial={{ opacity: 0, scale: 0.95, y: 4 }}
+            initial={{ opacity: 0, scale: 0.96, y: 3 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 4 }}
-            transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute bottom-[calc(100%+6px)] right-0 z-50 flex max-h-[260px] flex-col overflow-hidden rounded-[14px] border border-line-strong bg-surface/95 p-1 shadow-[0_14px_40px_-6px_rgba(0,0,0,0.16),0_3px_10px_-2px_rgba(0,0,0,0.05)] backdrop-blur-md ${minDropdownWidth}`}
+            exit={{ opacity: 0, scale: 0.96, y: 3 }}
+            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+            className={`absolute bottom-[calc(100%+5px)] right-0 z-50 flex max-h-[260px] flex-col overflow-hidden rounded-[11px] border border-line-strong bg-surface/98 p-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.04)] backdrop-blur-md ${minDropdownWidth}`}
           >
             <div className="flex-1 overflow-y-auto p-0.5 [scrollbar-color:rgba(0,0,0,0.12)_transparent] [scrollbar-width:thin]">
               {options.map((opt) => {
@@ -116,14 +125,14 @@ function CustomSelectPill({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => onSelect(opt.value)}
-                    className={`flex w-full items-center gap-1.5 rounded-[9px] px-2 py-1.5 text-left font-code text-xs transition-colors duration-100 ${
+                    className={`flex w-full items-center gap-1.5 rounded-[6px] px-2 py-1.5 text-left text-xs transition-colors duration-100 ${
                       isSelected
-                        ? "bg-surface-hover font-semibold text-ink"
+                        ? "bg-surface-hover font-medium text-ink"
                         : "text-ink-soft hover:bg-surface-subtle hover:text-ink"
                     }`}
                   >
                     <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-ink">
-                      {isSelected ? <CheckIcon size={12} /> : null}
+                      {isSelected ? <CheckIcon size={11} /> : null}
                     </span>
                     <span className="truncate">{opt.label}</span>
                   </button>
@@ -155,6 +164,9 @@ export function Composer({
   onAgentModelChange,
   agents,
   catalogOptions,
+  permission,
+  permissions,
+  onPermissionChange,
 }: ComposerProps) {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -239,6 +251,21 @@ export function Composer({
     setActiveMenu(null);
   }
 
+  const permissionChoices =
+    permissions.find((item) => item.cliId === activeAgent)?.options ?? [];
+  const currentPermission =
+    permissionChoices.find((item) => item.id === permission) ??
+    permissionChoices[0];
+  const permissionOptions: DropdownOption[] = permissionChoices.map((item) => ({
+    value: item.id,
+    label: item.dangerous ? `⚠ ${item.label}` : item.label,
+  }));
+
+  function handlePermissionChange(nextPermission: string) {
+    onPermissionChange(nextPermission);
+    setActiveMenu(null);
+  }
+
   const modeOptions: DropdownOption[] = effectiveRoutingModes.map((m) => ({
     value: m,
     label: formatModeLabel(m),
@@ -309,7 +336,7 @@ export function Composer({
           </button>
         </div>
 
-        <div ref={containerRef} className="flex items-center gap-1.5 flex-wrap justify-end">
+        <div ref={containerRef} className="flex items-center gap-1 flex-wrap justify-end">
           {/* 第一块：选模式 */}
           <CustomSelectPill
             label={formatModeLabel(activeMode)}
@@ -358,22 +385,47 @@ export function Composer({
             minDropdownWidth="min-w-[180px]"
           />
 
+          {/* 第四块：选权限（仅当该 CLI 有多个权限档位） */}
+          {currentPermission && permissionChoices.length > 1 ? (
+            <CustomSelectPill
+              label={
+                currentPermission.dangerous
+                  ? `⚠ ${currentPermission.label}`
+                  : currentPermission.label
+              }
+              value={currentPermission.id}
+              options={permissionOptions}
+              onSelect={handlePermissionChange}
+              open={activeMenu === "permission"}
+              onToggle={() =>
+                setActiveMenu((curr) =>
+                  curr === "permission" ? null : "permission",
+                )
+              }
+              disabled={running}
+              title={`权限: ${currentPermission.label}（${currentPermission.description}）`}
+              maxLabelWidth="max-w-[100px]"
+              minDropdownWidth="min-w-[140px]"
+              isDangerous={Boolean(currentPermission.dangerous)}
+            />
+          ) : null}
+
           {running ? (
             <motion.button
               aria-label="Stop"
-              className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full bg-ink text-canvas transition-all duration-140 hover:opacity-85"
+              className="ml-0.5 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full bg-ink text-canvas transition-all duration-140 hover:opacity-85"
               onClick={onCancelRun}
               title="Stop"
               type="button"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.94 }}
             >
-              <StopIcon size={12} />
+              <StopIcon size={11} />
             </motion.button>
           ) : (
             <motion.button
               aria-label="Run"
-              className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition-all duration-140 ${
+              className={`ml-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full transition-all duration-140 ${
                 hasPrompt
                   ? "cursor-pointer bg-ink text-canvas enabled:hover:opacity-85 disabled:bg-surface-subtle disabled:text-muted"
                   : "bg-surface-subtle text-muted"
@@ -385,7 +437,7 @@ export function Composer({
               whileHover={hasPrompt ? { scale: 1.05 } : undefined}
               whileTap={hasPrompt ? { scale: 0.94 } : undefined}
             >
-              <ArrowUpIcon size={16} />
+              <ArrowUpIcon size={14} />
             </motion.button>
           )}
         </div>
