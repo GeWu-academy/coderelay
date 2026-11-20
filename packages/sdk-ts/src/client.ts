@@ -60,16 +60,14 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
-interface EventWaiter {
-  resolve: (event: AgentEvent | null) => void;
-}
+type RunOutcome = { result: AgentRunResult } | { error: Error };
 
 interface RunState {
   queue: AgentEvent[];
-  waiters: EventWaiter[];
-  completed: AgentRunResult | null;
-  completionPromise: Promise<AgentRunResult>;
-  resolveCompletion: (result: AgentRunResult) => void;
+  waiters: ((event: AgentEvent | null) => void)[];
+  outcome: RunOutcome | null;
+  completionPromise: Promise<RunOutcome>;
+  resolveCompletion: (outcome: RunOutcome) => void;
 }
 
 export type EventListener = (event: AgentEvent, envelope: EventEnvelope) => void;
@@ -112,17 +110,28 @@ function isRunCompletedEnvelope(value: unknown): value is RunCompletedEnvelope {
 }
 
 function createRunState(): RunState {
-  let resolveCompletion: (result: AgentRunResult) => void = () => undefined;
-  const completionPromise = new Promise<AgentRunResult>((resolve) => {
+  let resolveCompletion: (outcome: RunOutcome) => void = () => undefined;
+  const completionPromise = new Promise<RunOutcome>((resolve) => {
     resolveCompletion = resolve;
   });
   return {
     queue: [],
     waiters: [],
-    completed: null,
+    outcome: null,
     completionPromise,
     resolveCompletion,
   };
+}
+
+function finishRun(state: RunState, outcome: RunOutcome): void {
+  if (state.outcome !== null) {
+    return;
+  }
+  state.outcome = outcome;
+  state.resolveCompletion(outcome);
+  for (const resolve of state.waiters.splice(0)) {
+    resolve(null);
+  }
 }
 
 export class CoderelayRun implements AsyncIterable<AgentEvent> {
@@ -165,7 +174,6 @@ export class CoderelayClient {
   private runs = new Map<string, RunState>();
   private eventListeners = new Set<EventListener>();
   private completedListeners = new Set<RunCompletedListener>();
-  private stderrTail = "";
 
   constructor(options: CoderelayClientOptions = {}) {
     this.options = {
@@ -185,39 +193,39 @@ export class CoderelayClient {
       await this.startPromise;
       return this;
     }
+    const child = spawn(this.options.command, this.options.args, {
+      cwd: this.options.cwd,
+      env: { ...process.env, ...this.options.env },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    this.child = child;
     this.startPromise = new Promise<void>((resolve, reject) => {
-      const child = spawn(this.options.command, this.options.args, {
-        cwd: this.options.cwd,
-        env: { ...process.env, ...this.options.env },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      this.child = child;
-      child.once("spawn", () => resolve());
+      child.once("spawn", resolve);
       child.once("error", (error) => {
-        if (this.child === child) {
-          this.child = null;
-          this.startPromise = null;
-        }
+        this.disconnect(child, error);
         reject(error);
       });
-      child.once("exit", (code, signal) => {
-        const error = new Error(
-          `CodeRelay host exited (${code ?? signal ?? "unknown"}): ${this.stderrTail.trim()}`,
+      let stderrTail = "";
+      // "close" follows stdio drainage, so a final completion can still be read.
+      child.once("close", (code, signal) => {
+        const details = stderrTail.trim();
+        this.disconnect(
+          child,
+          new Error(`CodeRelay host exited (${code ?? signal ?? "unknown"})${details ? `: ${details}` : ""}`),
         );
-        for (const request of this.pending.values()) {
-          clearTimeout(request.timer);
-          request.reject(error);
-        }
-        this.pending.clear();
-        this.child = null;
-        this.startPromise = null;
       });
       child.stderr.setEncoding("utf8");
       child.stderr.on("data", (chunk: string) => {
-        this.stderrTail = (this.stderrTail + chunk).slice(-8_000);
+        stderrTail = (stderrTail + chunk).slice(-8_000);
       });
+      // Failed writes are reported to their own request via the write callback.
+      child.stdin.on("error", () => {});
       const lines = createInterface({ input: child.stdout });
-      lines.on("line", (line) => this.handleLine(line));
+      lines.on("line", (line) => {
+        if (this.child === child) {
+          this.handleLine(line);
+        }
+      });
     });
     await this.startPromise;
     return this;
@@ -252,8 +260,9 @@ export class CoderelayClient {
   }
 
   async startRun(params: StartRunParams): Promise<CoderelayRun> {
-    const result = await this.request<StartRunResult>(METHODS.startRun, params);
-    this.ensureRun(result.runId);
+    const result = await this.request<StartRunResult>(METHODS.startRun, params, (start) => {
+      this.ensureRun(start.runId);
+    });
     return new CoderelayRun(this, result);
   }
 
@@ -291,10 +300,27 @@ export class CoderelayClient {
 
   async close(): Promise<void> {
     const child = this.child;
+    if (child) {
+      this.disconnect(child, new Error("CodeRelay client closed"));
+      if (!child.killed) {
+        child.kill();
+      }
+    }
+  }
+
+  private disconnect(child: ChildProcessWithoutNullStreams, error: Error): void {
+    if (this.child !== child) {
+      return;
+    }
     this.child = null;
     this.startPromise = null;
-    if (child && !child.killed) {
-      child.kill();
+    for (const request of this.pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(error);
+    }
+    this.pending.clear();
+    for (const run of this.runs.values()) {
+      finishRun(run, { error });
     }
   }
 
@@ -306,21 +332,27 @@ export class CoderelayClient {
         yield queued;
         continue;
       }
-      if (state.completed) {
+      if (state.outcome) {
+        if ("error" in state.outcome) {
+          throw state.outcome.error;
+        }
         return;
       }
       const event = await new Promise<AgentEvent | null>((resolve) => {
-        state.waiters.push({ resolve });
+        state.waiters.push(resolve);
       });
-      if (event === null) {
-        return;
+      if (event !== null) {
+        yield event;
       }
-      yield event;
     }
   }
 
-  waitForRun(runId: string): Promise<AgentRunResult> {
-    return this.ensureRun(runId).completionPromise;
+  async waitForRun(runId: string): Promise<AgentRunResult> {
+    const outcome = await this.ensureRun(runId).completionPromise;
+    if ("error" in outcome) {
+      throw outcome.error;
+    }
+    return outcome.result;
   }
 
   private ensureRun(runId: string): RunState {
@@ -345,7 +377,7 @@ export class CoderelayClient {
       const state = this.ensureRun(parsed.runId);
       const waiter = state.waiters.shift();
       if (waiter) {
-        waiter.resolve(parsed.event);
+        waiter(parsed.event);
       } else {
         state.queue.push(parsed.event);
       }
@@ -357,11 +389,7 @@ export class CoderelayClient {
 
     if (isRunCompletedEnvelope(parsed)) {
       const state = this.ensureRun(parsed.runId);
-      state.completed = parsed.result;
-      state.resolveCompletion(parsed.result);
-      for (const waiter of state.waiters.splice(0)) {
-        waiter.resolve(null);
-      }
+      finishRun(state, { result: parsed.result });
       for (const listener of this.completedListeners) {
         listener(parsed.result, parsed);
       }
@@ -404,9 +432,14 @@ export class CoderelayClient {
     pending.resolve(parsed.result);
   }
 
-  private async request<T>(method: Method, params?: unknown): Promise<T> {
+  private async request<T>(
+    method: Method,
+    params?: unknown,
+    onResult?: (result: T) => void,
+  ): Promise<T> {
     await this.start();
-    if (!this.child) {
+    const child = this.child;
+    if (!child) {
       throw new Error("CodeRelay host is not running");
     }
     const requestId = randomUUID();
@@ -422,11 +455,24 @@ export class CoderelayClient {
         reject(new Error(`CodeRelay request timed out: ${method}`));
       }, this.options.requestTimeoutMs);
       this.pending.set(requestId, {
-        resolve: (value) => resolve(value as T),
+        resolve: (value) => {
+          const result = value as T;
+          try {
+            onResult?.(result);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        },
         reject,
         timer,
       });
-      this.child?.stdin.write(`${JSON.stringify(request)}\n`);
+      child.stdin.write(`${JSON.stringify(request)}\n`, (error) => {
+        if (error && this.pending.delete(requestId)) {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
     });
   }
 }

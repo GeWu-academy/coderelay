@@ -91,6 +91,7 @@ export function App() {
   const [runEvents] = useState(() => new RunEvents());
   const runListenersReady = useRef<Promise<void[]> | null>(null);
   const currentWorkspace = useRef("");
+  const discoveryRequestId = useRef(0);
 
   // Navigation store
   const view = useNavigationStore((s) => s.view);
@@ -153,6 +154,7 @@ export function App() {
   }
 
   async function loadDiscovery(cwd?: string): Promise<void> {
+    const requestId = ++discoveryRequestId.current;
     setState((current) => ({
       ...current,
       loading: true,
@@ -168,6 +170,9 @@ export function App() {
           },
         }),
       ]);
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       currentWorkspace.current = discovery.cwd;
       setWorkspaceInput(discovery.cwd);
       setForm((current) => {
@@ -190,6 +195,9 @@ export function App() {
           limit: 200,
         },
       });
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       setState((current) => ({
         ...current,
         runtime,
@@ -206,6 +214,9 @@ export function App() {
         error: null,
       }));
     } catch (error) {
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       setState((current) => ({
         ...current,
         loading: false,
@@ -243,6 +254,13 @@ export function App() {
   async function openSession(sessionId: string): Promise<void> {
     try {
       const detail = await invoke<SessionDetail>("get_session", { sessionId });
+      const navigation = useNavigationStore.getState();
+      if (
+        navigation.view !== "workspace" ||
+        navigation.activeSessionId !== sessionId
+      ) {
+        return;
+      }
       setActiveSessionId(sessionId);
       setState((current) => ({
         ...current,
@@ -251,6 +269,13 @@ export function App() {
         error: null,
       }));
     } catch (error) {
+      const navigation = useNavigationStore.getState();
+      if (
+        navigation.view !== "workspace" ||
+        navigation.activeSessionId !== sessionId
+      ) {
+        return;
+      }
       setState((current) => ({ ...current, error: messageOf(error) }));
     }
   }

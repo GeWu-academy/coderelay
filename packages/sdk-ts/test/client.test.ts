@@ -10,10 +10,10 @@ import packageManifest from "../package.json";
 const FIXTURE = fileURLToPath(new URL("./fixtures/fake-host.ts", import.meta.url));
 const clients: CoderelayClient[] = [];
 
-function client(): CoderelayClient {
+function client(...args: string[]): CoderelayClient {
   const instance = new CoderelayClient({
     command: process.execPath,
-    args: [FIXTURE],
+    args: [FIXTURE, ...args],
   });
   clients.push(instance);
   return instance;
@@ -89,4 +89,35 @@ describe("CoderelayClient", () => {
     const response = await sdk.cancelRun("run-fixture");
     expect(response.cancelled).toBe(true);
   });
+
+  test("rejects unfinished runs after the host exits and preserves buffered output", async () => {
+    const sdk = client("--exit-during-run");
+    const run = await sdk.run({ request: { prompt: "say hello" } });
+    const iterator = run[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { kind: "assistant_text", text: "hello " },
+    });
+    await expect(run.completed).rejects.toThrow("CodeRelay host exited (23)");
+    await expect(iterator.next()).rejects.toThrow("fixture interrupted");
+    expect((await sdk.status()).transport).toBe("stdio");
+  }, 2_000);
+
+  test("closing rejects run and request waiters without affecting a restarted host", async () => {
+    const sdk = client("--hold-run");
+    const run = await sdk.run({ request: { prompt: "say hello" } });
+    const iterator = run[Symbol.asyncIterator]();
+    await iterator.next();
+    const output = iterator.next();
+    const completion = run.completed;
+    const request = sdk.listRecentWorkspaces();
+    const pending = request;
+    await Promise.resolve();
+    await sdk.close();
+    await expect(output).rejects.toThrow("CodeRelay client closed");
+    await expect(completion).rejects.toThrow("CodeRelay client closed");
+    await expect(pending).rejects.toThrow("CodeRelay client closed");
+    expect((await sdk.status()).transport).toBe("stdio");
+  }, 2_000);
 });
