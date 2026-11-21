@@ -6,6 +6,7 @@ import {
   ChartLineUp,
   Check,
   ClockCounterClockwise,
+  Code,
   Copy,
   File,
   Files,
@@ -74,6 +75,7 @@ export const ChevronDownIcon = createIcon(CaretDown, 12);
 export const CheckIcon = createIcon(Check, 15);
 export const CloseIcon = createIcon(X, 14);
 export const KeyIcon = createIcon(Key, 15);
+export const CodeIcon = createIcon(Code, 15);
 export const PaletteIcon = createIcon(Palette, 15);
 export const TrashIcon = createIcon(Trash, 14);
 export const ImageIcon = createIcon(Image, 15);

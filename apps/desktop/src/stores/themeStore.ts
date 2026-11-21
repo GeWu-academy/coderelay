@@ -1,11 +1,18 @@
 import { create } from "zustand";
 import {
+  CODE_THEME_PRESETS,
+  DEFAULT_CODE_THEME_ID,
   DEFAULT_THEME_PRESET_ID,
+  isCodeThemeId,
   isThemePresetId,
+  type CodeThemeId,
+  type CodeThemePalette,
+  type ResolvedCodeThemeId,
   type ThemePresetId,
 } from "../types";
 
 export const THEME_STORAGE_KEY = "coderelay_theme_preset";
+export const CODE_THEME_STORAGE_KEY = "coderelay_code_theme";
 export const THEME_BG_STORAGE_KEY = "coderelay_custom_background";
 export const THEME_BG_OPACITY_STORAGE_KEY = "coderelay_custom_bg_opacity";
 export const DEFAULT_BG_OPACITY = 0.25;
@@ -17,9 +24,12 @@ export interface ThemeState {
   preset: ThemePresetId;
   effectiveTheme: ResolvedTheme;
   colorScheme: ColorSchemeMode;
+  codeTheme: CodeThemeId;
+  effectiveCodeTheme: ResolvedCodeThemeId;
   customBackground: string | null;
   customBackgroundOpacity: number;
   setPreset: (preset: ThemePresetId) => void;
+  setCodeTheme: (codeTheme: CodeThemeId) => void;
   setCustomBackground: (backgroundUrl: string | null) => void;
   setCustomBackgroundOpacity: (opacity: number) => void;
 }
@@ -167,15 +177,80 @@ export function persistCustomBackgroundOpacity(opacity: number): void {
   }
 }
 
+export function resolveEffectiveCodeTheme(
+  codeTheme: CodeThemeId,
+  colorScheme: ColorSchemeMode,
+): ResolvedCodeThemeId {
+  if (codeTheme === "auto") {
+    return colorScheme === "dark" ? "one-dark" : "github-light";
+  }
+  return codeTheme;
+}
+
+const FALLBACK_CODE_PALETTE: CodeThemePalette = {
+  background: "#ffffff",
+  foreground: "#24292f",
+  lineNumber: "#8c959f",
+  lineHover: "rgba(0, 0, 0, 0.035)",
+  keyword: "#cf222e",
+  string: "#0a3069",
+  comment: "#6e7781",
+  number: "#0550ae",
+  type: "#953800",
+  func: "#8250df",
+  operator: "#cf222e",
+  property: "#0550ae",
+};
+
+export function getCodeThemePalette(
+  resolvedCodeTheme: ResolvedCodeThemeId,
+): CodeThemePalette {
+  const found = CODE_THEME_PRESETS.find((item) => item.id === resolvedCodeTheme);
+  return found?.palette ?? CODE_THEME_PRESETS[1]?.palette ?? FALLBACK_CODE_PALETTE;
+}
+
+export function getInitialCodeTheme(): CodeThemeId {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return DEFAULT_CODE_THEME_ID;
+  }
+  try {
+    const stored = window.localStorage.getItem(CODE_THEME_STORAGE_KEY);
+    if (stored && isCodeThemeId(stored)) {
+      return stored;
+    }
+    return DEFAULT_CODE_THEME_ID;
+  } catch {
+    return DEFAULT_CODE_THEME_ID;
+  }
+}
+
+export function persistCodeTheme(codeTheme: CodeThemeId): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(CODE_THEME_STORAGE_KEY, codeTheme);
+  } catch {
+    // ignore quota/security errors
+  }
+}
+
 const initialPreset = getInitialThemePreset();
 const initialBg = getInitialCustomBackground();
 const initialBgOpacity = getInitialCustomBackgroundOpacity();
 const initialResolved = applyThemeToDocument(initialPreset, undefined, initialBg);
+const initialCodeTheme = getInitialCodeTheme();
+const initialEffectiveCodeTheme = resolveEffectiveCodeTheme(
+  initialCodeTheme,
+  initialResolved.colorScheme,
+);
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   preset: initialPreset,
   effectiveTheme: initialResolved.effectiveTheme,
   colorScheme: initialResolved.colorScheme,
+  codeTheme: initialCodeTheme,
+  effectiveCodeTheme: initialEffectiveCodeTheme,
   customBackground: initialBg,
   customBackgroundOpacity: initialBgOpacity,
 
@@ -186,7 +261,20 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       undefined,
       get().customBackground,
     );
-    set({ preset, effectiveTheme, colorScheme });
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(
+      get().codeTheme,
+      colorScheme,
+    );
+    set({ preset, effectiveTheme, colorScheme, effectiveCodeTheme });
+  },
+
+  setCodeTheme: (codeTheme: CodeThemeId) => {
+    persistCodeTheme(codeTheme);
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(
+      codeTheme,
+      get().colorScheme,
+    );
+    set({ codeTheme, effectiveCodeTheme });
   },
 
   setCustomBackground: (backgroundUrl: string | null) => {
@@ -218,7 +306,11 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
         "system",
         systemMode,
       );
-      useThemeStore.setState({ effectiveTheme, colorScheme });
+      const effectiveCodeTheme = resolveEffectiveCodeTheme(
+        useThemeStore.getState().codeTheme,
+        colorScheme,
+      );
+      useThemeStore.setState({ effectiveTheme, colorScheme, effectiveCodeTheme });
     }
   };
 

@@ -120,6 +120,13 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(html).toContain("自定义背景图");
     expect(html).toContain("上传背景图片文件");
 
+    // Verify Code Color Style options
+    expect(html).toContain("代码颜色风格");
+    expect(html).toContain("GitHub Light");
+    expect(html).toContain("One Dark");
+    expect(html).toContain("Dracula");
+    expect(html).toContain("Tokyo Night");
+
     // Strictly ensure Decoupling: API Key elements must NOT be coupled into ConfigView
     expect(html).not.toContain("API Key");
     expect(html).not.toContain("jev-api-key");

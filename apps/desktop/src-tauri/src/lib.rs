@@ -21,6 +21,9 @@ use coderelay_protocol::PROTOCOL_VERSION;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+mod terminal;
+use terminal::{TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write};
+
 const RUN_EVENT: &str = "run-event";
 const RUN_COMPLETED: &str = "run-completed";
 const SESSION_UPDATED: &str = "session-updated";
@@ -985,6 +988,7 @@ fn supported_agents() -> Vec<coderelay_core::AgentDescriptor> {
 pub fn run() {
     tauri::Builder::default()
         .manage(DesktopState::default())
+        .manage(TerminalRegistry::default())
         .invoke_handler(tauri::generate_handler![
             runtime_status,
             supported_agents,
@@ -1006,7 +1010,11 @@ pub fn run() {
             save_config,
             record_workspace,
             list_directory,
-            read_workspace_file
+            read_workspace_file,
+            terminal_create,
+            terminal_write,
+            terminal_resize,
+            terminal_close
         ])
         .run(tauri::generate_context!())
         .expect("error while running CodeRelay desktop");

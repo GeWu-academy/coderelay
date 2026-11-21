@@ -439,6 +439,198 @@ export const THEME_PRESETS: readonly ThemePreset[] = Object.freeze([
   },
 ]);
 
+export const CODE_THEME_IDS = [
+  "auto",
+  "github-light",
+  "one-dark",
+  "dracula",
+  "monokai",
+  "tokyo-night",
+  "solarized-light",
+] as const;
+export type CodeThemeId = (typeof CODE_THEME_IDS)[number];
+export type ResolvedCodeThemeId = Exclude<CodeThemeId, "auto">;
+
+export function isCodeThemeId(value: unknown): value is CodeThemeId {
+  return (CODE_THEME_IDS as readonly unknown[]).includes(value);
+}
+
+export const DEFAULT_CODE_THEME_ID: CodeThemeId = "auto";
+
+export interface CodeThemePalette {
+  readonly background: string;
+  readonly foreground: string;
+  readonly lineNumber: string;
+  readonly lineHover: string;
+  readonly keyword: string;
+  readonly string: string;
+  readonly comment: string;
+  readonly number: string;
+  readonly type: string;
+  readonly func: string;
+  readonly operator: string;
+  readonly property: string;
+}
+
+export interface CodeThemePreset {
+  readonly id: CodeThemeId;
+  readonly name: string;
+  readonly subtitle: string;
+  readonly description: string;
+  readonly mode: "light" | "dark" | "auto";
+  readonly palette: CodeThemePalette;
+}
+
+export const CODE_THEME_PRESETS: readonly CodeThemePreset[] = Object.freeze([
+  {
+    id: "auto",
+    name: "跟随主题",
+    subtitle: "自动",
+    description: "浅色用 GitHub Light，深色用 One Dark",
+    mode: "auto",
+    palette: Object.freeze({
+      background: "#ffffff",
+      foreground: "#24292f",
+      lineNumber: "#8c959f",
+      lineHover: "rgba(0, 0, 0, 0.035)",
+      keyword: "#cf222e",
+      string: "#0a3069",
+      comment: "#6e7781",
+      number: "#0550ae",
+      type: "#953800",
+      func: "#8250df",
+      operator: "#cf222e",
+      property: "#0550ae",
+    }),
+  },
+  {
+    id: "github-light",
+    name: "GitHub Light",
+    subtitle: "浅色",
+    description: "清爽明快的经典 GitHub 浅色语法配色",
+    mode: "light",
+    palette: Object.freeze({
+      background: "#ffffff",
+      foreground: "#24292f",
+      lineNumber: "#8c959f",
+      lineHover: "rgba(0, 0, 0, 0.035)",
+      keyword: "#cf222e",
+      string: "#0a3069",
+      comment: "#6e7781",
+      number: "#0550ae",
+      type: "#953800",
+      func: "#8250df",
+      operator: "#cf222e",
+      property: "#0550ae",
+    }),
+  },
+  {
+    id: "one-dark",
+    name: "One Dark",
+    subtitle: "深色",
+    description: "VS Code / Atom 经典柔和暗调配色",
+    mode: "dark",
+    palette: Object.freeze({
+      background: "#282c34",
+      foreground: "#abb2bf",
+      lineNumber: "#636d83",
+      lineHover: "rgba(255, 255, 255, 0.04)",
+      keyword: "#c678dd",
+      string: "#98c379",
+      comment: "#5c6370",
+      number: "#d19a66",
+      type: "#e5c07b",
+      func: "#61afef",
+      operator: "#56b6c2",
+      property: "#e06c75",
+    }),
+  },
+  {
+    id: "dracula",
+    name: "Dracula",
+    subtitle: "深色",
+    description: "高辨识度紫粉霓虹暗色极客风格",
+    mode: "dark",
+    palette: Object.freeze({
+      background: "#282a36",
+      foreground: "#f8f8f2",
+      lineNumber: "#6272a4",
+      lineHover: "rgba(255, 255, 255, 0.05)",
+      keyword: "#ff79c6",
+      string: "#f1fa8c",
+      comment: "#6272a4",
+      number: "#bd93f9",
+      type: "#8be9fd",
+      func: "#50fa7b",
+      operator: "#ff79c6",
+      property: "#8be9fd",
+    }),
+  },
+  {
+    id: "monokai",
+    name: "Monokai",
+    subtitle: "深色",
+    description: "经典高对比暖色系编辑器高亮",
+    mode: "dark",
+    palette: Object.freeze({
+      background: "#272822",
+      foreground: "#f8f8f2",
+      lineNumber: "#75715e",
+      lineHover: "rgba(255, 255, 255, 0.045)",
+      keyword: "#f92672",
+      string: "#e6db74",
+      comment: "#75715e",
+      number: "#ae81ff",
+      type: "#66d9ef",
+      func: "#a6e22e",
+      operator: "#f92672",
+      property: "#a6e22e",
+    }),
+  },
+  {
+    id: "tokyo-night",
+    name: "Tokyo Night",
+    subtitle: "深色",
+    description: "东京夜色深靛蓝底与冷冽荧光色",
+    mode: "dark",
+    palette: Object.freeze({
+      background: "#1a1b26",
+      foreground: "#c0caf5",
+      lineNumber: "#565f89",
+      lineHover: "rgba(255, 255, 255, 0.04)",
+      keyword: "#bb9af7",
+      string: "#9ece6a",
+      comment: "#565f89",
+      number: "#ff9e64",
+      type: "#2ac3de",
+      func: "#7aa2f7",
+      operator: "#89ddff",
+      property: "#73daca",
+    }),
+  },
+  {
+    id: "solarized-light",
+    name: "Solarized Light",
+    subtitle: "浅色",
+    description: "低眩光暖米底色，长时间阅读护眼",
+    mode: "light",
+    palette: Object.freeze({
+      background: "#fdf6e3",
+      foreground: "#657b83",
+      lineNumber: "#93a1a1",
+      lineHover: "rgba(101, 123, 131, 0.06)",
+      keyword: "#859900",
+      string: "#2aa198",
+      comment: "#93a1a1",
+      number: "#d33682",
+      type: "#b58900",
+      func: "#268bd2",
+      operator: "#859900",
+      property: "#268bd2",
+    }),
+  },
+]);
+
 export interface WelcomeTimeSnapshot {
   period: TimePeriod;
   greeting: string;

@@ -2,8 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { getCodeThemePalette, useThemeStore } from "../stores/themeStore";
 import type { FileTreeEntry, WorkspaceFileContent } from "../types";
 import { messageOf, workspaceName } from "../utils";
+import { tokenColor, tokenizeCodeLines } from "../utils/codeHighlight";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -771,12 +773,23 @@ export function FilesView({
     (entry) => !entry.name.startsWith("."),
   );
   const rootLoading = loadingDirs.has("");
+  const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
+  const codePalette = useMemo(
+    () => getCodeThemePalette(effectiveCodeTheme),
+    [effectiveCodeTheme],
+  );
+
   const lines = useMemo(() => {
     if (!fileContent || fileContent.isBinary) {
       return [];
     }
     return fileContent.content.split("\n");
   }, [fileContent]);
+
+  const tokenizedLines = useMemo(
+    () => tokenizeCodeLines(lines, fileContent?.extension ?? null),
+    [lines, fileContent?.extension],
+  );
 
   return (
     <motion.section
@@ -1002,16 +1015,43 @@ export function FilesView({
                 </p>
               </div>
             ) : (
-              <div className="min-h-0 flex-1 overflow-auto py-3">
+              <div
+                className="min-h-0 flex-1 overflow-auto py-3 transition-colors duration-150"
+                data-code-theme={effectiveCodeTheme}
+                style={{
+                  backgroundColor: codePalette.background,
+                  color: codePalette.foreground,
+                }}
+              >
                 <table className="w-full border-collapse font-code text-[12.5px] leading-[1.6]">
                   <tbody>
-                    {lines.map((line, index) => (
-                      <tr key={index} className="hover:bg-surface-subtle/50">
-                        <td className="w-12 select-none pr-4 pl-4 text-right align-top text-[11px] text-muted/70">
+                    {tokenizedLines.map((tokens, index) => (
+                      <tr
+                        key={index}
+                        style={{ ["--code-line-hover" as string]: codePalette.lineHover }}
+                        className="hover:bg-[var(--code-line-hover)]"
+                      >
+                        <td
+                          className="w-12 select-none pr-4 pl-4 text-right align-top text-[11px]"
+                          style={{ color: codePalette.lineNumber }}
+                        >
                           {index + 1}
                         </td>
-                        <td className="pr-6 whitespace-pre text-ink">
-                          {line || " "}
+                        <td className="pr-6 whitespace-pre">
+                          {tokens.length === 0
+                            ? " "
+                            : tokens.map((token, tokenIdx) =>
+                                token.type === "plain" ? (
+                                  <span key={tokenIdx}>{token.text}</span>
+                                ) : (
+                                  <span
+                                    key={tokenIdx}
+                                    style={{ color: tokenColor(token.type, codePalette) }}
+                                  >
+                                    {token.text}
+                                  </span>
+                                ),
+                              )}
                         </td>
                       </tr>
                     ))}

@@ -1,20 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
+  CODE_THEME_IDS,
+  CODE_THEME_PRESETS,
+  DEFAULT_CODE_THEME_ID,
   DEFAULT_THEME_PRESET_ID,
   THEME_PRESETS,
   THEME_PRESET_IDS,
+  isCodeThemeId,
   isThemePresetId,
 } from "../types";
 import {
   applyThemeToDocument,
+  CODE_THEME_STORAGE_KEY,
   DEFAULT_BG_OPACITY,
+  getCodeThemePalette,
+  getInitialCodeTheme,
   getInitialCustomBackground,
   getInitialCustomBackgroundOpacity,
   getInitialThemePreset,
   getThemeColorSchemeMode,
+  persistCodeTheme,
   persistCustomBackground,
   persistCustomBackgroundOpacity,
   persistThemePreset,
+  resolveEffectiveCodeTheme,
   resolveEffectiveTheme,
   THEME_BG_OPACITY_STORAGE_KEY,
   THEME_BG_STORAGE_KEY,
@@ -297,5 +306,83 @@ describe("Theme DOM application & localStorage persistence", () => {
     useThemeStore.getState().setCustomBackground(null);
     expect(useThemeStore.getState().customBackground).toBeNull();
     expect(mockAttrs.has("data-has-custom-bg")).toBe(false);
+  });
+});
+
+describe("Code theme SSOT, resolution & persistence", () => {
+  const mockStorage = new MockStorage();
+  let origWindow: Window & typeof globalThis;
+
+  beforeEach(() => {
+    origWindow = globalThis.window;
+    mockStorage.clear();
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        localStorage: mockStorage,
+        matchMedia: () => ({ matches: false }),
+      },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    globalThis.window = origWindow;
+    mockStorage.clear();
+  });
+
+  it("maintains SSOT with CODE_THEME_IDS and validates isCodeThemeId", () => {
+    expect(DEFAULT_CODE_THEME_ID).toBe("auto");
+    expect(CODE_THEME_PRESETS.map((p) => p.id)).toEqual([...CODE_THEME_IDS]);
+
+    for (const id of CODE_THEME_IDS) {
+      expect(isCodeThemeId(id)).toBe(true);
+    }
+    expect(isCodeThemeId("monokai")).toBe(true);
+    expect(isCodeThemeId("unknown-code-theme")).toBe(false);
+    expect(isCodeThemeId(null)).toBe(false);
+    expect(isCodeThemeId("")).toBe(false);
+
+    for (const preset of CODE_THEME_PRESETS) {
+      expect(preset.name.length).toBeGreaterThan(0);
+      expect(preset.palette.background.length).toBeGreaterThan(0);
+      expect(preset.palette.keyword.length).toBeGreaterThan(0);
+      expect(preset.palette.string.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("resolves auto code theme from colorScheme and keeps fixed themes unchanged", () => {
+    expect(resolveEffectiveCodeTheme("auto", "light")).toBe("github-light");
+    expect(resolveEffectiveCodeTheme("auto", "dark")).toBe("one-dark");
+    expect(resolveEffectiveCodeTheme("dracula", "light")).toBe("dracula");
+    expect(resolveEffectiveCodeTheme("solarized-light", "dark")).toBe("solarized-light");
+
+    const draculaPalette = getCodeThemePalette("dracula");
+    expect(draculaPalette.background).toBe("#282a36");
+  });
+
+  it("persists code theme in localStorage and updates effectiveCodeTheme with setCodeTheme / setPreset", () => {
+    persistCodeTheme("tokyo-night");
+    expect(mockStorage.getItem(CODE_THEME_STORAGE_KEY)).toBe("tokyo-night");
+    expect(getInitialCodeTheme()).toBe("tokyo-night");
+
+    mockStorage.setItem(CODE_THEME_STORAGE_KEY, "invalid-value");
+    expect(getInitialCodeTheme()).toBe("auto");
+
+    useThemeStore.getState().setPreset("light");
+    useThemeStore.getState().setCodeTheme("auto");
+    expect(useThemeStore.getState().effectiveCodeTheme).toBe("github-light");
+
+    useThemeStore.getState().setPreset("dark");
+    expect(useThemeStore.getState().effectiveCodeTheme).toBe("one-dark");
+
+    useThemeStore.getState().setCodeTheme("monokai");
+    expect(useThemeStore.getState().codeTheme).toBe("monokai");
+    expect(useThemeStore.getState().effectiveCodeTheme).toBe("monokai");
+    expect(mockStorage.getItem(CODE_THEME_STORAGE_KEY)).toBe("monokai");
+
+    // Reset
+    useThemeStore.getState().setPreset("light");
+    useThemeStore.getState().setCodeTheme("auto");
   });
 });
