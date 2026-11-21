@@ -1,3 +1,4 @@
+import { writeSync } from "node:fs";
 import { createInterface } from "node:readline";
 
 import { METHODS, PROTOCOL_VERSION } from "../../src/protocol";
@@ -96,9 +97,8 @@ lines.on("line", (line) => {
       process.exitCode = 23;
       lines.close();
       process.stdin.destroy();
-      process.stderr.write("fixture interrupted\n", () => {
-        setTimeout(() => process.exit(23), 20);
-      });
+      writeSync(2, "fixture interrupted\n");
+      setTimeout(() => process.exit(23), 50);
       return;
     }
     if (process.argv.includes("--hold-run")) {

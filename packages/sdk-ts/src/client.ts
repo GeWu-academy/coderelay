@@ -214,6 +214,10 @@ export class CoderelayClient {
           clearTimeout(exitFallbackTimer);
           exitFallbackTimer = undefined;
         }
+        const remaining = child.stderr.read();
+        if (typeof remaining === "string" && remaining.length > 0) {
+          stderrTail = (stderrTail + remaining).slice(-8_000);
+        }
         const details = stderrTail.trim();
         this.disconnect(
           child,
