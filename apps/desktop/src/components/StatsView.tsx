@@ -704,7 +704,7 @@ function MinimalistLineChart({
             y={padding.top + 4}
             textAnchor="end"
             fontSize="10"
-            fontFamily="monospace"
+            fontFamily="var(--font-code)"
             fill="var(--color-muted)"
           >
             {maxValue}
@@ -714,7 +714,7 @@ function MinimalistLineChart({
             y={padding.top + chartHeight / 2 + 3}
             textAnchor="end"
             fontSize="10"
-            fontFamily="monospace"
+            fontFamily="var(--font-code)"
             fill="var(--color-muted)"
           >
             {Math.round(maxValue / 2)}
@@ -724,7 +724,7 @@ function MinimalistLineChart({
             y={padding.top + chartHeight}
             textAnchor="end"
             fontSize="10"
-            fontFamily="monospace"
+            fontFamily="var(--font-code)"
             fill="var(--color-muted)"
           >
             0
@@ -784,7 +784,7 @@ function MinimalistLineChart({
                 y={height - 6}
                 textAnchor="middle"
                 fontSize="10"
-                fontFamily="monospace"
+                fontFamily="var(--font-code)"
                 fill="var(--color-muted)"
               >
                 {d.displayDate}

@@ -10,7 +10,9 @@ pub use catalog::{
 };
 pub use invocation::{PromptBuildOptions, build_prompt_args};
 pub use permissions::{
-    DEFAULT_PERMISSION_ID, PermissionOption, permission_args, permission_options,
+    CliPermissions, DEFAULT_PERMISSION_ID, DEFAULT_PERMISSION_SCAN_TIMEOUT, PermissionOption,
+    permission_args, permission_options, permission_provider, scan_agent_permissions,
+    scan_permissions,
 };
 pub use probes::{
     ClaudeModelProbe, CodexModelProbe, ModelProbe, ModelProbeRegistry, ModelProbeRoots,

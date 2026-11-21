@@ -147,7 +147,7 @@ export function Sidebar({
             {newChatActive ? (
               <LiquidRouteIndicator layoutId="sidebar-active-indicator" variant="glass" />
             ) : null}
-            <PlusIcon size={14} />
+            <PlusIcon size={14} weight="bold" />
             <span>新会话</span>
           </button>
         </div>
@@ -193,7 +193,7 @@ export function Sidebar({
                       title={group.workspace ?? "未关联文件夹的会话"}
                       type="button"
                     >
-                      <FolderIcon size={14} />
+                      <FolderIcon size={14} weight={expanded ? "duotone" : "regular"} />
                       <span className="truncate">{label}</span>
                     </button>
                     {group.sessions.length > 0 ? (

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiKeyView } from "./components/ApiKeyView";
 import { Composer } from "./components/Composer";
 import { ConfigView } from "./components/ConfigView";
+import { FilesView } from "./components/FilesView";
 import { IconRail } from "./components/IconRail";
 import { RightSidebar } from "./components/RightSidebar";
 import { SessionsView } from "./components/SessionsView";
@@ -91,6 +92,7 @@ export function App() {
   const [runEvents] = useState(() => new RunEvents());
   const runListenersReady = useRef<Promise<void[]> | null>(null);
   const currentWorkspace = useRef("");
+  const discoveryRequestId = useRef(0);
 
   // Navigation store
   const view = useNavigationStore((s) => s.view);
@@ -136,7 +138,6 @@ export function App() {
       recentWorkspaces: mergeRecentWorkspaces(
         currentWorkspace.current,
         recentWorkspaces,
-        current.recentWorkspaces,
       ),
     }));
   }
@@ -153,6 +154,7 @@ export function App() {
   }
 
   async function loadDiscovery(cwd?: string): Promise<void> {
+    const requestId = ++discoveryRequestId.current;
     setState((current) => ({
       ...current,
       loading: true,
@@ -168,6 +170,9 @@ export function App() {
           },
         }),
       ]);
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       currentWorkspace.current = discovery.cwd;
       setWorkspaceInput(discovery.cwd);
       setForm((current) => {
@@ -190,6 +195,9 @@ export function App() {
           limit: 200,
         },
       });
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       setState((current) => ({
         ...current,
         runtime,
@@ -198,7 +206,6 @@ export function App() {
         recentWorkspaces: mergeRecentWorkspaces(
           discovery.cwd,
           discovery.recentWorkspaces,
-          current.recentWorkspaces,
         ),
         sessionDetail: null,
         activeSessionId: null,
@@ -206,6 +213,9 @@ export function App() {
         error: null,
       }));
     } catch (error) {
+      if (requestId !== discoveryRequestId.current) {
+        return;
+      }
       setState((current) => ({
         ...current,
         loading: false,
@@ -240,9 +250,51 @@ export function App() {
     }
   }
 
+  async function handleRemoveWorkspace(workspace: string): Promise<void> {
+    const trimmed = workspace.trim();
+    if (!trimmed) {
+      return;
+    }
+    const wasCurrent = currentWorkspace.current === trimmed;
+    if (wasCurrent) {
+      currentWorkspace.current = "";
+      setWorkspaceInput("");
+    }
+    try {
+      await invoke<boolean>("delete_workspace", { request: { workspace: trimmed } });
+      const remainingSessions = await refreshSessions(currentWorkspace.current);
+      if (activeSessionId && !remainingSessions.some((session) => session.id === activeSessionId)) {
+        startNewTask();
+      }
+      const fetchedRecent = await invoke<string[]>("list_recent_workspaces", {
+        limit: 8,
+      });
+      const nextRecent = mergeRecentWorkspaces(
+        currentWorkspace.current,
+        fetchedRecent.filter((item) => item !== trimmed),
+      );
+      setState((current) => ({
+        ...current,
+        recentWorkspaces: nextRecent,
+      }));
+      if (wasCurrent && nextRecent[0]) {
+        handleSelectWorkspace(nextRecent[0]);
+      }
+    } catch (error) {
+      setState((current) => ({ ...current, error: messageOf(error) }));
+    }
+  }
+
   async function openSession(sessionId: string): Promise<void> {
     try {
       const detail = await invoke<SessionDetail>("get_session", { sessionId });
+      const navigation = useNavigationStore.getState();
+      if (
+        navigation.view !== "workspace" ||
+        navigation.activeSessionId !== sessionId
+      ) {
+        return;
+      }
       setActiveSessionId(sessionId);
       setState((current) => ({
         ...current,
@@ -251,6 +303,13 @@ export function App() {
         error: null,
       }));
     } catch (error) {
+      const navigation = useNavigationStore.getState();
+      if (
+        navigation.view !== "workspace" ||
+        navigation.activeSessionId !== sessionId
+      ) {
+        return;
+      }
       setState((current) => ({ ...current, error: messageOf(error) }));
     }
   }
@@ -715,6 +774,15 @@ export function App() {
                 output={state.output}
                 activity={state.activity}
                 renderComposer={renderComposer}
+              />
+            ) : view === "files" ? (
+              <FilesView
+                key="files"
+                workspaceInput={workspaceInput}
+                recentWorkspaces={state.recentWorkspaces}
+                onSelectWorkspace={handleSelectWorkspace}
+                onDeleteWorkspace={(ws) => void handleRemoveWorkspace(ws)}
+                onPickWorkspace={() => void handlePickWorkspace()}
               />
             ) : view === "sessions" ? (
               <SessionsView

@@ -16,10 +16,12 @@ pub mod session;
 
 pub use agent::{AgentDescriptor, AgentId, agent_ids, supported_agents};
 pub use agents::{
-    CliCapabilities, DEFAULT_PERMISSION_ID, ModelCatalog, ModelOption, ModelProbeRoots,
-    PermissionOption, ProbeDisplay, ProbeDisplayStatus, ProbeResult, ProbedModel,
-    PromptBuildOptions, TargetSelection, build_prompt_args, create_model_probes, permission_args,
-    permission_options, probe_model_catalog, to_route_candidates, validate_explicit_target,
+    CliCapabilities, CliPermissions, DEFAULT_PERMISSION_ID, DEFAULT_PERMISSION_SCAN_TIMEOUT,
+    ModelCatalog, ModelOption, ModelProbeRoots, PermissionOption, ProbeDisplay, ProbeDisplayStatus,
+    ProbeResult, ProbedModel, PromptBuildOptions, TargetSelection, build_prompt_args,
+    create_model_probes, permission_args, permission_options, permission_provider,
+    probe_model_catalog, scan_agent_permissions, scan_permissions, to_route_candidates,
+    validate_explicit_target,
 };
 pub use config::{
     Config, ConfigError, ConfigSaveError, LoadConfigOptions, LoadedConfig, default_config,

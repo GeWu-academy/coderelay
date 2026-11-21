@@ -4,6 +4,7 @@ import { isConversationView, WORKSPACE_VIEWS, type WorkspaceView } from "../type
 export type SidebarRouteId =
   | "new-chat"
   | `session:${string}`
+  | "files"
   | "sessions"
   | "stats"
   | "config"
@@ -22,6 +23,7 @@ export interface NavigationState {
   setActiveSessionId: (sessionId: string | null) => void;
   navigateToNewChat: () => void;
   navigateToSession: (sessionId: string) => void;
+  navigateToFiles: () => void;
   navigateToSessions: () => void;
   navigateToStats: () => void;
   navigateToConfig: () => void;
@@ -42,6 +44,9 @@ export function getActiveSidebarRoute(
 ): SidebarRouteId {
   if (view === "workspace") {
     return activeSessionId ? `session:${activeSessionId}` : "new-chat";
+  }
+  if (view === "files") {
+    return "files";
   }
   if (view === "sessions") {
     return "sessions";
@@ -68,6 +73,10 @@ export function isNewChatRouteActive(
   activeSessionId: string | null,
 ): boolean {
   return view === "workspace" && activeSessionId === null;
+}
+
+export function isFilesRouteActive(view: WorkspaceView): boolean {
+  return view === "files";
 }
 
 export function isSessionsRouteActive(view: WorkspaceView): boolean {
@@ -133,6 +142,11 @@ export const useNavigationStore = create<NavigationState>((set) => ({
     set({
       view: "workspace",
       activeSessionId: sessionId,
+    }),
+
+  navigateToFiles: () =>
+    set({
+      view: "files",
     }),
 
   navigateToSessions: () =>

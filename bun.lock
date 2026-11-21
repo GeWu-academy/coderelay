@@ -22,6 +22,7 @@
     "apps/desktop": {
       "name": "@coderelay/desktop",
       "dependencies": {
+        "@phosphor-icons/react": "^2.1.10",
         "@tauri-apps/api": "^2.9.0",
         "dayjs": "^1.11.23",
         "motion": "^14.9.1",
@@ -39,7 +40,7 @@
     },
     "packages/sdk-ts": {
       "name": "@alkaidstart/coderelay-sdk",
-      "version": "0.3.3",
+      "version": "0.4.4",
       "devDependencies": {
         "@types/bun": "latest",
         "@types/node": "^24.0.0",
@@ -79,6 +80,8 @@
     "@oven/bun-windows-aarch64": ["@oven/bun-windows-aarch64@1.4.4", "", { "os": "win32", "cpu": "arm64" }, "sha512-n0ep5ZRPCZY1+dqFJpnnRUZB1wy4GYU6At8RF+pyzySCLjkN9R4rFh2PtBHAgF/lg1vOl3/CeER3pDM+p40ATA=="],
 
     "@oven/bun-windows-x64": ["@oven/bun-windows-x64@1.4.4", "", { "os": "win32", "cpu": "x64" }, "sha512-a3LNctBVO8PjePsFZfwDleF2JXYf2BfQ1u/PLRnBDLnC2Riml+4+LgJpKj4xRGhB92KweGyQI5PXaTkP9qypMQ=="],
+
+    "@phosphor-icons/react": ["@phosphor-icons/react@2.1.10", "", { "peerDependencies": { "react": ">= 16.8", "react-dom": ">= 16.8" } }, "sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA=="],
 
     "@tauri-apps/api": ["@tauri-apps/api@2.12.4", "", {}, "sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg=="],
 

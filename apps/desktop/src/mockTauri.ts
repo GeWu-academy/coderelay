@@ -2,6 +2,7 @@ import type {
   AgentEntry,
   ConfigSource,
   DiscoveryPayload,
+  FileTreeEntry,
   JevSettings,
   ModelOption,
   RoutePreview,
@@ -9,6 +10,7 @@ import type {
   SessionDetail,
   SessionRecord,
   StartRunResponse,
+  WorkspaceFileContent,
 } from "./types";
 
 declare global {
@@ -253,6 +255,8 @@ const mockDiscovery: DiscoveryPayload = {
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
         { id: "read-only", label: "只读", description: "沙箱只读，只分析不修改（最接近 plan）", dangerous: false },
+        { id: "workspace-write", label: "工作区可写", description: "沙箱内可修改工作区文件", dangerous: false },
+        { id: "approve-for-me", label: "自动审查", description: "审批请求交给自动审查，工作区可写沙箱", dangerous: false },
         { id: "full-access", label: "完全放行", description: "跳过所有确认且不使用沙箱", dangerous: true },
       ],
     },
@@ -261,7 +265,25 @@ const mockDiscovery: DiscoveryPayload = {
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
         { id: "plan", label: "Plan", description: "只规划，不修改文件", dangerous: false },
+        { id: "acceptEdits", label: "自动接受编辑", description: "自动接受文件编辑，其余操作仍需许可", dangerous: false },
         { id: "auto", label: "Auto", description: "由分类器自动判断是否放行", dangerous: false },
+        { id: "bypassPermissions", label: "完全放行", description: "跳过所有权限检查", dangerous: true },
+      ],
+    },
+    {
+      cliId: "pi",
+      options: [
+        { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
+        { id: "read-only", label: "只读", description: "仅启用 read/grep/find/ls，禁用 bash、edit、write", dangerous: false },
+      ],
+    },
+    {
+      cliId: "omp",
+      options: [
+        { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
+        { id: "always-ask", label: "总是询问", description: "每次工具调用都需确认", dangerous: false },
+        { id: "write", label: "写入需确认", description: "approvalMode=write", dangerous: false },
+        { id: "yolo", label: "完全放行", description: "自动批准所有工具调用", dangerous: true },
       ],
     },
   ],
@@ -307,8 +329,11 @@ export async function mockInvoke(
     case "runtime_status":
       return mockRuntime;
     case "discover": {
-      const cwd = typeof args.cwd === "string" && args.cwd.trim() ? args.cwd : mockDiscovery.cwd;
-      const recentWorkspaces = Array.from(new Set([cwd, ...mockDiscovery.recentWorkspaces]));
+      const req = (args.request as { cwd?: string | null } | undefined) ?? {};
+      const cwd = typeof req.cwd === "string" ? req.cwd.trim() : "";
+      const recentWorkspaces = cwd
+        ? Array.from(new Set([cwd, ...mockDiscovery.recentWorkspaces]))
+        : mockDiscovery.recentWorkspaces;
       return {
         ...mockDiscovery,
         cwd,
@@ -393,6 +418,17 @@ export async function mockInvoke(
       sessionsState = sessionsState.filter((s) => s.id !== sessionId);
       return true;
     }
+    case "delete_workspace": {
+      const req = (args.request as { workspace?: string } | undefined) ?? {};
+      const ws = (req.workspace ?? "").trim();
+      if (ws) {
+        sessionsState = sessionsState.filter((s) => s.workspace !== ws);
+        mockDiscovery.recentWorkspaces = mockDiscovery.recentWorkspaces.filter(
+          (item) => item !== ws,
+        );
+      }
+      return true;
+    }
     case "delete_workspace_sessions": {
       sessionsState = [];
       return 1;
@@ -431,6 +467,49 @@ export async function mockInvoke(
       return true;
     case "pick_workspace":
       return "/Users/allure/Desktop/coderelay";
+    case "list_directory": {
+      const req = (args.request as { relativePath?: string | null } | undefined) ?? {};
+      const rel = (req.relativePath ?? "").trim();
+      if (!rel) {
+        const rootEntries: FileTreeEntry[] = [
+          { name: "src", path: "src", isDir: true, size: 0, extension: null },
+          { name: "package.json", path: "package.json", isDir: false, size: 512, extension: "json" },
+          { name: "README.md", path: "README.md", isDir: false, size: 1024, extension: "md" },
+        ];
+        return rootEntries;
+      }
+      if (rel === "src") {
+        const srcEntries: FileTreeEntry[] = [
+          { name: "App.tsx", path: "src/App.tsx", isDir: false, size: 420, extension: "tsx" },
+          { name: "main.ts", path: "src/main.ts", isDir: false, size: 180, extension: "ts" },
+        ];
+        return srcEntries;
+      }
+      return [];
+    }
+    case "read_workspace_file": {
+      const req = (args.request as { relativePath?: string } | undefined) ?? {};
+      const rel = req.relativePath ?? "README.md";
+      const name = rel.split("/").pop() ?? rel;
+      const ext = name.includes(".") ? (name.split(".").pop()?.toLowerCase() ?? null) : null;
+      const content =
+        rel === "src/App.tsx"
+          ? 'export function App() {\n  return <main>CodeRelay</main>;\n}\n'
+          : rel === "package.json"
+            ? '{\n  "name": "coderelay",\n  "version": "0.4.4"\n}\n'
+            : "# CodeRelay\n\nWorkspace file preview.\n";
+      const result: WorkspaceFileContent = {
+        path: rel,
+        name,
+        content,
+        size: content.length,
+        lineCount: content.split("\n").length - 1,
+        isBinary: false,
+        truncated: false,
+        extension: ext,
+      };
+      return result;
+    }
     default:
       console.warn(`[mockTauri] Unhandled command: ${cmd}`);
       return null;

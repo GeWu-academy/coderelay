@@ -208,8 +208,27 @@ export interface RouteForm {
   permission: string;
 }
 
-export const WORKSPACE_VIEWS = ["workspace", "sessions", "stats", "config", "apikeys"] as const;
+export const WORKSPACE_VIEWS = ["workspace", "files", "sessions", "stats", "config", "apikeys"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
+
+export interface FileTreeEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+  extension: string | null;
+}
+
+export interface WorkspaceFileContent {
+  path: string;
+  name: string;
+  content: string;
+  size: number;
+  lineCount: number;
+  isBinary: boolean;
+  truncated: boolean;
+  extension: string | null;
+}
 
 export function isWorkspaceView(value: unknown): value is WorkspaceView {
   return (WORKSPACE_VIEWS as readonly unknown[]).includes(value);

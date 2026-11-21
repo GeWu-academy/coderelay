@@ -4,6 +4,7 @@ import {
   isApiKeysRouteActive,
   isConfigRouteActive,
   isConversationRouteActive,
+  isFilesRouteActive,
   isNewChatRouteActive,
   isSessionRouteActive,
   isSessionsRouteActive,
@@ -31,10 +32,11 @@ describe("useNavigationStore & sidebar activation state", () => {
   });
 
   it("maintains SSOT with WORKSPACE_VIEWS and validates views correctly", () => {
-    expect(WORKSPACE_VIEWS).toEqual(["workspace", "sessions", "stats", "config", "apikeys"]);
+    expect(WORKSPACE_VIEWS).toEqual(["workspace", "files", "sessions", "stats", "config", "apikeys"]);
 
     // Test valid views (non-empty real values)
     expect(isWorkspaceView("workspace")).toBe(true);
+    expect(isWorkspaceView("files")).toBe(true);
     expect(isWorkspaceView("sessions")).toBe(true);
     expect(isWorkspaceView("stats")).toBe(true);
     expect(isWorkspaceView("config")).toBe(true);
@@ -56,6 +58,9 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(isConversationRouteActive("workspace")).toBe(true);
 
     // Test non-conversation views (valid workspace views but not conversation routes)
+    expect(isConversationView("files")).toBe(false);
+    expect(isConversationRouteActive("files")).toBe(false);
+    expect(isFilesRouteActive("files")).toBe(true);
     expect(isConversationView("sessions")).toBe(false);
     expect(isConversationRouteActive("sessions")).toBe(false);
     expect(isConversationView("stats")).toBe(false);

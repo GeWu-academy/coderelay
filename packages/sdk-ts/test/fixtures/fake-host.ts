@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 
+import { METHODS, PROTOCOL_VERSION } from "../../src/protocol";
 import packageManifest from "../../package.json";
 
 const lines = createInterface({ input: process.stdin });
@@ -21,24 +22,24 @@ lines.on("line", (line) => {
     return;
   }
 
-  if (request.method === "status") {
+  if (request.method === METHODS.status) {
     write({
       status: "ok",
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       requestId: request.requestId,
       result: {
         coreVersion: packageManifest.version,
-        protocolVersion: 1,
+        protocolVersion: PROTOCOL_VERSION,
         transport: "stdio",
       },
     });
     return;
   }
 
-  if (request.method === "discoverAgents") {
+  if (request.method === METHODS.discoverAgents) {
     write({
       status: "ok",
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       requestId: request.requestId,
       result: {
         cwd: "/fixture/workspace",
@@ -70,12 +71,12 @@ lines.on("line", (line) => {
     return;
   }
 
-  if (request.method === "startRun") {
+  if (request.method === METHODS.startRun) {
     const runId = "run-fixture";
     const sessionId = "session-fixture";
     write({
       status: "ok",
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       requestId: request.requestId,
       result: {
         runId,
@@ -86,19 +87,30 @@ lines.on("line", (line) => {
       },
     });
     write({
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       runId,
       sessionId,
       event: { kind: "assistant_text", text: "hello " },
     });
+    if (process.argv.includes("--exit-during-run")) {
+      process.stderr.write("fixture interrupted\n");
+      process.exitCode = 23;
+      lines.close();
+      process.stdin.destroy();
+      setTimeout(() => process.exit(23), 20);
+      return;
+    }
+    if (process.argv.includes("--hold-run")) {
+      return;
+    }
     write({
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       runId,
       sessionId,
       event: { kind: "assistant_text", text: "sdk" },
     });
     write({
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       runId,
       sessionId,
       result: {
@@ -115,10 +127,14 @@ lines.on("line", (line) => {
     return;
   }
 
-  if (request.method === "cancelRun") {
+  if (request.method === METHODS.listRecentWorkspaces && process.argv.includes("--hold-run")) {
+    return;
+  }
+
+  if (request.method === METHODS.cancelRun) {
     write({
       status: "ok",
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       requestId: request.requestId,
       result: { cancelled: true },
     });
@@ -127,7 +143,7 @@ lines.on("line", (line) => {
 
   write({
     status: "error",
-    protocolVersion: 1,
+    protocolVersion: PROTOCOL_VERSION,
     requestId: request.requestId,
     error: {
       code: "invalidRequest",
