@@ -92,7 +92,10 @@ pub fn parse_structured_line(line: &str) -> Option<AgentEvent> {
 
     match kind {
         "thinking" | "reasoning" | "thought" | "thinking_delta" | "reasoning_delta" => {
-            let text = text_value(&value, &["thinking", "text", "content", "delta", "reasoning"])?;
+            let text = text_value(
+                &value,
+                &["thinking", "text", "content", "delta", "reasoning"],
+            )?;
             (!text.is_empty()).then_some(AgentEvent::Thinking { text })
         }
         "content_block_delta" => {

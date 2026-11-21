@@ -28,7 +28,9 @@ use git::{
     git_branches, git_checkout, git_commit, git_delete_branch, git_diff, git_discard,
     git_generate_commit_message, git_init, git_stage, git_status, git_sync, git_unstage,
 };
-use terminal::{TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write};
+use terminal::{
+    TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write,
+};
 
 const RUN_EVENT: &str = "run-event";
 const RUN_COMPLETED: &str = "run-completed";
@@ -313,14 +315,7 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
     let permissions_key: PermissionsCacheKey = context
         .detected
         .iter()
-        .map(|cli: &DetectedCli| {
-            (
-                cli.id,
-                cli.path.clone(),
-                cli.version.clone(),
-                cli.available,
-            )
-        })
+        .map(|cli: &DetectedCli| (cli.id, cli.path.clone(), cli.version.clone(), cli.available))
         .collect();
     let cached_permissions = app
         .state::<DesktopState>()

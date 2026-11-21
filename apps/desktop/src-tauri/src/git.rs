@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use coderelay_core::{
-    start_agent_run, AgentProtocol, AgentRunOptions, AgentRunStatus, RouteRequest,
+    AgentProtocol, AgentRunOptions, AgentRunStatus, RouteRequest, start_agent_run,
 };
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::{
-    context_for, resolve_workspace_subpath, select_for, stored_jev_api_key, SelectionRequest,
-    WorkspaceRequest,
+    SelectionRequest, WorkspaceRequest, context_for, resolve_workspace_subpath, select_for,
+    stored_jev_api_key,
 };
 
 const MAX_DIFF_PREVIEW_BYTES: usize = 512 * 1024;
@@ -214,9 +214,7 @@ fn validate_relative_repo_paths(paths: &[String]) -> Result<(), String> {
         if trimmed.is_empty() {
             return Err("文件路径不能为空".to_owned());
         }
-        if Path::new(trimmed).is_absolute()
-            || trimmed.split(['/', '\\']).any(|seg| seg == "..")
-        {
+        if Path::new(trimmed).is_absolute() || trimmed.split(['/', '\\']).any(|seg| seg == "..") {
             return Err(format!("非法文件路径: {trimmed}"));
         }
     }
@@ -342,10 +340,9 @@ pub fn parse_porcelain_v2_status(output: &str, repo_root: &Path) -> GitStatusRes
                 let x = chars.next().unwrap_or('.');
                 let y = chars.next().unwrap_or('.');
                 let (new_path, orig_path) = match paths_part.split_once('\t') {
-                    Some((new_p, orig_p)) => (
-                        unquote_git_path(new_p),
-                        Some(unquote_git_path(orig_p)),
-                    ),
+                    Some((new_p, orig_p)) => {
+                        (unquote_git_path(new_p), Some(unquote_git_path(orig_p)))
+                    }
                     None => (unquote_git_path(paths_part), None),
                 };
                 entries.push(GitStatusEntry {
@@ -466,8 +463,7 @@ pub fn parse_for_each_ref_branches(output: &str) -> Vec<GitBranchInfo> {
 }
 
 fn has_head_commit(repo_root: &Path) -> bool {
-    run_git_raw(repo_root, &["rev-parse", "--verify", "HEAD"])
-        .is_ok_and(|out| out.status_code == 0)
+    run_git_raw(repo_root, &["rev-parse", "--verify", "HEAD"]).is_ok_and(|out| out.status_code == 0)
 }
 
 #[tauri::command]
@@ -486,7 +482,12 @@ pub fn git_status(request: GitWorkspaceRequest) -> Result<GitStatusResult, Strin
     };
     let output = run_git(
         &repo_root,
-        &["status", "--porcelain=v2", "--branch", "--untracked-files=all"],
+        &[
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "--untracked-files=all",
+        ],
     )?;
     Ok(parse_porcelain_v2_status(&output, &repo_root))
 }
@@ -562,7 +563,10 @@ pub fn git_unstage(request: GitStageRequest) -> Result<(), String> {
         if has_head {
             run_git(&repo_root, &["reset", "HEAD", "--"])?;
         } else {
-            run_git(&repo_root, &["rm", "--cached", "-r", "--ignore-unmatch", "."])?;
+            run_git(
+                &repo_root,
+                &["rm", "--cached", "-r", "--ignore-unmatch", "."],
+            )?;
         }
         return Ok(());
     }
@@ -657,7 +661,12 @@ pub fn git_checkout(request: GitCheckoutRequest) -> Result<GitActionResult, Stri
         return Err("分支名称不能为空".to_owned());
     }
     let out = if request.create == Some(true) {
-        match request.start_point.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        match request
+            .start_point
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
             Some(start) => run_git(&repo_root, &["checkout", "-b", branch, start])?,
             None => run_git(&repo_root, &["checkout", "-b", branch])?,
         }
@@ -681,7 +690,11 @@ pub fn git_delete_branch(request: GitDeleteBranchRequest) -> Result<GitActionRes
     if branch.is_empty() {
         return Err("分支名称不能为空".to_owned());
     }
-    let flag = if request.force == Some(true) { "-D" } else { "-d" };
+    let flag = if request.force == Some(true) {
+        "-D"
+    } else {
+        "-d"
+    };
     let out = run_git(&repo_root, &["branch", flag, branch])?;
     Ok(GitActionResult {
         ok: true,
