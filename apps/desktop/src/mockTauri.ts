@@ -395,6 +395,14 @@ export async function mockInvoke(
       sessionsState = sessionsState.filter((s) => s.id !== sessionId);
       return true;
     }
+    case "delete_workspace": {
+      const req = (args.request as { workspace?: string } | undefined) ?? {};
+      const ws = (req.workspace ?? "").trim();
+      if (ws) {
+        sessionsState = sessionsState.filter((s) => s.workspace !== ws);
+      }
+      return true;
+    }
     case "delete_workspace_sessions": {
       sessionsState = [];
       return 1;

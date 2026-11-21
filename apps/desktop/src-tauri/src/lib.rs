@@ -658,6 +658,39 @@ fn delete_session(app: AppHandle, session_id: String) -> Result<bool, String> {
     Ok(removed)
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteWorkspaceRequest {
+    workspace: String,
+}
+
+#[tauri::command]
+fn delete_workspace(
+    app: AppHandle,
+    request: DeleteWorkspaceRequest,
+) -> Result<bool, String> {
+    let trimmed = request.workspace.trim();
+    if trimmed.is_empty() {
+        return Ok(false);
+    }
+    let removed = with_session_store(&app.state::<DesktopState>(), |store| {
+        store
+            .delete_workspace_sessions(Some(trimmed))
+            .map_err(|error| error.to_string())?;
+        store
+            .remove_recent_workspace(trimmed)
+            .map_err(|error| error.to_string())
+    })?;
+    let _ = app.emit(
+        SESSION_UPDATED,
+        SessionUpdatedPayload {
+            session_id: String::new(),
+            turn_id: None,
+        },
+    );
+    Ok(removed)
+}
+
 #[tauri::command]
 fn delete_workspace_sessions(
     app: AppHandle,
@@ -930,6 +963,7 @@ pub fn run() {
             list_sessions,
             get_session,
             delete_session,
+            delete_workspace,
             delete_workspace_sessions,
             get_jev_settings,
             save_jev_api_key,
@@ -1086,5 +1120,24 @@ mod tests {
         })
         .expect_err("should block parent traversal");
         assert!(escape_err.contains("escapes workspace root"));
+    }
+
+    #[test]
+    fn removes_workspace_and_its_sessions_from_sqlite_store() {
+        let mut store = SessionStore::open_in_memory().expect("store");
+        let ws = "/Users/allure/Projects/demo-cleanup";
+        store.record_workspace(ws).expect("record workspace");
+        store
+            .create_session(coderelay_core::AgentId::Codex, "cleanup task", Some(ws))
+            .expect("create session");
+
+        assert!(store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));
+
+        store
+            .delete_workspace_sessions(Some(ws))
+            .expect("delete sessions");
+        let removed = store.remove_recent_workspace(ws).expect("remove recent");
+        assert!(removed);
+        assert!(!store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));
     }
 }

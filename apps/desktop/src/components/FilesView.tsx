@@ -264,6 +264,7 @@ interface WorkspaceWheelProps {
 const WHEEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 const WHEEL_SLOT_HEIGHT = 24;
 const WHEEL_DETENT_PX = 28;
+const WHEEL_SETTLE_DELAY_MS = 480;
 const WHEEL_SPRING = { type: "spring", stiffness: 460, damping: 34, mass: 0.7 } as const;
 
 function WorkspaceWheel({
@@ -274,6 +275,7 @@ function WorkspaceWheel({
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
   const lastStepAtRef = useRef(0);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trimmedCurrent = currentWorkspace.trim();
   const currentIndex = Math.max(0, workspaces.indexOf(trimmedCurrent));
@@ -281,8 +283,30 @@ function WorkspaceWheel({
 
   const [virtualStep, setVirtualStep] = useState(currentIndex);
 
+  const previewIndex = total > 0 ? ((virtualStep % total) + total) % total : 0;
+  const previewWorkspace = workspaces[previewIndex] ?? trimmedCurrent;
+  const isPendingCommit = total > 1 && previewWorkspace !== trimmedCurrent;
+
+  const clearSettleTimer = useCallback(() => {
+    if (settleTimerRef.current !== null) {
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+  }, []);
+
+  const commitWorkspace = useCallback(
+    (target: string) => {
+      clearSettleTimer();
+      if (target && target !== trimmedCurrent && onSelectWorkspace) {
+        onSelectWorkspace(target);
+      }
+    },
+    [clearSettleTimer, onSelectWorkspace, trimmedCurrent],
+  );
+
   // Sync virtualStep if currentWorkspace changes externally (e.g. Open Folder)
   useEffect(() => {
+    clearSettleTimer();
     if (total <= 1) {
       setVirtualStep(0);
       return;
@@ -301,24 +325,28 @@ function WorkspaceWheel({
       }
       return prev + diff;
     });
-  }, [currentIndex, total]);
+  }, [clearSettleTimer, currentIndex, total]);
+
+  // Deferred workspace loading: only load after the user stops rolling and settles
+  useEffect(() => {
+    clearSettleTimer();
+    if (!isPendingCommit) {
+      return;
+    }
+    settleTimerRef.current = setTimeout(() => {
+      commitWorkspace(previewWorkspace);
+    }, WHEEL_SETTLE_DELAY_MS);
+    return clearSettleTimer;
+  }, [clearSettleTimer, commitWorkspace, isPendingCommit, previewWorkspace]);
 
   const stepBy = useCallback(
     (delta: number) => {
-      if (total <= 1 || !onSelectWorkspace || delta === 0) {
+      if (total <= 1 || delta === 0) {
         return;
       }
-      setVirtualStep((prev) => {
-        const nextStep = prev + delta;
-        const nextIndex = ((nextStep % total) + total) % total;
-        const target = workspaces[nextIndex];
-        if (target && target !== trimmedCurrent) {
-          onSelectWorkspace(target);
-        }
-        return nextStep;
-      });
+      setVirtualStep((prev) => prev + delta);
     },
-    [onSelectWorkspace, total, trimmedCurrent, workspaces],
+    [total],
   );
 
   // Command+K / Ctrl+K: focus the wheel, or cycle if already focused
@@ -363,6 +391,9 @@ function WorkspaceWheel({
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
       stepBy(1);
+    } else if ((event.key === "Enter" || event.key === " ") && isPendingCommit) {
+      event.preventDefault();
+      commitWorkspace(previewWorkspace);
     }
   }
 
@@ -425,6 +456,8 @@ function WorkspaceWheel({
                 onClick={() => {
                   if (offset !== 0) {
                     stepBy(offset);
+                  } else if (isPendingCommit) {
+                    commitWorkspace(workspace);
                   }
                 }}
                 initial={{
@@ -475,11 +508,17 @@ function WorkspaceWheel({
 
                 {isCenter && total > 1 ? (
                   <span className="flex shrink-0 items-center gap-1">
-                    <span className="rounded bg-surface px-1 py-0.5 font-code text-[9.5px] text-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100">
-                      ⌘K
-                    </span>
+                    {isPendingCommit ? (
+                      <span className="rounded bg-ink/10 px-1 py-0.5 font-code text-[9.5px] font-medium text-ink">
+                        ↵
+                      </span>
+                    ) : (
+                      <span className="rounded bg-surface px-1 py-0.5 font-code text-[9.5px] text-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100">
+                        ⌘K
+                      </span>
+                    )}
                     <span className="font-code text-[10px] text-muted">
-                      {currentIndex + 1}/{total}
+                      {previewIndex + 1}/{total}
                     </span>
                   </span>
                 ) : null}
