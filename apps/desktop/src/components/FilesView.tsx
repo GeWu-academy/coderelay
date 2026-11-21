@@ -262,6 +262,7 @@ interface WorkspaceWheelProps {
   currentWorkspace: string;
   onSelectWorkspace?: (workspace: string) => void;
   onDeleteWorkspace?: (workspace: string) => void;
+  onPickWorkspace?: () => void;
 }
 
 const WHEEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
@@ -275,6 +276,7 @@ function WorkspaceWheel({
   currentWorkspace,
   onSelectWorkspace,
   onDeleteWorkspace,
+  onPickWorkspace,
 }: WorkspaceWheelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
@@ -494,7 +496,7 @@ function WorkspaceWheel({
                 className={`absolute inset-x-2 z-10 flex h-[28px] items-center justify-between gap-1.5 rounded-lg px-2.5 ${
                   isCenter ? "text-ink" : "text-muted hover:text-ink-soft"
                 }`}
-                title={workspace || "Workspace"}
+                title={workspace || (onPickWorkspace ? "点击选择文件夹" : "Workspace")}
               >
                 <button
                   type="button"
@@ -503,10 +505,14 @@ function WorkspaceWheel({
                       stepBy(offset);
                     } else if (isPendingCommit) {
                       commitWorkspace(workspace);
+                    } else if (!workspace && onPickWorkspace) {
+                      onPickWorkspace();
                     }
                   }}
                   className={`flex min-w-0 flex-1 items-center gap-1.5 text-left ${
-                    isCenter && !isPendingCommit ? "cursor-default" : "cursor-pointer"
+                    isCenter && !isPendingCommit && (Boolean(workspace) || !onPickWorkspace)
+                      ? "cursor-default"
+                      : "cursor-pointer"
                   }`}
                 >
                   <FolderIcon
@@ -829,6 +835,7 @@ export function FilesView({
           currentWorkspace={workspaceInput}
           onSelectWorkspace={onSelectWorkspace}
           onDeleteWorkspace={onDeleteWorkspace}
+          onPickWorkspace={onPickWorkspace}
         />
 
         <div className="border-b border-line px-2.5 py-1.5">
