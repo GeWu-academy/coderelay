@@ -3,6 +3,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import type { AgentRunResult, RoutePreview } from "../types";
 import { formatDuration, getWelcomeTimeSnapshot } from "../utils";
+import { mergeThinkingContent, splitThinkingAndOutput } from "../utils/thinking";
+import { ThinkingBar } from "./ThinkingBar";
 import { RouteIcon, TerminalIcon } from "./icons";
 
 export interface WorkspaceViewProps {
@@ -11,6 +13,7 @@ export interface WorkspaceViewProps {
   running: boolean;
   result: AgentRunResult | null;
   preview: RoutePreview | null;
+  thinking?: string;
   output: string;
   activity: string[];
   renderComposer: (compact?: boolean) => ReactNode;
@@ -22,11 +25,18 @@ export function WorkspaceView({
   running,
   result,
   preview,
+  thinking = "",
   output,
   activity,
   renderComposer,
 }: WorkspaceViewProps) {
   const [timeSnapshot, setTimeSnapshot] = useState(() => getWelcomeTimeSnapshot());
+  const inlineSplit = splitThinkingAndOutput(output);
+  const combinedThinking = mergeThinkingContent(thinking, inlineSplit.thinking);
+  const visibleOutput = inlineSplit.output;
+  const isThinkingActive =
+    running &&
+    (inlineSplit.isThinkingOpen || (Boolean(combinedThinking) && !visibleOutput));
 
   useEffect(() => {
     if (showThread) {
@@ -131,9 +141,14 @@ export function WorkspaceView({
                 ) : null}
               </AnimatePresence>
 
+              <ThinkingBar
+                thinking={combinedThinking}
+                isThinking={isThinkingActive}
+              />
+
               <div className="min-h-[44px] text-sm leading-[1.85] break-words whitespace-pre-wrap text-ink">
-                {output}
-                {running && !output ? (
+                {visibleOutput}
+                {running && !visibleOutput && !isThinkingActive ? (
                   <span className="inline-flex items-center gap-1 align-middle" aria-hidden="true">
                     <i className="h-[5px] w-[5px] animate-typing rounded-full bg-ink" />
                     <i className="h-[5px] w-[5px] animate-typing rounded-full bg-ink [animation-delay:150ms]" />

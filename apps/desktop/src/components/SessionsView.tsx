@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "motion/react";
 
 import type { SessionDetail, SessionRecord } from "../types";
 import { formatTimestamp, workspaceName } from "../utils";
+import { splitThinkingAndOutput } from "../utils/thinking";
+import { ThinkingBar } from "./ThinkingBar";
 import { ArrowUpIcon, HistoryIcon, RefreshIcon, TerminalIcon } from "./icons";
 
 export interface SessionsViewProps {
@@ -104,25 +106,35 @@ export function SessionsView({
                     </button>
                   </div>
                   <div className="mt-4 flex flex-col gap-3">
-                    {sessionDetail.turns.map((turn) => (
-                      <article
-                        className="rounded-xl border border-line bg-surface p-3.5"
-                        key={turn.id}
-                      >
-                        <div className="flex flex-wrap gap-2 font-code text-[10px] text-muted uppercase">
-                          <span>{turn.cliId}</span>
-                          {turn.modelId ? <span>{turn.modelId}</span> : null}
-                        </div>
-                        <div className="mt-2 text-[13px] leading-[1.6] text-ink">
-                          {turn.prompt}
-                        </div>
-                        {turn.output ? (
-                          <pre className="mt-2.5 max-h-[260px] overflow-auto rounded-[9px] border border-line bg-surface-subtle p-3 font-code text-[11.5px] leading-[1.65] whitespace-pre-wrap text-ink-soft">
-                            {turn.output}
-                          </pre>
-                        ) : null}
-                      </article>
-                    ))}
+                    {sessionDetail.turns.map((turn) => {
+                      const turnSplit = turn.output
+                        ? splitThinkingAndOutput(turn.output)
+                        : null;
+                      return (
+                        <article
+                          className="rounded-xl border border-line bg-surface p-3.5"
+                          key={turn.id}
+                        >
+                          <div className="flex flex-wrap gap-2 font-code text-[10px] text-muted uppercase">
+                            <span>{turn.cliId}</span>
+                            {turn.modelId ? <span>{turn.modelId}</span> : null}
+                          </div>
+                          <div className="mt-2 text-[13px] leading-[1.6] text-ink">
+                            {turn.prompt}
+                          </div>
+                          {turnSplit?.thinking ? (
+                            <div className="mt-2.5">
+                              <ThinkingBar thinking={turnSplit.thinking} />
+                            </div>
+                          ) : null}
+                          {turnSplit?.output ? (
+                            <pre className="mt-2.5 max-h-[260px] overflow-auto rounded-[9px] border border-line bg-surface-subtle p-3 font-code text-[11.5px] leading-[1.65] whitespace-pre-wrap text-ink-soft">
+                              {turnSplit.output}
+                            </pre>
+                          ) : null}
+                        </article>
+                      );
+                    })}
                   </div>
                 </motion.div>
               ) : (

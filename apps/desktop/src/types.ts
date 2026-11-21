@@ -646,6 +646,7 @@ export interface WorkbenchState {
   error: string | null;
   running: boolean;
   runId: string | null;
+  thinking: string;
   output: string;
   activity: string[];
   result: RunCompletedPayload["result"] | null;

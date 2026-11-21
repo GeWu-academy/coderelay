@@ -539,7 +539,8 @@ fn write_event(event: &AgentEvent) {
         AgentEvent::Status { text } => {
             eprintln!("coderelay: {text}");
         }
-        AgentEvent::ToolFinished { .. }
+        AgentEvent::Thinking { .. }
+        | AgentEvent::ToolFinished { .. }
         | AgentEvent::SessionStarted { .. }
         | AgentEvent::Completed { .. }
         | AgentEvent::Failed { .. }

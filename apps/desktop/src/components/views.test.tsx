@@ -14,7 +14,9 @@ import { RightSidebar } from "./RightSidebar";
 import { Sidebar } from "./Sidebar";
 import { StatsView } from "./StatsView";
 import { TerminalPanel } from "./TerminalPanel";
+import { ThinkingBar } from "./ThinkingBar";
 import { Titlebar } from "./Titlebar";
+import { WorkspaceView as WorkspacePanelView } from "./WorkspaceView";
 import { isConversationRouteActive } from "../stores/navigationStore";
 import type { AgentEntry, JevSettings, WorkspaceView } from "../types";
 
@@ -716,5 +718,48 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(html).toContain("暂无活动终端");
     expect(html).toContain("新建终端");
     expect(html).toContain('aria-label="New terminal"');
+  });
+
+  it("renders ThinkingBar as a single collapsed line by default and reveals detail only when expanded", () => {
+    const thinking = "Step 1: inspect event parser\nStep 2: verify UI output";
+
+    const collapsedHtml = renderToStaticMarkup(<ThinkingBar thinking={thinking} />);
+    expect(collapsedHtml).toContain('data-testid="thinking-bar"');
+    expect(collapsedHtml).toContain('data-expanded="false"');
+    expect(collapsedHtml).toContain("Thinking");
+    expect(collapsedHtml).toContain("2L");
+    expect(collapsedHtml).toContain("Step 2: verify UI output");
+    expect(collapsedHtml).not.toContain('data-testid="thinking-detail"');
+    expect(collapsedHtml).not.toContain("Step 1: inspect event parser");
+
+    const expandedHtml = renderToStaticMarkup(
+      <ThinkingBar thinking={thinking} defaultExpanded />,
+    );
+    expect(expandedHtml).toContain('data-expanded="true"');
+    expect(expandedHtml).toContain('data-testid="thinking-detail"');
+    expect(expandedHtml).toContain("Step 1: inspect event parser");
+    expect(expandedHtml).toContain("Step 2: verify UI output");
+  });
+
+  it("separates inline and structured thinking from visible output in WorkspaceView", () => {
+    const html = renderToStaticMarkup(
+      <WorkspacePanelView
+        error={null}
+        showThread
+        running={false}
+        result={null}
+        preview={null}
+        thinking="Structured thought line"
+        output={"<thinking>Inline thought line</thinking>\nFinal visible answer"}
+        activity={[]}
+        renderComposer={() => <div />}
+      />,
+    );
+
+    expect(html).toContain('data-testid="thinking-bar"');
+    expect(html).toContain('data-expanded="false"');
+    expect(html).toContain("Final visible answer");
+    expect(html).not.toContain("<thinking>");
+    expect(html).not.toContain("Structured thought line");
   });
 });

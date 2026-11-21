@@ -18,6 +18,7 @@ import {
   Palette,
   Path,
   Plus,
+  PushPin,
   Shield,
   SidebarSimple,
   Stop,
@@ -93,6 +94,7 @@ export const RouteIcon = createIcon(Path, 15);
 export const ArrowUpIcon = createIcon(ArrowUp, 17);
 export const StopIcon = createIcon(Stop, 16, "fill");
 export const PanelLeftIcon = createIcon(SidebarSimple, 16);
+export const PinIcon = createIcon(PushPin, 14);
 export const PlusIcon = createIcon(Plus, 15);
 export const ShieldIcon = createIcon(Shield, 14);
 export const ChevronDownIcon = createIcon(CaretDown, 12);

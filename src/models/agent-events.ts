@@ -7,6 +7,7 @@ import { z } from "zod";
 export const AgentEventKindSchema = z.enum([
   "session_started",
   "status",
+  "thinking",
   "assistant_text",
   "tool_started",
   "tool_finished",
@@ -28,6 +29,11 @@ export interface SessionStartedEvent {
 
 export interface StatusEvent {
   readonly kind: "status";
+  readonly text: string;
+}
+
+export interface ThinkingEvent {
+  readonly kind: "thinking";
   readonly text: string;
 }
 
@@ -72,6 +78,7 @@ export interface AbortedEvent {
 export type AgentEvent =
   | SessionStartedEvent
   | StatusEvent
+  | ThinkingEvent
   | AssistantTextEvent
   | ToolStartedEvent
   | ToolFinishedEvent
@@ -130,6 +137,21 @@ export function parseStructuredLine(line: string): AgentEvent | null {
     return null;
   }
   const type = base.data.type;
+  if (
+    type === "thinking" ||
+    type === "reasoning" ||
+    type === "thought" ||
+    type === "thinking_delta" ||
+    type === "reasoning_delta"
+  ) {
+    const text =
+      asString(parsed["thinking"]) ??
+      asString(parsed["text"]) ??
+      asString(parsed["content"]) ??
+      asString(parsed["delta"]) ??
+      asString(parsed["reasoning"]);
+    return text ? { kind: "thinking", text } : null;
+  }
   if (type === "assistant_text" || type === "text" || type === "message") {
     const text = asString(parsed["text"]) ?? asString(parsed["content"]) ?? asString(parsed["delta"]);
     return text ? { kind: "assistant_text", text } : null;
