@@ -6,6 +6,7 @@ import { ConfigView } from "./components/ConfigView";
 import { FilesView } from "./components/FilesView";
 import { IconRail } from "./components/IconRail";
 import { RightSidebar } from "./components/RightSidebar";
+import { ScmView } from "./components/ScmView";
 import { SessionsView } from "./components/SessionsView";
 import { Sidebar } from "./components/Sidebar";
 import { StatsView } from "./components/StatsView";
@@ -52,6 +53,7 @@ export function App() {
   const sessionDetail = useWorkbenchStore((s) => s.sessionDetail);
   const workspaceInput = useWorkbenchStore((s) => s.workspaceInput);
   const selectedAgentId = useWorkbenchStore((s) => s.form.agent);
+  const selectedModelId = useWorkbenchStore((s) => s.form.model);
 
   const loadDiscovery = useWorkbenchStore((s) => s.loadDiscovery);
   const subscribeRunEvents = useWorkbenchStore((s) => s.subscribeRunEvents);
@@ -102,6 +104,16 @@ export function App() {
             recentWorkspaces={recentWorkspaces}
             onSelectWorkspace={selectWorkspace}
             onDeleteWorkspace={(ws) => void removeWorkspace(ws)}
+            onPickWorkspace={() => void pickWorkspace()}
+          />
+        );
+      case "scm":
+        return (
+          <ScmView
+            key="scm"
+            workspaceInput={workspaceInput}
+            selectedAgentId={selectedAgentId}
+            selectedModelId={selectedModelId}
             onPickWorkspace={() => void pickWorkspace()}
           />
         );

@@ -12,6 +12,7 @@ export type SidebarRouteId =
   | "new-chat"
   | `session:${string}`
   | "files"
+  | "scm"
   | "sessions"
   | "stats"
   | "config"
@@ -32,6 +33,7 @@ export interface NavigationState {
   navigateToNewChat: () => void;
   navigateToSession: (sessionId: string) => void;
   navigateToFiles: () => void;
+  navigateToScm: () => void;
   navigateToSessions: () => void;
   navigateToStats: () => void;
   navigateToConfig: () => void;
@@ -57,6 +59,9 @@ export function getActiveSidebarRoute(
   }
   if (view === "files") {
     return "files";
+  }
+  if (view === "scm") {
+    return "scm";
   }
   if (view === "sessions") {
     return "sessions";
@@ -87,6 +92,10 @@ export function isNewChatRouteActive(
 
 export function isFilesRouteActive(view: WorkspaceView): boolean {
   return view === "files";
+}
+
+export function isScmRouteActive(view: WorkspaceView): boolean {
+  return view === "scm";
 }
 
 export function isSessionsRouteActive(view: WorkspaceView): boolean {
@@ -158,6 +167,11 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   navigateToFiles: () =>
     set({
       view: "files",
+    }),
+
+  navigateToScm: () =>
+    set({
+      view: "scm",
     }),
 
   navigateToSessions: () =>

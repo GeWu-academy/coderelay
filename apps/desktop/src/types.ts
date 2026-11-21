@@ -208,8 +208,61 @@ export interface RouteForm {
   permission: string;
 }
 
-export const WORKSPACE_VIEWS = ["workspace", "files", "sessions", "stats", "config", "apikeys"] as const;
+export const WORKSPACE_VIEWS = ["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
+
+export const GIT_SYNC_ACTIONS = ["fetch", "pull", "push"] as const;
+export type GitSyncAction = (typeof GIT_SYNC_ACTIONS)[number];
+
+export function isGitSyncAction(value: unknown): value is GitSyncAction {
+  return (GIT_SYNC_ACTIONS as readonly unknown[]).includes(value);
+}
+
+export interface GitStatusEntry {
+  path: string;
+  origPath: string | null;
+  indexStatus: string;
+  worktreeStatus: string;
+  staged: boolean;
+  unstaged: boolean;
+  untracked: boolean;
+  conflicted: boolean;
+}
+
+export interface GitStatusResult {
+  isRepo: boolean;
+  repoRoot: string | null;
+  branch: string;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  detached: boolean;
+  entries: GitStatusEntry[];
+}
+
+export interface GitDiffResult {
+  path: string;
+  staged: boolean;
+  diff: string;
+  isBinary: boolean;
+  additions: number;
+  deletions: number;
+}
+
+export interface GitBranchInfo {
+  name: string;
+  fullName: string;
+  isRemote: boolean;
+  isCurrent: boolean;
+  upstream: string | null;
+  lastCommitOid: string | null;
+  committerDate: number | null;
+}
+
+export interface GitActionResult {
+  ok: boolean;
+  message: string;
+}
 
 export interface FileTreeEntry {
   name: string;

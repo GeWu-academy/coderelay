@@ -1,4 +1,6 @@
 import {
+  ArrowCounterClockwise,
+  ArrowDown,
   ArrowUp,
   ArrowsClockwise,
   CaretDown,
@@ -12,14 +14,18 @@ import {
   Files,
   Folder,
   GearSix,
+  GitBranch,
+  GitCommit,
   House,
   Image,
   Key,
+  Minus,
   Palette,
   Path,
   Plus,
   Shield,
   SidebarSimple,
+  Sparkle,
   Stop,
   Terminal,
   Trash,
@@ -107,3 +113,9 @@ export const FilesIcon = createIcon(Files, 18);
 export const FileIcon = createIcon(File, 14);
 export const ChevronRightIcon = createIcon(CaretRight, 12);
 export const CopyIcon = createIcon(Copy, 14);
+export const GitBranchIcon = createIcon(GitBranch, 18);
+export const GitCommitIcon = createIcon(GitCommit, 15);
+export const MinusIcon = createIcon(Minus, 14);
+export const ArrowDownIcon = createIcon(ArrowDown, 15);
+export const UndoIcon = createIcon(ArrowCounterClockwise, 14);
+export const SparkleIcon = createIcon(Sparkle, 14);

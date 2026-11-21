@@ -4,6 +4,7 @@ import { LayoutGroup } from "motion/react";
 import type { WorkspaceView } from "../types";
 import {
   FilesIcon,
+  GitBranchIcon,
   HistoryIcon,
   HomeIcon,
   type IconProps,
@@ -29,6 +30,7 @@ interface RailItem {
 const TOP_ITEMS: readonly RailItem[] = [
   { view: "workspace", label: "工作区", title: "Workspace", icon: HomeIcon, iconSize: 19 },
   { view: "files", label: "文件", title: "Files", icon: FilesIcon, iconSize: 19 },
+  { view: "scm", label: "源码", title: "Source Control", icon: GitBranchIcon, iconSize: 19 },
   { view: "sessions", label: "会话", title: "Sessions", icon: HistoryIcon, iconSize: 19 },
   { view: "stats", label: "统计", title: "Stats", icon: StatsIcon, iconSize: 19 },
 ];
