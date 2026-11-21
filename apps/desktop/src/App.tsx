@@ -138,7 +138,6 @@ export function App() {
       recentWorkspaces: mergeRecentWorkspaces(
         currentWorkspace.current,
         recentWorkspaces,
-        current.recentWorkspaces,
       ),
     }));
   }
@@ -207,7 +206,6 @@ export function App() {
         recentWorkspaces: mergeRecentWorkspaces(
           discovery.cwd,
           discovery.recentWorkspaces,
-          current.recentWorkspaces,
         ),
         sessionDetail: null,
         activeSessionId: null,
@@ -257,6 +255,11 @@ export function App() {
     if (!trimmed) {
       return;
     }
+    const wasCurrent = currentWorkspace.current === trimmed;
+    if (wasCurrent) {
+      currentWorkspace.current = "";
+      setWorkspaceInput("");
+    }
     try {
       await invoke<boolean>("delete_workspace", { request: { workspace: trimmed } });
       const remainingSessions = await refreshSessions(currentWorkspace.current);
@@ -266,26 +269,16 @@ export function App() {
       const fetchedRecent = await invoke<string[]>("list_recent_workspaces", {
         limit: 8,
       });
-      const nextRecent = state.recentWorkspaces
-        .filter((item) => item !== trimmed)
-        .filter((item, idx, arr) => arr.indexOf(item) === idx);
-      for (const item of fetchedRecent) {
-        if (item !== trimmed && !nextRecent.includes(item)) {
-          nextRecent.push(item);
-        }
-      }
+      const nextRecent = mergeRecentWorkspaces(
+        currentWorkspace.current,
+        fetchedRecent.filter((item) => item !== trimmed),
+      );
       setState((current) => ({
         ...current,
         recentWorkspaces: nextRecent,
       }));
-      if (currentWorkspace.current === trimmed) {
-        const fallback = nextRecent[0] ?? "";
-        if (fallback) {
-          handleSelectWorkspace(fallback);
-        } else {
-          currentWorkspace.current = "";
-          setWorkspaceInput("");
-        }
+      if (wasCurrent && nextRecent[0]) {
+        handleSelectWorkspace(nextRecent[0]);
       }
     } catch (error) {
       setState((current) => ({ ...current, error: messageOf(error) }));

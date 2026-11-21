@@ -179,7 +179,13 @@ fn runtime_status() -> RuntimeStatus {
 }
 
 fn workspace_cwd(request: &WorkspaceRequest) -> Result<PathBuf, String> {
-    match request.cwd.as_ref().map(PathBuf::from) {
+    match request
+        .cwd
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+    {
         Some(path) if path.is_absolute() => Ok(path),
         Some(path) => std::env::current_dir()
             .map(|cwd| cwd.join(path))
@@ -266,13 +272,22 @@ fn title_from_prompt(prompt: &str) -> String {
 
 #[tauri::command]
 async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<DiscoveryPayload, String> {
+    let has_explicit_cwd = request
+        .cwd
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
     let context = context_for(&request).await?;
-    let cwd_string = context.cwd.to_string_lossy().into_owned();
-    let _ = with_session_store(&app.state::<DesktopState>(), |store| {
-        store
-            .record_workspace(&cwd_string)
-            .map_err(|error| error.to_string())
-    });
+    let cwd_string = if has_explicit_cwd {
+        let cwd_string = context.cwd.to_string_lossy().into_owned();
+        let _ = with_session_store(&app.state::<DesktopState>(), |store| {
+            store
+                .record_workspace(&cwd_string)
+                .map_err(|error| error.to_string())
+        });
+        cwd_string
+    } else {
+        String::new()
+    };
     let recent_workspaces = with_session_store(&app.state::<DesktopState>(), |store| {
         store
             .get_recent_workspaces(8)
@@ -402,6 +417,11 @@ fn record_run(
 
 #[tauri::command]
 async fn start_run(app: AppHandle, request: StartRunRequest) -> Result<StartRunResponse, String> {
+    let has_explicit_cwd = request
+        .workspace
+        .cwd
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty());
     let context = context_for(&request.workspace).await?;
     let selection_request = SelectionRequest {
         workspace: request.workspace.clone(),
@@ -415,6 +435,7 @@ async fn start_run(app: AppHandle, request: StartRunRequest) -> Result<StartRunR
     let prompt = request.request.prompt.trim().to_owned();
     let title = title_from_prompt(&prompt);
     let workspace = context.cwd.clone();
+    let session_workspace = has_explicit_cwd.then_some(workspace.as_path());
 
     let (session, history) = with_session_store(&app.state::<DesktopState>(), |store| {
         let session = match request.session_id.as_deref() {
@@ -423,7 +444,7 @@ async fn start_run(app: AppHandle, request: StartRunRequest) -> Result<StartRunR
                 .map_err(|error| error.to_string())?
                 .ok_or_else(|| format!("session not found: {session_id}"))?,
             None => store
-                .create_session(selection.agent, title, Some(&workspace))
+                .create_session(selection.agent, title, session_workspace)
                 .map_err(|error| error.to_string())?,
         };
         let turns = store
@@ -820,8 +841,13 @@ fn resolve_workspace_subpath(
     cwd: Option<String>,
     relative_path: Option<&str>,
 ) -> Result<(PathBuf, PathBuf), String> {
+    let trimmed_cwd = cwd
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "no workspace selected".to_owned())?;
     let base = workspace_cwd(&WorkspaceRequest {
-        cwd,
+        cwd: Some(trimmed_cwd.to_owned()),
         config_path: None,
     })?;
     let workspace_root =
@@ -1143,5 +1169,24 @@ mod tests {
         let removed = store.remove_recent_workspace(ws).expect("remove recent");
         assert!(removed);
         assert!(!store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));
+    }
+
+    #[test]
+    fn rejects_directory_and_file_access_when_no_workspace_is_selected() {
+        for empty_cwd in [None, Some(String::new()), Some("   ".to_owned())] {
+            let dir_err = list_directory(ListDirectoryRequest {
+                cwd: empty_cwd.clone(),
+                relative_path: None,
+            })
+            .expect_err("list_directory should require an explicit workspace");
+            assert_eq!(dir_err, "no workspace selected");
+
+            let file_err = read_workspace_file(ReadWorkspaceFileRequest {
+                cwd: empty_cwd,
+                relative_path: "README.md".to_owned(),
+            })
+            .expect_err("read_workspace_file should require an explicit workspace");
+            assert_eq!(file_err, "no workspace selected");
+        }
     }
 }

@@ -1,14 +1,24 @@
+mod claude;
+mod codex;
+mod omp;
+mod pi;
+
 use serde::Serialize;
 
 use crate::agent::AgentId;
+
+pub use claude::ClaudePermissions;
+pub use codex::CodexPermissions;
+pub use omp::OmpPermissions;
+pub use pi::PiPermissions;
 
 /// Permission level id meaning "do not pass any permission flag; keep the CLI's own config".
 pub const DEFAULT_PERMISSION_ID: &str = "default";
 
 /// One user-selectable permission level of a CLI.
 ///
-/// This table is the single source of truth: the UI lists `id`/`label`/
-/// `description`, and `args` is what gets spliced into the CLI argv.
+/// Each CLI module is the single source of truth for its own options: the UI
+/// lists `id`/`label`/`description`, and `args` is spliced into the CLI argv.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PermissionOption {
@@ -21,7 +31,13 @@ pub struct PermissionOption {
     pub dangerous: bool,
 }
 
-const fn option(
+/// Per-CLI permission provider encapsulating the levels supported by a CLI.
+pub trait CliPermissions: Sync {
+    fn agent_id(&self) -> AgentId;
+    fn options(&self) -> &'static [PermissionOption];
+}
+
+pub(super) const fn option(
     id: &'static str,
     label: &'static str,
     description: &'static str,
@@ -37,7 +53,7 @@ const fn option(
     }
 }
 
-const DEFAULT_OPTION: PermissionOption = option(
+pub(super) const DEFAULT_OPTION: PermissionOption = option(
     DEFAULT_PERMISSION_ID,
     "默认",
     "沿用该 CLI 自身的配置",
@@ -45,117 +61,24 @@ const DEFAULT_OPTION: PermissionOption = option(
     false,
 );
 
-// Codex `exec` has no plan mode (that is a TUI collaboration mode); `read-only`
-// sandbox is the closest non-interactive equivalent.
-const CODEX: &[PermissionOption] = &[
-    DEFAULT_OPTION,
-    option(
-        "read-only",
-        "只读",
-        "沙箱只读，只分析不修改（最接近 plan）",
-        &["--sandbox", "read-only"],
-        false,
-    ),
-    option(
-        "workspace-write",
-        "工作区可写",
-        "沙箱内可修改工作区文件",
-        &["--sandbox", "workspace-write"],
-        false,
-    ),
-    option(
-        "approve-for-me",
-        "自动审查",
-        "审批请求交给自动审查，工作区可写沙箱",
-        &["--approve-for-me"],
-        false,
-    ),
-    option(
-        "full-access",
-        "完全放行",
-        "跳过所有确认且不使用沙箱",
-        &["--dangerously-bypass-approvals-and-sandbox"],
-        true,
-    ),
-];
+const CODEX_PERMISSIONS: CodexPermissions = CodexPermissions;
+const CLAUDE_PERMISSIONS: ClaudePermissions = ClaudePermissions;
+const PI_PERMISSIONS: PiPermissions = PiPermissions;
+const OMP_PERMISSIONS: OmpPermissions = OmpPermissions;
 
-const CLAUDE: &[PermissionOption] = &[
-    DEFAULT_OPTION,
-    option(
-        "plan",
-        "Plan",
-        "只规划，不修改文件",
-        &["--permission-mode", "plan"],
-        false,
-    ),
-    option(
-        "acceptEdits",
-        "自动接受编辑",
-        "自动接受文件编辑，其余操作仍需许可",
-        &["--permission-mode", "acceptEdits"],
-        false,
-    ),
-    option(
-        "auto",
-        "Auto",
-        "由分类器自动判断是否放行",
-        &["--permission-mode", "auto"],
-        false,
-    ),
-    option(
-        "bypassPermissions",
-        "完全放行",
-        "跳过所有权限检查",
-        &["--permission-mode", "bypassPermissions"],
-        true,
-    ),
-];
-
-// Pi has no approval/sandbox model, only tool allowlists. `grep`/`find`/`ls` are
-// its read-only built-ins (off by default), so read-only = read + those three.
-const PI: &[PermissionOption] = &[
-    DEFAULT_OPTION,
-    option(
-        "read-only",
-        "只读",
-        "仅启用 read/grep/find/ls，禁用 bash、edit、write",
-        &["--tools", "read,grep,find,ls"],
-        false,
-    ),
-];
-
-const OMP: &[PermissionOption] = &[
-    DEFAULT_OPTION,
-    option(
-        "always-ask",
-        "总是询问",
-        "每次工具调用都需确认",
-        &["--approval-mode", "always-ask"],
-        false,
-    ),
-    option(
-        "write",
-        "写入需确认",
-        "approvalMode=write",
-        &["--approval-mode", "write"],
-        false,
-    ),
-    option(
-        "yolo",
-        "完全放行",
-        "自动批准所有工具调用",
-        &["--approval-mode", "yolo"],
-        true,
-    ),
-];
-
-pub const fn permission_options(agent: AgentId) -> &'static [PermissionOption] {
+/// Return the dedicated permission provider for a given CLI.
+pub const fn permission_provider(agent: AgentId) -> &'static dyn CliPermissions {
     match agent {
-        AgentId::Codex => CODEX,
-        AgentId::Claude => CLAUDE,
-        AgentId::Pi => PI,
-        AgentId::Omp => OMP,
+        AgentId::Codex => &CODEX_PERMISSIONS,
+        AgentId::Claude => &CLAUDE_PERMISSIONS,
+        AgentId::Pi => &PI_PERMISSIONS,
+        AgentId::Omp => &OMP_PERMISSIONS,
     }
+}
+
+/// Return the permission options supported by a given CLI.
+pub fn permission_options(agent: AgentId) -> &'static [PermissionOption] {
+    permission_provider(agent).options()
 }
 
 /// Resolve a permission id to its argv fragment. `None` means the CLI default.
@@ -179,8 +102,11 @@ mod tests {
     use crate::agent::agent_ids;
 
     #[test]
-    fn every_agent_starts_with_default_and_has_unique_ids() {
+    fn every_agent_provider_matches_agent_id_and_starts_with_default() {
         for agent in agent_ids() {
+            let provider = permission_provider(agent);
+            assert_eq!(provider.agent_id(), agent);
+
             let options = permission_options(agent);
             assert_eq!(options[0].id, DEFAULT_PERMISSION_ID);
             assert!(options[0].args.is_empty());

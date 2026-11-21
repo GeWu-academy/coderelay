@@ -255,6 +255,8 @@ const mockDiscovery: DiscoveryPayload = {
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
         { id: "read-only", label: "只读", description: "沙箱只读，只分析不修改（最接近 plan）", dangerous: false },
+        { id: "workspace-write", label: "工作区可写", description: "沙箱内可修改工作区文件", dangerous: false },
+        { id: "approve-for-me", label: "自动审查", description: "审批请求交给自动审查，工作区可写沙箱", dangerous: false },
         { id: "full-access", label: "完全放行", description: "跳过所有确认且不使用沙箱", dangerous: true },
       ],
     },
@@ -263,7 +265,25 @@ const mockDiscovery: DiscoveryPayload = {
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
         { id: "plan", label: "Plan", description: "只规划，不修改文件", dangerous: false },
+        { id: "acceptEdits", label: "自动接受编辑", description: "自动接受文件编辑，其余操作仍需许可", dangerous: false },
         { id: "auto", label: "Auto", description: "由分类器自动判断是否放行", dangerous: false },
+        { id: "bypassPermissions", label: "完全放行", description: "跳过所有权限检查", dangerous: true },
+      ],
+    },
+    {
+      cliId: "pi",
+      options: [
+        { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
+        { id: "read-only", label: "只读", description: "仅启用 read/grep/find/ls，禁用 bash、edit、write", dangerous: false },
+      ],
+    },
+    {
+      cliId: "omp",
+      options: [
+        { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
+        { id: "always-ask", label: "总是询问", description: "每次工具调用都需确认", dangerous: false },
+        { id: "write", label: "写入需确认", description: "approvalMode=write", dangerous: false },
+        { id: "yolo", label: "完全放行", description: "自动批准所有工具调用", dangerous: true },
       ],
     },
   ],
@@ -309,8 +329,11 @@ export async function mockInvoke(
     case "runtime_status":
       return mockRuntime;
     case "discover": {
-      const cwd = typeof args.cwd === "string" && args.cwd.trim() ? args.cwd : mockDiscovery.cwd;
-      const recentWorkspaces = Array.from(new Set([cwd, ...mockDiscovery.recentWorkspaces]));
+      const req = (args.request as { cwd?: string | null } | undefined) ?? {};
+      const cwd = typeof req.cwd === "string" ? req.cwd.trim() : "";
+      const recentWorkspaces = cwd
+        ? Array.from(new Set([cwd, ...mockDiscovery.recentWorkspaces]))
+        : mockDiscovery.recentWorkspaces;
       return {
         ...mockDiscovery,
         cwd,
@@ -400,6 +423,9 @@ export async function mockInvoke(
       const ws = (req.workspace ?? "").trim();
       if (ws) {
         sessionsState = sessionsState.filter((s) => s.workspace !== ws);
+        mockDiscovery.recentWorkspaces = mockDiscovery.recentWorkspaces.filter(
+          (item) => item !== ws,
+        );
       }
       return true;
     }

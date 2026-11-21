@@ -30,10 +30,12 @@ export function WorkspaceDropdown({
         className="inline-flex max-w-[164px] items-center gap-1.5 rounded-[7px] bg-transparent px-2 py-[5px] text-[13px] font-[550] tracking-[-0.01em] text-ink transition-colors duration-140 hover:bg-surface-subtle"
         type="button"
         onClick={onToggle}
-        title={currentWorkspace}
+        title={currentWorkspace || "选择文件夹"}
       >
         <FolderIcon size={15} />
-        <span className="truncate">{workspaceName(currentWorkspace)}</span>
+        <span className="truncate">
+          {currentWorkspace.trim() ? workspaceName(currentWorkspace) : "选择文件夹"}
+        </span>
         <ChevronDownIcon size={11} />
       </button>
       <AnimatePresence>

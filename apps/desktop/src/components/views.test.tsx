@@ -541,4 +541,39 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(afterFinalClose.nextTabs).toEqual([]);
     expect(afterFinalClose.nextActiveTab).toBeNull();
   });
+
+  it("leaves workspace empty without showing home directory when no folder is selected", () => {
+    const emptyFilesHtml = renderToStaticMarkup(
+      <FilesView
+        workspaceInput=""
+        recentWorkspaces={[]}
+        onSelectWorkspace={() => {}}
+        onDeleteWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+      />,
+    );
+    expect(emptyFilesHtml).toContain("未选择文件夹");
+    expect(emptyFilesHtml).toContain("Open a folder to browse and inspect its files.");
+    expect(emptyFilesHtml).not.toContain("Remove workspace");
+
+    const emptySidebarHtml = renderToStaticMarkup(
+      <Sidebar
+        workspaceInput=""
+        recentWorkspaces={[]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={[]}
+        activeSessionId={null}
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+        onDeleteWorkspaceSessions={() => {}}
+      />,
+    );
+    expect(emptySidebarHtml).toContain("选择文件夹");
+  });
 });

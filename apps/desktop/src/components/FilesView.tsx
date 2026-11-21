@@ -520,7 +520,7 @@ function WorkspaceWheel({
                         : "text-[11px] font-normal"
                     }`}
                   >
-                    {workspaceName(workspace)}
+                    {workspace ? workspaceName(workspace) : "未选择文件夹"}
                   </span>
                 </button>
 
@@ -606,6 +606,10 @@ export function FilesView({
 
   const loadDirectory = useCallback(
     async (relativePath: string, requestToken: number) => {
+      const trimmedWorkspace = workspaceInput.trim();
+      if (!trimmedWorkspace) {
+        return;
+      }
       setLoadingDirs((prev) => {
         const next = new Set(prev);
         next.add(relativePath);
@@ -615,7 +619,7 @@ export function FilesView({
       try {
         const entries = await invoke<FileTreeEntry[]>("list_directory", {
           request: {
-            cwd: workspaceInput.trim() || null,
+            cwd: trimmedWorkspace,
             relativePath: relativePath || null,
           },
         });
@@ -648,8 +652,11 @@ export function FilesView({
     setChildrenByPath({});
     setExpandedDirs(new Set());
     setTreeError(null);
+    if (!workspaceInput.trim()) {
+      return;
+    }
     void loadDirectory("", token);
-  }, [loadDirectory]);
+  }, [loadDirectory, workspaceInput]);
 
   useEffect(() => {
     setOpenTabs([]);
@@ -848,7 +855,11 @@ export function FilesView({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
-          {treeError ? (
+          {!workspaceInput.trim() ? (
+            <div className="px-3 py-4 text-[12px] text-muted">
+              未选择文件夹
+            </div>
+          ) : treeError ? (
             <div className="px-3 py-4 text-[12px] text-rose-500">{treeError}</div>
           ) : rootLoading && rootEntries.length === 0 ? (
             <div className="px-3 py-4 font-code text-[11.5px] text-muted">
@@ -1006,10 +1017,12 @@ export function FilesView({
           <div className="flex flex-1 flex-col items-center justify-center gap-2.5 px-6 text-center text-muted">
             <FilesIcon size={32} />
             <div className="text-sm font-medium text-ink-soft">
-              {workspaceName(workspaceInput)}
+              {workspaceInput.trim() ? workspaceName(workspaceInput) : "未选择文件夹"}
             </div>
             <p className="max-w-xs text-xs text-muted">
-              Select a file from the explorer sidebar to inspect its contents.
+              {workspaceInput.trim()
+                ? "Select a file from the explorer sidebar to inspect its contents."
+                : "Open a folder to browse and inspect its files."}
             </p>
           </div>
         )}
