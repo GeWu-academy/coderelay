@@ -7,12 +7,13 @@ import {
   useNavigationStore,
 } from "../stores/navigationStore";
 import type { SessionRecord } from "../types";
-import { PlusIcon, RefreshIcon, TrashIcon } from "./icons";
+import { PanelLeftIcon, PlusIcon, RefreshIcon, TrashIcon } from "./icons";
 import { LiquidRouteIndicator } from "./LiquidRouteIndicator";
 import { WorkspaceDropdown } from "./WorkspaceDropdown";
 
 export interface SidebarProps {
   collapsed?: boolean;
+  onCollapse?: () => void;
   workspaceInput: string;
   recentWorkspaces: string[];
   workspaceDropdownOpen?: boolean;
@@ -35,6 +36,7 @@ const ICON_BTN_CLASS =
 
 export function Sidebar({
   collapsed: propCollapsed,
+  onCollapse: propCollapse,
   workspaceInput,
   recentWorkspaces,
   workspaceDropdownOpen: propDropdownOpen,
@@ -53,10 +55,12 @@ export function Sidebar({
   const storeView = useNavigationStore((s) => s.view);
   const storeActiveSessionId = useNavigationStore((s) => s.activeSessionId);
   const storeCollapsed = useNavigationStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useNavigationStore((s) => s.setSidebarCollapsed);
   const storeDropdownOpen = useNavigationStore((s) => s.workspaceDropdownOpen);
   const toggleWorkspaceDropdown = useNavigationStore((s) => s.toggleWorkspaceDropdown);
 
   const collapsed = propCollapsed ?? storeCollapsed;
+  const handleCollapse = propCollapse ?? (() => setSidebarCollapsed(true));
   const activeSessionId =
     propActiveSessionId !== undefined ? propActiveSessionId : storeActiveSessionId;
   const workspaceDropdownOpen = propDropdownOpen ?? storeDropdownOpen;
@@ -101,7 +105,7 @@ export function Sidebar({
           onPickWorkspace={onPickWorkspace}
         />
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             aria-label="New"
             className={ICON_BTN_CLASS}
@@ -120,6 +124,15 @@ export function Sidebar({
             type="button"
           >
             <RefreshIcon size={14} />
+          </button>
+          <button
+            aria-label="收起侧边栏"
+            className={ICON_BTN_CLASS}
+            onClick={handleCollapse}
+            title="收起 (⌘B)"
+            type="button"
+          >
+            <PanelLeftIcon size={14} />
           </button>
         </div>
       </div>

@@ -25,9 +25,9 @@ export function WorkspaceDropdown({
   );
 
   return (
-    <div className="relative min-w-0">
+    <div className="relative min-w-0 flex-1">
       <button
-        className="inline-flex max-w-[164px] items-center gap-1.5 rounded-[7px] bg-transparent px-2 py-[5px] text-[13px] font-[550] tracking-[-0.01em] text-ink transition-colors duration-140 hover:bg-surface-subtle"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-[7px] bg-transparent px-2 py-[5px] text-[13px] font-[550] tracking-[-0.01em] text-ink transition-colors duration-140 hover:bg-surface-subtle"
         type="button"
         onClick={onToggle}
         title={currentWorkspace || "选择文件夹"}

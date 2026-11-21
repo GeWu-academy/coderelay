@@ -762,4 +762,51 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(html).not.toContain("<thinking>");
     expect(html).not.toContain("Structured thought line");
   });
+
+  it("renders Sidebar as collapsible docked panel with collapse button", () => {
+    const expandedHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={false}
+        onCollapse={() => {}}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={["/Users/allure/Desktop/coderelay"]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={[]}
+        activeSessionId={null}
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+      />,
+    );
+    expect(expandedHtml).toContain("basis-[240px]");
+    expect(expandedHtml).toContain('aria-label="收起侧边栏"');
+    expect(expandedHtml).toContain('aria-hidden="false"');
+
+    const collapsedHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={true}
+        onCollapse={() => {}}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={["/Users/allure/Desktop/coderelay"]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={[]}
+        activeSessionId={null}
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+      />,
+    );
+    expect(collapsedHtml).toContain("w-0 shrink-0 basis-0");
+    expect(collapsedHtml).toContain('aria-hidden="true"');
+  });
 });

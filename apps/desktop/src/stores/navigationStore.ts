@@ -21,7 +21,6 @@ export interface NavigationState {
   view: WorkspaceView;
   activeSessionId: string | null;
   sidebarCollapsed: boolean;
-  sidebarPinned: boolean;
   rightSidebarOpen: boolean;
   rightPanelMode: RightPanelMode;
   projectExpanded: boolean;
@@ -39,8 +38,6 @@ export interface NavigationState {
   navigateToApiKeys: () => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  toggleSidebarPinned: () => void;
-  setSidebarPinned: (pinned: boolean) => void;
   toggleRightSidebar: () => void;
   setRightSidebarOpen: (open: boolean) => void;
   toggleRightPanelMode: (mode: RightPanelMode) => void;
@@ -112,40 +109,14 @@ export function isConversationRouteActive(view: WorkspaceView): boolean {
   return isConversationView(view);
 }
 
-function getInitialSidebarPinned(): boolean {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return false;
-  }
-  try {
-    return localStorage.getItem("coderelay_sidebar_pinned") === "true";
-  } catch {
-    return false;
-  }
-}
-
-function persistSidebarPinned(pinned: boolean): void {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return;
-  }
-  try {
-    localStorage.setItem("coderelay_sidebar_pinned", String(pinned));
-  } catch {
-    // ignore
-  }
-}
-
 function getInitialSidebarCollapsed(): boolean {
   if (typeof window === "undefined" || !window.localStorage) {
-    return true;
+    return false;
   }
   try {
-    const stored = localStorage.getItem("coderelay_sidebar_collapsed");
-    if (stored === null) {
-      return !getInitialSidebarPinned();
-    }
-    return stored === "true";
+    return localStorage.getItem("coderelay_sidebar_collapsed") === "true";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -164,7 +135,6 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   view: "workspace",
   activeSessionId: null,
   sidebarCollapsed: getInitialSidebarCollapsed(),
-  sidebarPinned: getInitialSidebarPinned(),
   rightSidebarOpen: false,
   rightPanelMode: "agents",
   projectExpanded: true,
@@ -220,28 +190,6 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   setSidebarCollapsed: (collapsed: boolean) => {
     persistSidebarCollapsed(collapsed);
     set({ sidebarCollapsed: collapsed });
-  },
-
-  toggleSidebarPinned: () =>
-    set((state) => {
-      const nextPinned = !state.sidebarPinned;
-      persistSidebarPinned(nextPinned);
-      if (nextPinned && state.sidebarCollapsed) {
-        persistSidebarCollapsed(false);
-        return { sidebarPinned: nextPinned, sidebarCollapsed: false };
-      }
-      return { sidebarPinned: nextPinned };
-    }),
-
-  setSidebarPinned: (pinned: boolean) => {
-    persistSidebarPinned(pinned);
-    set((state) => {
-      if (pinned && state.sidebarCollapsed) {
-        persistSidebarCollapsed(false);
-        return { sidebarPinned: pinned, sidebarCollapsed: false };
-      }
-      return { sidebarPinned: pinned };
-    });
   },
 
   toggleRightSidebar: () =>

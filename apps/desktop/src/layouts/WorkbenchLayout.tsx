@@ -8,13 +8,11 @@ export interface WorkbenchLayoutProps {
   view: WorkspaceView;
   showLeftSidebar: boolean;
   sidebarCollapsed: boolean;
-  sidebarPinned?: boolean;
   rightSidebarOpen: boolean;
   showBottomDock: boolean;
   customBackground?: string | null;
   customBackgroundOpacity?: number;
   onToggleSidebarShortcut?: () => void;
-  onCollapseSidebar?: () => void;
   onExpandSidebar?: () => void;
   titlebar: ReactNode;
   iconRail: ReactNode;
@@ -32,13 +30,11 @@ export function WorkbenchLayout({
   view,
   showLeftSidebar,
   sidebarCollapsed,
-  sidebarPinned = false,
   rightSidebarOpen,
   showBottomDock,
   customBackground,
   customBackgroundOpacity = 1,
   onToggleSidebarShortcut,
-  onCollapseSidebar,
   onExpandSidebar,
   titlebar,
   iconRail,
@@ -48,31 +44,20 @@ export function WorkbenchLayout({
   rightSidebar,
 }: WorkbenchLayoutProps) {
   useEffect(() => {
+    if (!onToggleSidebarShortcut) {
+      return;
+    }
     function handleKeyDown(event: KeyboardEvent) {
-      if (
-        onToggleSidebarShortcut &&
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === "b"
-      ) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
         if (showLeftSidebar) {
-          onToggleSidebarShortcut();
+          onToggleSidebarShortcut?.();
         }
-        return;
-      }
-      if (
-        event.key === "Escape" &&
-        showLeftSidebar &&
-        !sidebarPinned &&
-        !sidebarCollapsed &&
-        onCollapseSidebar
-      ) {
-        onCollapseSidebar();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCollapseSidebar, onToggleSidebarShortcut, showLeftSidebar, sidebarCollapsed, sidebarPinned]);
+  }, [onToggleSidebarShortcut, showLeftSidebar]);
 
   return (
     <div className="relative flex h-dvh min-h-[600px] flex-col overflow-hidden bg-canvas">
@@ -93,23 +78,13 @@ export function WorkbenchLayout({
       <div
         className="flex min-h-0 flex-1 overflow-hidden bg-canvas"
         data-sidebar-collapsed={!showLeftSidebar || sidebarCollapsed}
-        data-sidebar-pinned={sidebarPinned}
         data-right-sidebar-open={rightSidebarOpen}
       >
         {iconRail}
 
+        {showLeftSidebar ? leftSidebar : null}
+
         <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          {showLeftSidebar ? leftSidebar : null}
-
-          {showLeftSidebar && !sidebarPinned && !sidebarCollapsed ? (
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 z-20 bg-black/15 transition-opacity duration-200"
-              data-testid="sidebar-drawer-backdrop"
-              onClick={onCollapseSidebar}
-            />
-          ) : null}
-
           {showLeftSidebar && sidebarCollapsed && onExpandSidebar ? (
             <button
               aria-label="Expand sidebar"

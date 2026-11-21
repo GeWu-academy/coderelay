@@ -144,4 +144,42 @@ describe("WorkbenchLayout", () => {
     expect(useNavigationStore.getState().view).toBe("workspace");
     expect(useNavigationStore.getState().activeSessionId).toBeNull();
   });
+
+  it("renders expand trigger on the left when left sidebar is collapsed and hides it when expanded", () => {
+    const collapsedHtml = renderToStaticMarkup(
+      <WorkbenchLayout
+        view="workspace"
+        showLeftSidebar={true}
+        sidebarCollapsed={true}
+        rightSidebarOpen={false}
+        showBottomDock={false}
+        onExpandSidebar={() => {}}
+        titlebar={<header>Titlebar</header>}
+        iconRail={<nav>Rail</nav>}
+        leftSidebar={<aside>Sidebar</aside>}
+        main={<section>Main</section>}
+        rightSidebar={<aside>Right</aside>}
+      />,
+    );
+    expect(collapsedHtml).toContain('data-testid="sidebar-expand-trigger"');
+    expect(collapsedHtml).toContain('data-sidebar-collapsed="true"');
+
+    const expandedHtml = renderToStaticMarkup(
+      <WorkbenchLayout
+        view="workspace"
+        showLeftSidebar={true}
+        sidebarCollapsed={false}
+        rightSidebarOpen={false}
+        showBottomDock={false}
+        onExpandSidebar={() => {}}
+        titlebar={<header>Titlebar</header>}
+        iconRail={<nav>Rail</nav>}
+        leftSidebar={<aside>Sidebar</aside>}
+        main={<section>Main</section>}
+        rightSidebar={<aside>Right</aside>}
+      />,
+    );
+    expect(expandedHtml).not.toContain('data-testid="sidebar-expand-trigger"');
+    expect(expandedHtml).toContain('data-sidebar-collapsed="false"');
+  });
 });

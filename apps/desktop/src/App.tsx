@@ -27,6 +27,7 @@ export function App() {
   const activeSessionId = useNavigationStore((s) => s.activeSessionId);
   const sidebarCollapsed = useNavigationStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useNavigationStore((s) => s.toggleSidebar);
+  const setSidebarCollapsed = useNavigationStore((s) => s.setSidebarCollapsed);
   const rightSidebarOpen = useNavigationStore((s) => s.rightSidebarOpen);
   const toggleRightSidebar = useNavigationStore((s) => s.toggleRightSidebar);
   const rightPanelMode = useNavigationStore((s) => s.rightPanelMode);
@@ -150,6 +151,7 @@ export function App() {
       customBackground={customBackground}
       customBackgroundOpacity={customBackgroundOpacity}
       onToggleSidebarShortcut={toggleSidebar}
+      onExpandSidebar={() => setSidebarCollapsed(false)}
       titlebar={
         <Titlebar
           sidebarCollapsed={sidebarCollapsed}
@@ -164,6 +166,7 @@ export function App() {
       leftSidebar={
         <Sidebar
           collapsed={sidebarCollapsed}
+          onCollapse={() => setSidebarCollapsed(true)}
           workspaceInput={workspaceInput}
           recentWorkspaces={recentWorkspaces}
           workspaceDropdownOpen={workspaceDropdownOpen}
