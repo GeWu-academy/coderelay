@@ -53,7 +53,6 @@ type ActiveMenu = "mode" | "cli" | "model" | "permission" | null;
 interface DropdownOption {
   value: string;
   label: string;
-  description?: string;
   dangerous?: boolean;
 }
 
@@ -69,6 +68,7 @@ interface CustomSelectPillProps {
   menuTitle?: string;
   leadingIcon?: ReactNode;
   align?: "left" | "right";
+  placement?: "top" | "bottom";
   maxLabelWidth?: string;
   minDropdownWidth?: string;
   isDangerous?: boolean;
@@ -86,6 +86,7 @@ function CustomSelectPill({
   menuTitle,
   leadingIcon,
   align = "right",
+  placement = "top",
   maxLabelWidth = "max-w-[100px]",
   minDropdownWidth = "min-w-[140px]",
   isDangerous = false,
@@ -98,14 +99,14 @@ function CustomSelectPill({
         onClick={onToggle}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`group relative inline-flex h-[26px] cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs font-medium tracking-[-0.01em] transition-all duration-140 select-none ${
+        className={`group relative inline-flex h-[26px] cursor-pointer items-center gap-1.5 rounded-[7px] px-2 text-xs font-medium tracking-[-0.01em] transition-all duration-140 select-none active:scale-[0.98] ${
           open
             ? isDangerous
-              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+              ? "bg-amber-500/14 text-amber-700 dark:text-amber-300"
               : "bg-surface-subtle text-ink"
             : isDangerous
-              ? "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
-              : "bg-transparent text-muted-strong hover:bg-surface-subtle hover:text-ink"
+              ? "bg-amber-500/9 text-amber-700 hover:bg-amber-500/14 dark:text-amber-300"
+              : "bg-transparent text-muted-strong hover:bg-surface-subtle/85 hover:text-ink"
         } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
         {leadingIcon ? (
@@ -129,20 +130,22 @@ function CustomSelectPill({
         {open && !disabled ? (
           <motion.div
             role="listbox"
-            initial={{ opacity: 0, scale: 0.97, y: 4 }}
+            initial={{ opacity: 0, scale: 0.96, y: placement === "top" ? 4 : -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 4 }}
-            transition={{ duration: 0.13, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute bottom-[calc(100%+6px)] z-50 flex max-h-[280px] flex-col overflow-hidden rounded-xl border border-line-strong bg-surface/96 p-1 shadow-[0_14px_36px_-6px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl ${
-              align === "left" ? "left-0" : "right-0"
-            } ${minDropdownWidth}`}
+            exit={{ opacity: 0, scale: 0.96, y: placement === "top" ? 4 : -4 }}
+            transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+            className={`absolute z-50 flex max-h-[300px] flex-col overflow-hidden rounded-[12px] border border-line-strong/80 bg-surface/98 p-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-2px_rgba(0,0,0,0.05),0_0_0_0.5px_rgba(0,0,0,0.03)] backdrop-blur-xl ${
+              placement === "top"
+                ? "bottom-[calc(100%+6px)]"
+                : "top-[calc(100%+6px)]"
+            } ${align === "left" ? "left-0" : "right-0"} ${minDropdownWidth}`}
           >
             {menuTitle ? (
-              <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-medium tracking-wider text-muted/70 uppercase select-none">
+              <div className="px-2.5 pt-1 pb-1 text-[10px] font-medium tracking-[0.04em] text-muted/65 select-none">
                 {menuTitle}
               </div>
             ) : null}
-            <div className="flex-1 overflow-y-auto p-0.5 [scrollbar-color:rgba(0,0,0,0.12)_transparent] [scrollbar-width:thin]">
+            <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {options.map((opt) => {
                 const isSelected = opt.value === value;
                 return (
@@ -152,31 +155,24 @@ function CustomSelectPill({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => onSelect(opt.value)}
-                    className={`flex w-full cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors duration-100 ${
+                    className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-[7px] px-2.5 py-1.5 text-left text-xs leading-4 transition-colors duration-100 ${
                       isSelected
-                        ? "bg-surface-hover/80 font-medium text-ink"
-                        : "text-ink-soft hover:bg-surface-subtle hover:text-ink"
+                        ? "bg-surface-subtle font-medium text-ink"
+                        : "text-ink-soft hover:bg-surface-subtle/70 hover:text-ink"
                     }`}
                   >
-                    <span className="mt-[2px] flex h-3.5 w-3.5 shrink-0 items-center justify-center text-ink">
-                      {isSelected ? <CheckIcon size={11} /> : null}
+                    <span
+                      className={`truncate ${
+                        opt.dangerous
+                          ? "text-amber-600 dark:text-amber-300"
+                          : ""
+                      }`}
+                    >
+                      {opt.label}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span
-                        className={`truncate ${
-                          opt.dangerous
-                            ? "text-amber-700 dark:text-amber-300"
-                            : ""
-                        }`}
-                      >
-                        {opt.label}
-                      </span>
-                      {opt.description ? (
-                        <span className="text-[11px] leading-snug font-normal text-muted">
-                          {opt.description}
-                        </span>
-                      ) : null}
-                    </span>
+                    {isSelected ? (
+                      <CheckIcon size={12} className="shrink-0 text-ink/80" />
+                    ) : null}
                   </button>
                 );
               })}
@@ -299,7 +295,6 @@ export function Composer({
   const permissionOptions: DropdownOption[] = permissionChoices.map((item) => ({
     value: item.id,
     label: item.label,
-    description: item.description,
     dangerous: Boolean(item.dangerous),
   }));
 
@@ -332,10 +327,11 @@ export function Composer({
         ];
 
   const hasPrompt = Boolean(prompt.trim());
+  const dropdownPlacement = compact ? "top" : "bottom";
 
   return (
     <div
-      className={`mx-auto w-[min(700px,100%)] border border-line-strong bg-surface transition-[border-color,box-shadow] duration-180 focus-within:border-line-strong focus-within:shadow-[0_16px_44px_-8px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.035)] ${
+      className={`mx-auto w-[min(700px,100%)] border border-line-strong bg-surface transition-[border-color,box-shadow] duration-180 focus-within:border-ink/30 focus-within:shadow-[0_16px_44px_-8px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.035)] ${
         compact
           ? "rounded-[18px] shadow-[0_6px_24px_-4px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.02)]"
           : "rounded-[22px] shadow-[0_10px_36px_-8px_rgba(0,0,0,0.055),0_2px_6px_rgba(0,0,0,0.025)]"
@@ -351,7 +347,6 @@ export function Composer({
         value={prompt}
         onChange={(event) => onPromptChange(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="›"
         disabled={running}
       />
 
@@ -374,15 +369,7 @@ export function Composer({
             title={`模式: ${activeMode}`}
             menuTitle="路由模式"
             align="left"
-            leadingIcon={
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  activeMode === "local"
-                    ? "bg-emerald-500/85"
-                    : "bg-muted-strong/60"
-                }`}
-              />
-            }
+            placement={dropdownPlacement}
             maxLabelWidth="max-w-[85px]"
             minDropdownWidth="min-w-[132px]"
           />
@@ -418,6 +405,7 @@ export function Composer({
             disabled={running}
             title={`CLI: ${currentAgentLabel}`}
             menuTitle="执行 CLI"
+            placement={dropdownPlacement}
             leadingIcon={
               <TerminalIcon
                 size={12}
@@ -447,6 +435,7 @@ export function Composer({
             disabled={running}
             title={`模型: ${currentModelLabel}`}
             menuTitle="模型"
+            placement={dropdownPlacement}
             maxLabelWidth="max-w-[145px]"
             minDropdownWidth="min-w-[190px]"
           />
@@ -471,6 +460,7 @@ export function Composer({
                 disabled={running}
                 title={`权限: ${currentPermission.label}（${currentPermission.description}）`}
                 menuTitle="权限等级"
+                placement={dropdownPlacement}
                 leadingIcon={
                   <ShieldIcon
                     size={12}
@@ -482,7 +472,7 @@ export function Composer({
                   />
                 }
                 maxLabelWidth="max-w-[100px]"
-                minDropdownWidth="min-w-[210px]"
+                minDropdownWidth="min-w-[144px]"
                 isDangerous={Boolean(currentPermission.dangerous)}
               />
             </>

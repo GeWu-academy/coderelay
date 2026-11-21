@@ -164,12 +164,20 @@ export function App() {
       error: null,
     }));
     try {
-      const [runtime, discovery] = await Promise.all([
-        invoke<RuntimeStatus>("runtime_status"),
+      const [runtime, discovery, sessions] = await Promise.all([
+        state.runtime
+          ? Promise.resolve(state.runtime)
+          : invoke<RuntimeStatus>("runtime_status"),
         invoke<DiscoveryPayload>("discover", {
           request: {
             cwd: cwd?.trim() || null,
             configPath: null,
+          },
+        }),
+        invoke<SessionRecord[]>("list_sessions", {
+          request: {
+            workspace: null,
+            limit: 200,
           },
         }),
       ]);
@@ -192,15 +200,6 @@ export function App() {
           model: resolved.model,
         };
       });
-      const sessions = await invoke<SessionRecord[]>("list_sessions", {
-        request: {
-          workspace: null,
-          limit: 200,
-        },
-      });
-      if (requestId !== discoveryRequestId.current) {
-        return;
-      }
       setState((current) => ({
         ...current,
         runtime,
@@ -642,9 +641,26 @@ export function App() {
     }
   }
 
-  function handleSelectWorkspace(ws: string): void {
+  function switchWorkspaceOptimistically(ws: string): void {
+    const target = ws.trim();
     setWorkspaceDropdownOpen(false);
-    void loadDiscovery(ws);
+    if (!target || target === currentWorkspace.current.trim()) {
+      return;
+    }
+    currentWorkspace.current = target;
+    setWorkspaceInput(target);
+    setState((current) => ({
+      ...current,
+      recentWorkspaces: mergeRecentWorkspaces(target, current.recentWorkspaces),
+      activeSessionId: null,
+      sessionDetail: null,
+      error: null,
+    }));
+    void loadDiscovery(target);
+  }
+
+  function handleSelectWorkspace(ws: string): void {
+    switchWorkspaceOptimistically(ws);
   }
 
   async function handlePickWorkspace(): Promise<void> {
@@ -653,8 +669,7 @@ export function App() {
         initialDir: currentWorkspace.current || workspaceInput.trim() || null,
       });
       if (selected) {
-        setWorkspaceDropdownOpen(false);
-        await loadDiscovery(selected);
+        switchWorkspaceOptimistically(selected);
       }
     } catch (error) {
       setState((current) => ({ ...current, error: messageOf(error) }));

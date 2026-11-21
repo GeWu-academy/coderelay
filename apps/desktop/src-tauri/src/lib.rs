@@ -12,10 +12,11 @@ use coderelay_core::config::{
 };
 use coderelay_core::router::jev::{self, TYPESAFE_ENV_KEY};
 use coderelay_core::{
-    AgentAbortHandle, AgentEvent, AgentRunOptions, AgentRunResult, AgentRunStatus, AppendTurnInput,
-    CORE_VERSION, ListSessionsOptions, ModelCatalog, ROUTING_MODES, RouteRequest, RoutingMode,
-    SessionRecord, SessionStore, SessionTurn, TurnContextSource, TurnProtocol, TurnRunStatus,
-    build_prompt_with_context, default_session_db_path, start_agent_run,
+    AgentAbortHandle, AgentEvent, AgentId, AgentRunOptions, AgentRunResult, AgentRunStatus,
+    AppendTurnInput, CORE_VERSION, DetectedCli, ListSessionsOptions, ModelCatalog, ROUTING_MODES,
+    RouteRequest, RoutingMode, SessionRecord, SessionStore, SessionTurn, TurnContextSource,
+    TurnProtocol, TurnRunStatus, build_prompt_with_context, default_session_db_path,
+    start_agent_run,
 };
 use coderelay_protocol::PROTOCOL_VERSION;
 use serde::{Deserialize, Serialize};
@@ -28,10 +29,18 @@ const RUN_EVENT: &str = "run-event";
 const RUN_COMPLETED: &str = "run-completed";
 const SESSION_UPDATED: &str = "session-updated";
 
+type PermissionsCacheKey = Vec<(AgentId, String, Option<String>, bool)>;
+
+struct CachedPermissions {
+    key: PermissionsCacheKey,
+    permissions: Vec<AgentPermissions>,
+}
+
 #[derive(Default)]
 struct DesktopState {
     runs: Mutex<HashMap<String, AgentAbortHandle>>,
     sessions: Mutex<Option<SessionStore>>,
+    permissions_cache: Mutex<Option<CachedPermissions>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -296,18 +305,57 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
             .get_recent_workspaces(8)
             .map_err(|error| error.to_string())
     })?;
-    let detected = context.detected.clone();
-    let environment = context.environment.clone();
-    let scanned_permissions = tauri::async_runtime::spawn_blocking(move || {
-        coderelay_core::scan_permissions(
-            &coderelay_core::SystemHost,
-            &detected,
-            &environment,
-            coderelay_core::DEFAULT_PERMISSION_SCAN_TIMEOUT,
-        )
-    })
-    .await
-    .map_err(|error| format!("扫描 CLI 权限失败: {error}"))?;
+    let permissions_key: PermissionsCacheKey = context
+        .detected
+        .iter()
+        .map(|cli: &DetectedCli| {
+            (
+                cli.id,
+                cli.path.clone(),
+                cli.version.clone(),
+                cli.available,
+            )
+        })
+        .collect();
+    let cached_permissions = app
+        .state::<DesktopState>()
+        .permissions_cache
+        .lock()
+        .ok()
+        .and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|cached| cached.key == permissions_key)
+                .map(|cached| cached.permissions.clone())
+        });
+    let permissions = match cached_permissions {
+        Some(cached) => cached,
+        None => {
+            let detected = context.detected.clone();
+            let environment = context.environment.clone();
+            let scanned_permissions = tauri::async_runtime::spawn_blocking(move || {
+                coderelay_core::scan_permissions(
+                    &coderelay_core::SystemHost,
+                    &detected,
+                    &environment,
+                    coderelay_core::DEFAULT_PERMISSION_SCAN_TIMEOUT,
+                )
+            })
+            .await
+            .map_err(|error| format!("扫描 CLI 权限失败: {error}"))?;
+            let mapped: Vec<AgentPermissions> = scanned_permissions
+                .into_iter()
+                .map(|(cli_id, options)| AgentPermissions { cli_id, options })
+                .collect();
+            if let Ok(mut guard) = app.state::<DesktopState>().permissions_cache.lock() {
+                *guard = Some(CachedPermissions {
+                    key: permissions_key,
+                    permissions: mapped.clone(),
+                });
+            }
+            mapped
+        }
+    };
     Ok(DiscoveryPayload {
         cwd: cwd_string,
         config_path: context
@@ -319,10 +367,7 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
         routing_modes: ROUTING_MODES.to_vec(),
         agents: build_agent_entries(&context),
         catalog: context.catalog.clone(),
-        permissions: scanned_permissions
-            .into_iter()
-            .map(|(cli_id, options)| AgentPermissions { cli_id, options })
-            .collect(),
+        permissions,
         recent_workspaces,
     })
 }
