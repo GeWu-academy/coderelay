@@ -97,6 +97,7 @@ lines.on("line", (line) => {
       process.exitCode = 23;
       lines.close();
       process.stdin.destroy();
+      setTimeout(() => process.exit(23), 20);
       return;
     }
     if (process.argv.includes("--hold-run")) {
