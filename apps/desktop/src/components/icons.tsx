@@ -8,7 +8,7 @@ import {
   ClockCounterClockwise,
   Copy,
   File,
-  FileText,
+  Files,
   Folder,
   GearSix,
   House,
@@ -77,7 +77,7 @@ export const KeyIcon = createIcon(Key, 15);
 export const PaletteIcon = createIcon(Palette, 15);
 export const TrashIcon = createIcon(Trash, 14);
 export const ImageIcon = createIcon(Image, 15);
-export const FilesIcon = createIcon(FileText, 18);
+export const FilesIcon = createIcon(Files, 18);
 export const FileIcon = createIcon(File, 14);
 export const ChevronRightIcon = createIcon(CaretRight, 12);
 export const CopyIcon = createIcon(Copy, 14);

@@ -13,12 +13,14 @@ import {
   FilesIcon,
   FolderIcon,
   RefreshIcon,
+  TrashIcon,
 } from "./icons";
 
 export interface FilesViewProps {
   workspaceInput: string;
   recentWorkspaces?: string[];
   onSelectWorkspace?: (workspace: string) => void;
+  onDeleteWorkspace?: (workspace: string) => void;
   onPickWorkspace?: () => void;
 }
 
@@ -259,6 +261,7 @@ interface WorkspaceWheelProps {
   workspaces: readonly string[];
   currentWorkspace: string;
   onSelectWorkspace?: (workspace: string) => void;
+  onDeleteWorkspace?: (workspace: string) => void;
 }
 
 const WHEEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
@@ -271,6 +274,7 @@ function WorkspaceWheel({
   workspaces,
   currentWorkspace,
   onSelectWorkspace,
+  onDeleteWorkspace,
 }: WorkspaceWheelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
@@ -282,6 +286,7 @@ function WorkspaceWheel({
   const total = workspaces.length;
 
   const [virtualStep, setVirtualStep] = useState(currentIndex);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const previewIndex = total > 0 ? ((virtualStep % total) + total) % total : 0;
   const previewWorkspace = workspaces[previewIndex] ?? trimmedCurrent;
@@ -344,10 +349,19 @@ function WorkspaceWheel({
       if (total <= 1 || delta === 0) {
         return;
       }
+      setPendingDelete(null);
       setVirtualStep((prev) => prev + delta);
     },
     [total],
   );
+
+  useEffect(() => {
+    if (!pendingDelete) {
+      return;
+    }
+    const timer = setTimeout(() => setPendingDelete(null), 2500);
+    return () => clearTimeout(timer);
+  }, [pendingDelete]);
 
   // Command+K / Ctrl+K: focus the wheel, or cycle if already focused
   useEffect(() => {
@@ -449,17 +463,11 @@ function WorkspaceWheel({
             const targetOpacity = isCenter ? 1 : distance === 1 ? 0.52 : 0;
             const targetRotateX = offset * -18;
 
+            const isConfirmingDelete = isCenter && pendingDelete === workspace;
+
             return (
-              <motion.button
+              <motion.div
                 key={virtualIndex}
-                type="button"
-                onClick={() => {
-                  if (offset !== 0) {
-                    stepBy(offset);
-                  } else if (isPendingCommit) {
-                    commitWorkspace(workspace);
-                  }
-                }}
                 initial={{
                   y: targetY + (offset >= 0 ? 12 : -12),
                   scale: 0.82,
@@ -483,14 +491,24 @@ function WorkspaceWheel({
                   marginTop: "-14px",
                   transformStyle: "preserve-3d",
                 }}
-                className={`absolute inset-x-2 z-10 flex h-[28px] items-center justify-between gap-2 rounded-lg px-2.5 text-left ${
-                  isCenter
-                    ? "cursor-default text-ink"
-                    : "cursor-pointer text-muted hover:text-ink-soft"
+                className={`absolute inset-x-2 z-10 flex h-[28px] items-center justify-between gap-1.5 rounded-lg px-2.5 ${
+                  isCenter ? "text-ink" : "text-muted hover:text-ink-soft"
                 }`}
                 title={workspace || "Workspace"}
               >
-                <span className="flex min-w-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (offset !== 0) {
+                      stepBy(offset);
+                    } else if (isPendingCommit) {
+                      commitWorkspace(workspace);
+                    }
+                  }}
+                  className={`flex min-w-0 flex-1 items-center gap-1.5 text-left ${
+                    isCenter && !isPendingCommit ? "cursor-default" : "cursor-pointer"
+                  }`}
+                >
                   <FolderIcon
                     size={12}
                     className={isCenter ? "shrink-0 text-ink" : "shrink-0 text-muted/70"}
@@ -504,25 +522,61 @@ function WorkspaceWheel({
                   >
                     {workspaceName(workspace)}
                   </span>
-                </span>
+                </button>
 
-                {isCenter && total > 1 ? (
+                {isCenter ? (
                   <span className="flex shrink-0 items-center gap-1">
-                    {isPendingCommit ? (
-                      <span className="rounded bg-ink/10 px-1 py-0.5 font-code text-[9.5px] font-medium text-ink">
-                        ↵
+                    {total > 1 ? (
+                      isPendingCommit ? (
+                        <span className="rounded bg-ink/10 px-1 py-0.5 font-code text-[9.5px] font-medium text-ink">
+                          ↵
+                        </span>
+                      ) : (
+                        <span className="rounded bg-surface px-1 py-0.5 font-code text-[9.5px] text-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100">
+                          ⌘K
+                        </span>
+                      )
+                    ) : null}
+                    {total > 1 ? (
+                      <span className="font-code text-[10px] text-muted">
+                        {previewIndex + 1}/{total}
                       </span>
-                    ) : (
-                      <span className="rounded bg-surface px-1 py-0.5 font-code text-[9.5px] text-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100">
-                        ⌘K
-                      </span>
-                    )}
-                    <span className="font-code text-[10px] text-muted">
-                      {previewIndex + 1}/{total}
-                    </span>
+                    ) : null}
+                    {onDeleteWorkspace && workspace ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isConfirmingDelete) {
+                            setPendingDelete(null);
+                            clearSettleTimer();
+                            onDeleteWorkspace(workspace);
+                          } else {
+                            setPendingDelete(workspace);
+                          }
+                        }}
+                        aria-label={
+                          isConfirmingDelete
+                            ? `Confirm remove workspace ${workspaceName(workspace)}`
+                            : `Remove workspace ${workspaceName(workspace)}`
+                        }
+                        title={
+                          isConfirmingDelete
+                            ? "Click again to remove workspace & sessions"
+                            : "Remove workspace"
+                        }
+                        className={`grid h-5 place-items-center rounded px-1 transition-all ${
+                          isConfirmingDelete
+                            ? "bg-rose-500/15 font-code text-[9.5px] font-medium text-rose-600 opacity-100 dark:text-rose-400"
+                            : "w-5 text-muted opacity-0 group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100 hover:bg-surface hover:text-rose-500"
+                        }`}
+                      >
+                        {isConfirmingDelete ? "删除?" : <TrashIcon size={11} />}
+                      </button>
+                    ) : null}
                   </span>
                 ) : null}
-              </motion.button>
+              </motion.div>
             );
           })}
         </AnimatePresence>
@@ -535,6 +589,7 @@ export function FilesView({
   workspaceInput,
   recentWorkspaces = [],
   onSelectWorkspace,
+  onDeleteWorkspace,
   onPickWorkspace,
 }: FilesViewProps) {
   const [childrenByPath, setChildrenByPath] = useState<Record<string, FileTreeEntry[]>>({});
@@ -766,6 +821,7 @@ export function FilesView({
           workspaces={wheelWorkspaces}
           currentWorkspace={workspaceInput}
           onSelectWorkspace={onSelectWorkspace}
+          onDeleteWorkspace={onDeleteWorkspace}
         />
 
         <div className="border-b border-line px-2.5 py-1.5">

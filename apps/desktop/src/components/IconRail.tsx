@@ -48,7 +48,7 @@ export function IconRail({
             {currentView === "workspace" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <HomeIcon />
+            <HomeIcon size={19} weight={currentView === "workspace" ? "duotone" : "regular"} />
           </button>
           <button
             aria-label="Files"
@@ -60,7 +60,7 @@ export function IconRail({
             {currentView === "files" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <FilesIcon />
+            <FilesIcon size={19} weight={currentView === "files" ? "duotone" : "regular"} />
           </button>
           <button
             aria-label="Sessions"
@@ -72,7 +72,7 @@ export function IconRail({
             {currentView === "sessions" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <HistoryIcon />
+            <HistoryIcon size={19} weight={currentView === "sessions" ? "duotone" : "regular"} />
           </button>
           <button
             aria-label="Stats"
@@ -84,7 +84,7 @@ export function IconRail({
             {currentView === "stats" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <StatsIcon />
+            <StatsIcon size={19} weight={currentView === "stats" ? "duotone" : "regular"} />
           </button>
         </div>
         <div className="mt-auto flex flex-col items-center gap-2">
@@ -98,7 +98,7 @@ export function IconRail({
             {currentView === "apikeys" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <KeyIcon size={16} />
+            <KeyIcon size={18} weight={currentView === "apikeys" ? "duotone" : "regular"} />
           </button>
           <button
             aria-label="Settings"
@@ -110,7 +110,7 @@ export function IconRail({
             {currentView === "config" ? (
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
-            <SettingsIcon />
+            <SettingsIcon size={19} weight={currentView === "config" ? "duotone" : "regular"} />
           </button>
         </div>
       </nav>

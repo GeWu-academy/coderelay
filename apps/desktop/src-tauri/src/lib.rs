@@ -1128,7 +1128,11 @@ mod tests {
         let ws = "/Users/allure/Projects/demo-cleanup";
         store.record_workspace(ws).expect("record workspace");
         store
-            .create_session(coderelay_core::AgentId::Codex, "cleanup task", Some(ws))
+            .create_session(
+                coderelay_core::AgentId::Codex,
+                "cleanup task",
+                Some(Path::new(ws)),
+            )
             .expect("create session");
 
         assert!(store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));

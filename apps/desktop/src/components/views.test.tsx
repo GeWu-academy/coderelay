@@ -488,11 +488,13 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
           "/Users/allure/Projects/api-server",
         ]}
         onSelectWorkspace={() => {}}
+        onDeleteWorkspace={() => {}}
         onPickWorkspace={() => {}}
       />,
     );
     expect(filesHtml).toContain("Explorer");
     expect(filesHtml).toContain("Workspace wheel switcher");
+    expect(filesHtml).toContain('aria-label="Remove workspace coderelay"');
     expect(filesHtml).toContain("coderelay");
     expect(filesHtml).toContain("demo-app");
     expect(filesHtml).toContain("api-server");

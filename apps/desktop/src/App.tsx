@@ -252,6 +252,46 @@ export function App() {
     }
   }
 
+  async function handleRemoveWorkspace(workspace: string): Promise<void> {
+    const trimmed = workspace.trim();
+    if (!trimmed) {
+      return;
+    }
+    try {
+      await invoke<boolean>("delete_workspace", { request: { workspace: trimmed } });
+      const remainingSessions = await refreshSessions(currentWorkspace.current);
+      if (activeSessionId && !remainingSessions.some((session) => session.id === activeSessionId)) {
+        startNewTask();
+      }
+      const fetchedRecent = await invoke<string[]>("list_recent_workspaces", {
+        limit: 8,
+      });
+      const nextRecent = state.recentWorkspaces
+        .filter((item) => item !== trimmed)
+        .filter((item, idx, arr) => arr.indexOf(item) === idx);
+      for (const item of fetchedRecent) {
+        if (item !== trimmed && !nextRecent.includes(item)) {
+          nextRecent.push(item);
+        }
+      }
+      setState((current) => ({
+        ...current,
+        recentWorkspaces: nextRecent,
+      }));
+      if (currentWorkspace.current === trimmed) {
+        const fallback = nextRecent[0] ?? "";
+        if (fallback) {
+          handleSelectWorkspace(fallback);
+        } else {
+          currentWorkspace.current = "";
+          setWorkspaceInput("");
+        }
+      }
+    } catch (error) {
+      setState((current) => ({ ...current, error: messageOf(error) }));
+    }
+  }
+
   async function openSession(sessionId: string): Promise<void> {
     try {
       const detail = await invoke<SessionDetail>("get_session", { sessionId });
@@ -748,6 +788,7 @@ export function App() {
                 workspaceInput={workspaceInput}
                 recentWorkspaces={state.recentWorkspaces}
                 onSelectWorkspace={handleSelectWorkspace}
+                onDeleteWorkspace={(ws) => void handleRemoveWorkspace(ws)}
                 onPickWorkspace={() => void handlePickWorkspace()}
               />
             ) : view === "sessions" ? (
