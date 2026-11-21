@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -743,6 +744,171 @@ fn clear_jev_api_key(app: AppHandle) -> Result<JevSettingsPayload, String> {
     jev_settings_payload(&app)
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct ListDirectoryRequest {
+    cwd: Option<String>,
+    relative_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FileTreeEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    size: u64,
+    extension: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadWorkspaceFileRequest {
+    cwd: Option<String>,
+    relative_path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceFileContent {
+    path: String,
+    name: String,
+    content: String,
+    size: u64,
+    line_count: usize,
+    is_binary: bool,
+    truncated: bool,
+    extension: Option<String>,
+}
+
+const MAX_FILE_PREVIEW_BYTES: usize = 512 * 1024;
+
+fn resolve_workspace_subpath(
+    cwd: Option<String>,
+    relative_path: Option<&str>,
+) -> Result<(PathBuf, PathBuf), String> {
+    let base = workspace_cwd(&WorkspaceRequest {
+        cwd,
+        config_path: None,
+    })?;
+    let workspace_root =
+        std::fs::canonicalize(&base).map_err(|error| format!("invalid workspace: {error}"))?;
+    let trimmed = relative_path.unwrap_or("").trim();
+    let candidate = if trimmed.is_empty() || trimmed == "." {
+        workspace_root.clone()
+    } else {
+        workspace_root.join(trimmed.trim_start_matches(['/', '\\']))
+    };
+    let target =
+        std::fs::canonicalize(&candidate).map_err(|error| format!("path not found: {error}"))?;
+    if !target.starts_with(&workspace_root) {
+        return Err("path escapes workspace root".to_owned());
+    }
+    Ok((workspace_root, target))
+}
+
+fn to_relative_slash_path(workspace_root: &Path, target: &Path) -> String {
+    target
+        .strip_prefix(workspace_root)
+        .unwrap_or(target)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+#[tauri::command]
+fn list_directory(request: ListDirectoryRequest) -> Result<Vec<FileTreeEntry>, String> {
+    let (workspace_root, target) =
+        resolve_workspace_subpath(request.cwd, request.relative_path.as_deref())?;
+    if !target.is_dir() {
+        return Err("target path is not a directory".to_owned());
+    }
+    let read_dir = std::fs::read_dir(&target).map_err(|error| error.to_string())?;
+    let mut entries = Vec::new();
+    for item in read_dir {
+        let entry = match item {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        let path = entry.path();
+        let metadata = match entry.metadata() {
+            Ok(meta) => meta,
+            Err(_) => continue,
+        };
+        let is_dir = metadata.is_dir();
+        let size = if is_dir { 0 } else { metadata.len() };
+        let extension = if is_dir {
+            None
+        } else {
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.to_lowercase())
+        };
+        entries.push(FileTreeEntry {
+            name,
+            path: to_relative_slash_path(&workspace_root, &path),
+            is_dir,
+            size,
+            extension,
+        });
+    }
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(entries)
+}
+
+#[tauri::command]
+fn read_workspace_file(request: ReadWorkspaceFileRequest) -> Result<WorkspaceFileContent, String> {
+    let (workspace_root, target) =
+        resolve_workspace_subpath(request.cwd, Some(request.relative_path.as_str()))?;
+    if !target.is_file() {
+        return Err("target path is not a file".to_owned());
+    }
+    let metadata = std::fs::metadata(&target).map_err(|error| error.to_string())?;
+    let size = metadata.len();
+    let file = std::fs::File::open(&target).map_err(|error| error.to_string())?;
+    let mut buf = Vec::new();
+    file.take((MAX_FILE_PREVIEW_BYTES + 1) as u64)
+        .read_to_end(&mut buf)
+        .map_err(|error| error.to_string())?;
+    let truncated = buf.len() > MAX_FILE_PREVIEW_BYTES;
+    if truncated {
+        buf.truncate(MAX_FILE_PREVIEW_BYTES);
+    }
+    let has_nul = buf.iter().take(8192).any(|&byte| byte == 0);
+    let (is_binary, content, line_count) = if has_nul || (!truncated && std::str::from_utf8(&buf).is_err()) {
+        (true, String::new(), 0)
+    } else {
+        let text = String::from_utf8_lossy(&buf).into_owned();
+        let lines = text.lines().count();
+        (false, text, lines)
+    };
+    let name = target
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let extension = target
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase());
+    Ok(WorkspaceFileContent {
+        path: to_relative_slash_path(&workspace_root, &target),
+        name,
+        content,
+        size,
+        line_count,
+        is_binary,
+        truncated,
+        extension,
+    })
+}
+
 #[tauri::command]
 fn supported_agents() -> Vec<coderelay_core::AgentDescriptor> {
     coderelay_core::supported_agents()
@@ -770,7 +936,9 @@ pub fn run() {
             clear_jev_api_key,
             read_config_source,
             save_config,
-            record_workspace
+            record_workspace,
+            list_directory,
+            read_workspace_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running CodeRelay desktop");
@@ -866,5 +1034,57 @@ mod tests {
             resolve_dialog_initial_dir(Some("/nonexistent_root_dir_99999/missing_sub")),
             None
         );
+    }
+
+    #[test]
+    fn lists_workspace_directory_and_reads_file_with_traversal_guard() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("src")).expect("create src");
+        std::fs::write(root.join("README.md"), "# Hello\nWorld\n").expect("write readme");
+        std::fs::write(root.join("src").join("main.ts"), "export const x = 1;\n")
+            .expect("write main.ts");
+        std::fs::write(root.join(".DS_Store"), "junk").expect("write ds_store");
+        std::fs::write(root.join(".env"), "SECRET=1").expect("write env");
+        std::fs::create_dir_all(root.join(".git")).expect("create .git");
+
+        let root_entries = list_directory(ListDirectoryRequest {
+            cwd: Some(root.to_string_lossy().into_owned()),
+            relative_path: None,
+        })
+        .expect("list root");
+
+        assert_eq!(root_entries.len(), 2);
+        assert!(root_entries[0].is_dir);
+        assert_eq!(root_entries[0].name, "src");
+        assert_eq!(root_entries[0].path, "src");
+        assert!(!root_entries[1].is_dir);
+        assert_eq!(root_entries[1].name, "README.md");
+        assert_eq!(root_entries[1].extension.as_deref(), Some("md"));
+
+        let src_entries = list_directory(ListDirectoryRequest {
+            cwd: Some(root.to_string_lossy().into_owned()),
+            relative_path: Some("src".to_owned()),
+        })
+        .expect("list src");
+        assert_eq!(src_entries.len(), 1);
+        assert_eq!(src_entries[0].path, "src/main.ts");
+
+        let file = read_workspace_file(ReadWorkspaceFileRequest {
+            cwd: Some(root.to_string_lossy().into_owned()),
+            relative_path: "src/main.ts".to_owned(),
+        })
+        .expect("read main.ts");
+        assert_eq!(file.name, "main.ts");
+        assert_eq!(file.line_count, 1);
+        assert!(!file.is_binary);
+        assert!(file.content.contains("export const x = 1;"));
+
+        let escape_err = list_directory(ListDirectoryRequest {
+            cwd: Some(root.to_string_lossy().into_owned()),
+            relative_path: Some("..".to_owned()),
+        })
+        .expect_err("should block parent traversal");
+        assert!(escape_err.contains("escapes workspace root"));
     }
 }

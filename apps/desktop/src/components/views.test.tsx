@@ -3,6 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ApiKeyView } from "./ApiKeyView";
 import { ConfigView } from "./ConfigView";
+import {
+  buildWorkspaceWheelList,
+  closeFileTab,
+  FilesView,
+  stepWorkspaceIndex,
+} from "./FilesView";
 import { IconRail } from "./IconRail";
 import { Sidebar } from "./Sidebar";
 import { StatsView } from "./StatsView";
@@ -465,5 +471,72 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(statsHtml).toContain("周五");
     expect(statsHtml).toContain("少");
     expect(statsHtml).toContain("多");
+  });
+
+  it("renders Files route in IconRail and VS Code-style Explorer in FilesView", () => {
+    const railHtml = renderToStaticMarkup(
+      <IconRail currentView="files" onSelectView={() => {}} />,
+    );
+    expect(railHtml).toContain('aria-label="Files"');
+
+    const filesHtml = renderToStaticMarkup(
+      <FilesView
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={[
+          "/Users/allure/Desktop/coderelay",
+          "/Users/allure/Projects/demo-app",
+          "/Users/allure/Projects/api-server",
+        ]}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+      />,
+    );
+    expect(filesHtml).toContain("Explorer");
+    expect(filesHtml).toContain("Workspace wheel switcher");
+    expect(filesHtml).toContain("coderelay");
+    expect(filesHtml).toContain("demo-app");
+    expect(filesHtml).toContain("api-server");
+    expect(filesHtml).toContain("1/3");
+    expect(filesHtml).toContain('placeholder="Filter files..."');
+    expect(filesHtml).toContain("Select a file from the explorer sidebar");
+
+    // Verify wheel list & wrap-around stepping helpers
+    const wheelList = buildWorkspaceWheelList("/Users/allure/Projects/new-ws", [
+      "/Users/allure/Desktop/coderelay",
+      "/Users/allure/Projects/demo-app",
+      "/Users/allure/Desktop/coderelay",
+    ]);
+    expect(wheelList).toEqual([
+      "/Users/allure/Projects/new-ws",
+      "/Users/allure/Desktop/coderelay",
+      "/Users/allure/Projects/demo-app",
+    ]);
+    expect(stepWorkspaceIndex(0, -1, 3)).toBe(2);
+    expect(stepWorkspaceIndex(2, 1, 3)).toBe(0);
+    expect(stepWorkspaceIndex(1, 1, 3)).toBe(2);
+  });
+
+  it("manages VS Code-style multi-file tabs and closes individual files cleanly", () => {
+    const tabs = ["src/App.tsx", "src/main.ts", "README.md"];
+
+    // Closing an inactive tab keeps the current active tab
+    const afterInactiveClose = closeFileTab(tabs, "src/main.ts", "src/App.tsx");
+    expect(afterInactiveClose.nextTabs).toEqual(["src/main.ts", "README.md"]);
+    expect(afterInactiveClose.nextActiveTab).toBe("src/main.ts");
+
+    // Closing the active middle tab activates the next tab
+    const afterActiveClose = closeFileTab(tabs, "src/main.ts", "src/main.ts");
+    expect(afterActiveClose.nextTabs).toEqual(["src/App.tsx", "README.md"]);
+    expect(afterActiveClose.nextActiveTab).toBe("README.md");
+
+    // Closing the active last tab falls back to the previous tab
+    const afterLastClose = closeFileTab(tabs, "README.md", "README.md");
+    expect(afterLastClose.nextTabs).toEqual(["src/App.tsx", "src/main.ts"]);
+    expect(afterLastClose.nextActiveTab).toBe("src/main.ts");
+
+    // Closing the only remaining tab resets activeTab to null
+    const afterFinalClose = closeFileTab(["README.md"], "README.md", "README.md");
+    expect(afterFinalClose.nextTabs).toEqual([]);
+    expect(afterFinalClose.nextActiveTab).toBeNull();
   });
 });

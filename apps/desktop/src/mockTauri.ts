@@ -2,6 +2,7 @@ import type {
   AgentEntry,
   ConfigSource,
   DiscoveryPayload,
+  FileTreeEntry,
   JevSettings,
   ModelOption,
   RoutePreview,
@@ -9,6 +10,7 @@ import type {
   SessionDetail,
   SessionRecord,
   StartRunResponse,
+  WorkspaceFileContent,
 } from "./types";
 
 declare global {
@@ -431,6 +433,49 @@ export async function mockInvoke(
       return true;
     case "pick_workspace":
       return "/Users/allure/Desktop/coderelay";
+    case "list_directory": {
+      const req = (args.request as { relativePath?: string | null } | undefined) ?? {};
+      const rel = (req.relativePath ?? "").trim();
+      if (!rel) {
+        const rootEntries: FileTreeEntry[] = [
+          { name: "src", path: "src", isDir: true, size: 0, extension: null },
+          { name: "package.json", path: "package.json", isDir: false, size: 512, extension: "json" },
+          { name: "README.md", path: "README.md", isDir: false, size: 1024, extension: "md" },
+        ];
+        return rootEntries;
+      }
+      if (rel === "src") {
+        const srcEntries: FileTreeEntry[] = [
+          { name: "App.tsx", path: "src/App.tsx", isDir: false, size: 420, extension: "tsx" },
+          { name: "main.ts", path: "src/main.ts", isDir: false, size: 180, extension: "ts" },
+        ];
+        return srcEntries;
+      }
+      return [];
+    }
+    case "read_workspace_file": {
+      const req = (args.request as { relativePath?: string } | undefined) ?? {};
+      const rel = req.relativePath ?? "README.md";
+      const name = rel.split("/").pop() ?? rel;
+      const ext = name.includes(".") ? (name.split(".").pop()?.toLowerCase() ?? null) : null;
+      const content =
+        rel === "src/App.tsx"
+          ? 'export function App() {\n  return <main>CodeRelay</main>;\n}\n'
+          : rel === "package.json"
+            ? '{\n  "name": "coderelay",\n  "version": "0.4.4"\n}\n'
+            : "# CodeRelay\n\nWorkspace file preview.\n";
+      const result: WorkspaceFileContent = {
+        path: rel,
+        name,
+        content,
+        size: content.length,
+        lineCount: content.split("\n").length - 1,
+        isBinary: false,
+        truncated: false,
+        extension: ext,
+      };
+      return result;
+    }
     default:
       console.warn(`[mockTauri] Unhandled command: ${cmd}`);
       return null;

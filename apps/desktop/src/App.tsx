@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiKeyView } from "./components/ApiKeyView";
 import { Composer } from "./components/Composer";
 import { ConfigView } from "./components/ConfigView";
+import { FilesView } from "./components/FilesView";
 import { IconRail } from "./components/IconRail";
 import { RightSidebar } from "./components/RightSidebar";
 import { SessionsView } from "./components/SessionsView";
@@ -740,6 +741,14 @@ export function App() {
                 output={state.output}
                 activity={state.activity}
                 renderComposer={renderComposer}
+              />
+            ) : view === "files" ? (
+              <FilesView
+                key="files"
+                workspaceInput={workspaceInput}
+                recentWorkspaces={state.recentWorkspaces}
+                onSelectWorkspace={handleSelectWorkspace}
+                onPickWorkspace={() => void handlePickWorkspace()}
               />
             ) : view === "sessions" ? (
               <SessionsView

@@ -2,6 +2,7 @@ import { LayoutGroup } from "motion/react";
 
 import type { WorkspaceView } from "../types";
 import {
+  FilesIcon,
   HistoryIcon,
   HomeIcon,
   KeyIcon,
@@ -48,6 +49,18 @@ export function IconRail({
               <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
             ) : null}
             <HomeIcon />
+          </button>
+          <button
+            aria-label="Files"
+            className={railBtnClass(currentView === "files")}
+            onClick={() => onSelectView("files")}
+            title="Files"
+            type="button"
+          >
+            {currentView === "files" ? (
+              <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
+            ) : null}
+            <FilesIcon />
           </button>
           <button
             aria-label="Sessions"

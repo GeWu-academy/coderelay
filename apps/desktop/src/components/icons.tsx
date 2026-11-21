@@ -53,9 +53,12 @@ export function StatsIcon({ size = 18 }: { size?: number } = {}) {
   );
 }
 
-export function FolderIcon({ size = 16 }: { size?: number } = {}) {
+export function FolderIcon({
+  size = 16,
+  className,
+}: { size?: number; className?: string } = {}) {
   return (
-    <Icon size={size}>
+    <Icon className={className} size={size}>
       <path d="M3.5 7.5h6l1.8 2h9.2v8.8a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7Z" />
       <path d="M3.5 9.5V6.2c0-.94.76-1.7 1.7-1.7h4.1l1.8 2h7.2c.94 0 1.7.76 1.7 1.7v1.3" />
     </Icon>
@@ -208,6 +211,49 @@ export function ImageIcon({ size = 15 }: { size?: number } = {}) {
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <circle cx="8.5" cy="8.5" r="1.5" />
       <path d="m21 15-5-5L5 21" />
+    </Icon>
+  );
+}
+
+export function FilesIcon({ size = 18 }: { size?: number } = {}) {
+  return (
+    <Icon size={size}>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M10 13H8" />
+      <path d="M16 17H8" />
+    </Icon>
+  );
+}
+
+export function FileIcon({
+  size = 14,
+  className,
+}: { size?: number; className?: string } = {}) {
+  return (
+    <Icon className={className} size={size}>
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+    </Icon>
+  );
+}
+
+export function ChevronRightIcon({
+  size = 12,
+  className,
+}: { size?: number; className?: string } = {}) {
+  return (
+    <Icon className={className} size={size}>
+      <path d="m9 6 6 6-6 6" />
+    </Icon>
+  );
+}
+
+export function CopyIcon({ size = 14 }: { size?: number } = {}) {
+  return (
+    <Icon size={size}>
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </Icon>
   );
 }
