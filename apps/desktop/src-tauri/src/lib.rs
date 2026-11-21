@@ -63,7 +63,7 @@ struct DiscoveryPayload {
 #[serde(rename_all = "camelCase")]
 struct AgentPermissions {
     cli_id: coderelay_core::AgentId,
-    options: &'static [coderelay_core::PermissionOption],
+    options: Vec<coderelay_core::PermissionOption>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -293,6 +293,18 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
             .get_recent_workspaces(8)
             .map_err(|error| error.to_string())
     })?;
+    let detected = context.detected.clone();
+    let environment = context.environment.clone();
+    let scanned_permissions = tauri::async_runtime::spawn_blocking(move || {
+        coderelay_core::scan_permissions(
+            &coderelay_core::SystemHost,
+            &detected,
+            &environment,
+            coderelay_core::DEFAULT_PERMISSION_SCAN_TIMEOUT,
+        )
+    })
+    .await
+    .map_err(|error| format!("扫描 CLI 权限失败: {error}"))?;
     Ok(DiscoveryPayload {
         cwd: cwd_string,
         config_path: context
@@ -304,11 +316,9 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
         routing_modes: ROUTING_MODES.to_vec(),
         agents: build_agent_entries(&context),
         catalog: context.catalog.clone(),
-        permissions: coderelay_core::agent_ids()
-            .map(|cli_id| AgentPermissions {
-                cli_id,
-                options: coderelay_core::permission_options(cli_id),
-            })
+        permissions: scanned_permissions
+            .into_iter()
+            .map(|(cli_id, options)| AgentPermissions { cli_id, options })
             .collect(),
         recent_workspaces,
     })

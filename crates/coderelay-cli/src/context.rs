@@ -302,10 +302,7 @@ impl CliContext {
         let agent_config = self.config().agents.get(&agent);
         // Permission flags go first so user-configured extra_args can still override them.
         let mut extra_args: Vec<String> = coderelay_core::permission_args(agent, permission)
-            .map_err(anyhow::Error::msg)?
-            .iter()
-            .map(|arg| (*arg).to_owned())
-            .collect();
+            .map_err(anyhow::Error::msg)?;
         if let Some(config) = agent_config {
             extra_args.extend(config.extra_args.clone());
         }
