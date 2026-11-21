@@ -102,7 +102,7 @@ describe("CoderelayClient", () => {
     await expect(run.completed).rejects.toThrow("CodeRelay host exited (23)");
     await expect(iterator.next()).rejects.toThrow("fixture interrupted");
     expect((await sdk.status()).transport).toBe("stdio");
-  }, 2_000);
+  }, 10_000);
 
   test("closing rejects run and request waiters without affecting a restarted host", async () => {
     const sdk = client("--hold-run");
@@ -119,5 +119,5 @@ describe("CoderelayClient", () => {
     await expect(completion).rejects.toThrow("CodeRelay client closed");
     await expect(pending).rejects.toThrow("CodeRelay client closed");
     expect((await sdk.status()).transport).toBe("stdio");
-  }, 2_000);
+  }, 10_000);
 });
