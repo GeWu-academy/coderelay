@@ -262,8 +262,27 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(statsRoute.sidebarHtml).toBeNull();
   });
 
-  it("renders opened workspaces in sidebar even when there are no sessions yet", () => {
-    const sidebarHtml = renderToStaticMarkup(
+  it("filters sidebar sessions strictly by the selected workspace in the top dropdown", () => {
+    const sharedSessions = [
+      {
+        id: "sess-1",
+        title: "现有项目任务",
+        cliId: "codex",
+        createdAt: 1729999999000,
+        updatedAt: 1730000000000,
+        workspace: "/Users/allure/Desktop/coderelay",
+      },
+      {
+        id: "sess-2",
+        title: "独立会话任务",
+        cliId: "claude",
+        createdAt: 1729999999000,
+        updatedAt: 1730000001000,
+        workspace: "",
+      },
+    ];
+
+    const emptyProjectSidebarHtml = renderToStaticMarkup(
       <Sidebar
         collapsed={false}
         workspaceInput="/Users/allure/Projects/brand-new-project"
@@ -278,16 +297,7 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
         loading={false}
         onRefreshDiscovery={() => {}}
         onStartNewTask={() => {}}
-        sessions={[
-          {
-            id: "sess-1",
-            title: "现有项目任务",
-            cliId: "codex",
-            createdAt: 1729999999000,
-            updatedAt: 1730000000000,
-            workspace: "/Users/allure/Desktop/coderelay",
-          },
-        ]}
+        sessions={sharedSessions}
         activeSessionId="sess-1"
         onOpenSession={() => {}}
         onDeleteSession={() => {}}
@@ -295,11 +305,42 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
       />,
     );
 
-    // Both the active opened workspace without sessions and existing workspace with sessions are shown
-    expect(sidebarHtml).toContain("brand-new-project");
-    expect(sidebarHtml).toContain("coderelay");
-    expect(sidebarHtml).toContain("现有项目任务");
-    expect(sidebarHtml).toContain("暂无会话");
+    // Selected workspace is shown in the top dropdown, and its empty state is shown below
+    expect(emptyProjectSidebarHtml).toContain("brand-new-project");
+    expect(emptyProjectSidebarHtml).toContain("暂无会话");
+    // Other workspaces and their sessions are NOT shown in the session list
+    expect(emptyProjectSidebarHtml).not.toContain("现有项目任务");
+    expect(emptyProjectSidebarHtml).not.toContain("独立会话任务");
+    expect(emptyProjectSidebarHtml).not.toContain("coderelay");
+
+    const activeProjectSidebarHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={false}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={[
+          "/Users/allure/Projects/brand-new-project",
+          "/Users/allure/Desktop/coderelay",
+        ]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={sharedSessions}
+        activeSessionId="sess-1"
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+        onDeleteWorkspaceSessions={() => {}}
+      />,
+    );
+
+    expect(activeProjectSidebarHtml).toContain("coderelay");
+    expect(activeProjectSidebarHtml).toContain("现有项目任务");
+    expect(activeProjectSidebarHtml).not.toContain("brand-new-project");
+    expect(activeProjectSidebarHtml).not.toContain("独立会话任务");
+    expect(activeProjectSidebarHtml).not.toContain("暂无会话");
   });
 
   it("renders StatsView with CLI usage ranking, minimalist line chart, and GitHub heatmap", () => {

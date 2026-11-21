@@ -103,6 +103,9 @@ export function App() {
   const toggleSidebar = useNavigationStore((s) => s.toggleSidebar);
   const rightSidebarOpen = useNavigationStore((s) => s.rightSidebarOpen);
   const toggleRightSidebar = useNavigationStore((s) => s.toggleRightSidebar);
+  const rightPanelMode = useNavigationStore((s) => s.rightPanelMode);
+  const toggleRightPanelMode = useNavigationStore((s) => s.toggleRightPanelMode);
+  const setRightPanelMode = useNavigationStore((s) => s.setRightPanelMode);
   const workspaceDropdownOpen = useNavigationStore((s) => s.workspaceDropdownOpen);
   const setWorkspaceDropdownOpen = useNavigationStore((s) => s.setWorkspaceDropdownOpen);
   const toggleWorkspaceDropdown = useNavigationStore((s) => s.toggleWorkspaceDropdown);
@@ -728,7 +731,9 @@ export function App() {
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={isConversationRoute ? toggleSidebar : undefined}
         rightSidebarOpen={rightSidebarOpen}
+        rightPanelMode={rightPanelMode}
         onToggleRightSidebar={toggleRightSidebar}
+        onToggleRightPanelMode={toggleRightPanelMode}
       />
 
       <div
@@ -855,9 +860,12 @@ export function App() {
 
         <RightSidebar
           open={rightSidebarOpen}
+          mode={rightPanelMode}
+          onChangeMode={setRightPanelMode}
           agents={agents}
           selectedAgentId={form.agent}
           onSelectAgent={selectAgent}
+          workspaceCwd={workspaceInput || discovery?.cwd || ""}
         />
       </div>
     </div>

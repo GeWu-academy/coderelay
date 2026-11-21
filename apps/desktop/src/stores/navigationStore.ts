@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { isConversationView, WORKSPACE_VIEWS, type WorkspaceView } from "../types";
 
+export const RIGHT_PANEL_MODES = ["agents", "terminal"] as const;
+export type RightPanelMode = (typeof RIGHT_PANEL_MODES)[number];
+
+export function isRightPanelMode(val: unknown): val is RightPanelMode {
+  return (RIGHT_PANEL_MODES as readonly unknown[]).includes(val);
+}
+
 export type SidebarRouteId =
   | "new-chat"
   | `session:${string}`
@@ -15,6 +22,7 @@ export interface NavigationState {
   activeSessionId: string | null;
   sidebarCollapsed: boolean;
   rightSidebarOpen: boolean;
+  rightPanelMode: RightPanelMode;
   projectExpanded: boolean;
   workspaceDropdownOpen: boolean;
 
@@ -32,6 +40,8 @@ export interface NavigationState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleRightSidebar: () => void;
   setRightSidebarOpen: (open: boolean) => void;
+  toggleRightPanelMode: (mode: RightPanelMode) => void;
+  setRightPanelMode: (mode: RightPanelMode) => void;
   toggleProjectExpanded: () => void;
   setProjectExpanded: (expanded: boolean) => void;
   toggleWorkspaceDropdown: () => void;
@@ -126,6 +136,7 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   activeSessionId: null,
   sidebarCollapsed: getInitialSidebarCollapsed(),
   rightSidebarOpen: false,
+  rightPanelMode: "agents",
   projectExpanded: true,
   workspaceDropdownOpen: false,
 
@@ -185,6 +196,16 @@ export const useNavigationStore = create<NavigationState>((set) => ({
     set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
 
   setRightSidebarOpen: (open: boolean) => set({ rightSidebarOpen: open }),
+
+  toggleRightPanelMode: (mode: RightPanelMode) =>
+    set((state) => {
+      if (state.rightSidebarOpen && state.rightPanelMode === mode) {
+        return { rightSidebarOpen: false };
+      }
+      return { rightSidebarOpen: true, rightPanelMode: mode };
+    }),
+
+  setRightPanelMode: (mode: RightPanelMode) => set({ rightPanelMode: mode }),
 
   toggleProjectExpanded: () =>
     set((state) => ({ projectExpanded: !state.projectExpanded })),

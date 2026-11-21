@@ -20,6 +20,7 @@ import {
   Plus,
   Shield,
   SidebarSimple,
+  Sparkle,
   Stop,
   Terminal,
   Trash,
@@ -64,6 +65,7 @@ export const StatsIcon = createIcon(ChartLineUp, 18);
 export const FolderIcon = createIcon(Folder, 16);
 export const SettingsIcon = createIcon(GearSix, 18);
 export const RefreshIcon = createIcon(ArrowsClockwise, 15);
+export const AgentsIcon = createIcon(Sparkle, 16);
 export const TerminalIcon = createIcon(Terminal, 16);
 export const RouteIcon = createIcon(Path, 15);
 export const ArrowUpIcon = createIcon(ArrowUp, 17);

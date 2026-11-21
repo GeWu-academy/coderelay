@@ -6,9 +6,11 @@ import {
   isConversationRouteActive,
   isFilesRouteActive,
   isNewChatRouteActive,
+  isRightPanelMode,
   isSessionRouteActive,
   isSessionsRouteActive,
   isStatsRouteActive,
+  RIGHT_PANEL_MODES,
   useNavigationStore,
 } from "./navigationStore";
 import {
@@ -202,5 +204,28 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(useNavigationStore.getState().workspaceDropdownOpen).toBe(true);
     store.setWorkspaceDropdownOpen(false);
     expect(useNavigationStore.getState().workspaceDropdownOpen).toBe(false);
+  });
+
+  it("toggles right panel modes (agents / terminal) and validates SSOT guard", () => {
+    expect(RIGHT_PANEL_MODES).toEqual(["agents", "terminal"]);
+    expect(isRightPanelMode("agents")).toBe(true);
+    expect(isRightPanelMode("terminal")).toBe(true);
+    expect(isRightPanelMode("unknown")).toBe(false);
+    expect(isRightPanelMode(null)).toBe(false);
+
+    useNavigationStore.setState({ rightSidebarOpen: false, rightPanelMode: "agents" });
+
+    useNavigationStore.getState().toggleRightPanelMode("terminal");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(true);
+    expect(useNavigationStore.getState().rightPanelMode).toBe("terminal");
+
+    // Switching directly from terminal to agents keeps panel open on agents.
+    useNavigationStore.getState().toggleRightPanelMode("agents");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(true);
+    expect(useNavigationStore.getState().rightPanelMode).toBe("agents");
+
+    // Toggling the already active mode closes the panel.
+    useNavigationStore.getState().toggleRightPanelMode("agents");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(false);
   });
 });
