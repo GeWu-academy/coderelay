@@ -510,6 +510,21 @@ export async function mockInvoke(
       };
       return result;
     }
+    case "terminal_create": {
+      const cwd =
+        typeof args.cwd === "string" && args.cwd.trim()
+          ? args.cwd.trim()
+          : mockDiscovery.cwd;
+      return {
+        terminalId: `mock-term-${Date.now()}`,
+        shell: "/bin/zsh",
+        cwd,
+      };
+    }
+    case "terminal_write":
+    case "terminal_resize":
+    case "terminal_close":
+      return null;
     default:
       console.warn(`[mockTauri] Unhandled command: ${cmd}`);
       return null;

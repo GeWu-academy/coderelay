@@ -1016,8 +1016,13 @@ pub fn run() {
             terminal_resize,
             terminal_close
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running CodeRelay desktop");
+        .build(tauri::generate_context!())
+        .expect("error while building CodeRelay desktop")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                app_handle.state::<TerminalRegistry>().kill_all();
+            }
+        });
 }
 
 #[cfg(test)]

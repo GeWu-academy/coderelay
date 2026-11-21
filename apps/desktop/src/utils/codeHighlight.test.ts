@@ -76,4 +76,26 @@ describe("codeHighlight syntax tokenizer", () => {
     expect(tokenColor("property", palette)).toBe(palette.property);
     expect(tokenColor("plain", palette)).toBe(palette.foreground);
   });
+
+  it("handles escaped quotes, SQL dash comments, uppercase extensions, and long lines", () => {
+    const escaped = tokenizeCodeLines([String.raw`const msg = "hello \"world\"";`], "TS");
+    const escapedLine = escaped[0] ?? [];
+    expect(escapedLine.some((t) => t.text === "const" && t.type === "keyword")).toBe(true);
+    expect(
+      escapedLine.some((t) => t.text === String.raw`"hello \"world\""` && t.type === "string"),
+    ).toBe(true);
+
+    const sql = tokenizeCodeLines(["-- query active users", "SELECT 42;"], "sql");
+    expect(sql[0]).toEqual([{ text: "-- query active users", type: "comment" }]);
+    expect((sql[1] ?? []).some((t) => t.text === "42" && t.type === "number")).toBe(true);
+
+    // Long line performance / no catastrophic backtracking guard
+    const longLine = `const data = ${'"item", '.repeat(250)}"end";`;
+    const start = performance.now();
+    const result = tokenizeCodeLines([longLine], "ts");
+    const elapsedMs = performance.now() - start;
+    expect(result).toHaveLength(1);
+    expect((result[0] ?? []).length).toBeGreaterThan(250);
+    expect(elapsedMs).toBeLessThan(200);
+  });
 });

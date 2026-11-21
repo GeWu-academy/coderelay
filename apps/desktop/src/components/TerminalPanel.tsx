@@ -92,6 +92,8 @@ const DARK_XTERM_THEME: ITheme = {
   brightWhite: "#ffffff",
 };
 
+const MAX_TERMINAL_TABS = 12;
+
 function shortShellName(shellPath: string): string {
   const parts = shellPath.split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] ?? "shell";
@@ -108,6 +110,8 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const instancesRef = useRef<Map<string, TerminalInstance>>(new Map());
+  const exitedTabsRef = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(true);
   const xtermThemeRef = useRef<ITheme>(xtermTheme);
   const hasAutoStartedRef = useRef(false);
   xtermThemeRef.current = xtermTheme;
@@ -134,6 +138,10 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
   const createTerminalTab = useCallback(async () => {
     const stage = stageRef.current;
     if (!stage) {
+      return;
+    }
+    if (instancesRef.current.size >= MAX_TERMINAL_TABS) {
+      setError(`最多同时打开 ${MAX_TERMINAL_TABS} 个终端标签页，请先关闭闲置终端`);
       return;
     }
     setCreating(true);
@@ -167,7 +175,19 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
         rows: initialRows,
       });
 
+      if (!mountedRef.current) {
+        terminal.dispose();
+        container.remove();
+        void invoke("terminal_close", { terminalId: response.terminalId }).catch(() => {
+          // Ignore cleanup errors after unmount.
+        });
+        return;
+      }
+
       const dataDisposable = terminal.onData((data) => {
+        if (exitedTabsRef.current.has(response.terminalId)) {
+          return;
+        }
         void invoke("terminal_write", {
           terminalId: response.terminalId,
           data,
@@ -177,6 +197,9 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
       });
 
       const resizeDisposable = terminal.onResize(({ cols, rows }) => {
+        if (exitedTabsRef.current.has(response.terminalId)) {
+          return;
+        }
         void invoke("terminal_resize", {
           terminalId: response.terminalId,
           cols,
@@ -214,13 +237,18 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
     } catch (err) {
       terminal.dispose();
       container.remove();
-      setError(err instanceof Error ? err.message : String(err));
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
-      setCreating(false);
+      if (mountedRef.current) {
+        setCreating(false);
+      }
     }
   }, [workspaceCwd]);
 
   const closeTerminalTab = useCallback((tabId: string) => {
+    exitedTabsRef.current.delete(tabId);
     const instance = instancesRef.current.get(tabId);
     if (instance) {
       instance.dispose();
@@ -266,6 +294,7 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
         return;
       }
       const { terminalId, code } = event.payload;
+      exitedTabsRef.current.add(terminalId);
       const instance = instancesRef.current.get(terminalId);
       instance?.terminal.writeln(
         `\r\n\x1b[90m[Process exited${code !== null ? ` with code ${code}` : ""}]\x1b[0m`,
@@ -339,13 +368,18 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
 
   // Clean up all PTY sessions on unmount.
   useEffect(() => {
+    mountedRef.current = true;
     const instances = instancesRef.current;
+    const exitedTabs = exitedTabsRef.current;
     return () => {
+      mountedRef.current = false;
+      hasAutoStartedRef.current = false;
       for (const [id, instance] of instances.entries()) {
         instance.dispose();
         void invoke("terminal_close", { terminalId: id }).catch(() => {});
       }
       instances.clear();
+      exitedTabs.clear();
     };
   }, []);
 

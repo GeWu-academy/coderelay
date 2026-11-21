@@ -10,11 +10,13 @@ import {
   stepWorkspaceIndex,
 } from "./FilesView";
 import { IconRail } from "./IconRail";
+import { RightSidebar } from "./RightSidebar";
 import { Sidebar } from "./Sidebar";
 import { StatsView } from "./StatsView";
+import { TerminalPanel } from "./TerminalPanel";
 import { Titlebar } from "./Titlebar";
 import { isConversationRouteActive } from "../stores/navigationStore";
-import type { JevSettings, WorkspaceView } from "../types";
+import type { AgentEntry, JevSettings, WorkspaceView } from "../types";
 
 describe("Decoupled ApiKeyView & ConfigView", () => {
   it("renders ApiKeyView with stored SQLite key and ensures no config yaml elements exist", () => {
@@ -623,5 +625,96 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
       />,
     );
     expect(emptySidebarHtml).toContain("选择文件夹");
+  });
+
+  it("renders RightSidebar in agents, terminal, and closed states", () => {
+    const sampleAgents: AgentEntry[] = [
+      {
+        id: "claude",
+        label: "Claude Code",
+        enabled: true,
+        isDefault: true,
+        available: true,
+        command: "claude",
+        path: "/usr/local/bin/claude",
+        version: "2.1.0",
+        models: ["claude-sonnet-4-5"],
+        runtime: "native",
+        source: "path",
+        candidates: [],
+        diagnostics: [],
+      },
+      {
+        id: "codex",
+        label: "Codex CLI",
+        enabled: true,
+        isDefault: false,
+        available: false,
+        command: "codex",
+        path: "",
+        version: null,
+        models: ["gpt-5-codex"],
+        runtime: "native",
+        source: "config",
+        candidates: [],
+        diagnostics: [{ level: "warn", message: "codex executable not found in PATH" }],
+      },
+    ];
+
+    const agentsHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={true}
+        mode="agents"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(agentsHtml).toContain('aria-label="Agents"');
+    expect(agentsHtml).toContain('aria-hidden="false"');
+    expect(agentsHtml).toContain("w-[220px]");
+    expect(agentsHtml).toContain("Claude Code");
+    expect(agentsHtml).toContain("Codex CLI");
+
+    const terminalHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={true}
+        mode="terminal"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(terminalHtml).toContain('aria-label="Terminal"');
+    expect(terminalHtml).toContain("w-[420px]");
+    expect(terminalHtml).toContain("New terminal");
+    expect(terminalHtml).toContain("暂无活动终端");
+
+    const closedHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={false}
+        mode="terminal"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(closedHtml).toContain('aria-hidden="true"');
+    expect(closedHtml).toContain("w-0");
+  });
+
+  it("renders TerminalPanel empty state with create button", () => {
+    const html = renderToStaticMarkup(
+      <TerminalPanel active={false} workspaceCwd="/Users/allure/Desktop/coderelay" />,
+    );
+    expect(html).toContain("暂无活动终端");
+    expect(html).toContain("新建终端");
+    expect(html).toContain('aria-label="New terminal"');
   });
 });

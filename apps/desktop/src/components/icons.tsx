@@ -20,7 +20,6 @@ import {
   Plus,
   Shield,
   SidebarSimple,
-  Sparkle,
   Stop,
   Terminal,
   Trash,
@@ -65,7 +64,30 @@ export const StatsIcon = createIcon(ChartLineUp, 18);
 export const FolderIcon = createIcon(Folder, 16);
 export const SettingsIcon = createIcon(GearSix, 18);
 export const RefreshIcon = createIcon(ArrowsClockwise, 15);
-export const AgentsIcon = createIcon(Sparkle, 16);
+export function AgentsIcon({
+  size = 16,
+  className = "",
+}: IconProps = {}) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`block shrink-0 ${className}`.trim()}
+      fill="none"
+      height={size}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.75}
+      viewBox="0 0 24 24"
+      width={size}
+    >
+      <path d="M8 8V5.5A2 2 0 0 1 10 3.5h8.5a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2h-2" />
+      <rect height="12" rx="3" width="13.5" x="3" y="8" />
+      <circle cx="7.75" cy="14" fill="currentColor" r="1.15" stroke="none" />
+      <circle cx="11.75" cy="14" fill="currentColor" r="1.15" stroke="none" />
+    </svg>
+  );
+}
 export const TerminalIcon = createIcon(Terminal, 16);
 export const RouteIcon = createIcon(Path, 15);
 export const ArrowUpIcon = createIcon(ArrowUp, 17);

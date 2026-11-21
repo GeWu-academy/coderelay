@@ -611,6 +611,16 @@ export function FilesView({
   const [copied, setCopied] = useState(false);
 
   const workspaceRequestId = useRef(0);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const loadDirectory = useCallback(
     async (relativePath: string, requestToken: number) => {
@@ -758,7 +768,13 @@ export function FilesView({
     try {
       await navigator.clipboard.writeText(fileContent.path);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopied(false);
+      }, 1600);
     } catch {
       // ignore clipboard errors
     }

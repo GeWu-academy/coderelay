@@ -686,8 +686,6 @@ export function App() {
         running={state.running}
         onStartRun={() => void startRun()}
         onCancelRun={() => void cancelRun()}
-        workspaceInput={workspaceInput}
-        onPickWorkspace={() => void handlePickWorkspace()}
         mode={form.mode}
         routingModes={discovery?.routingModes ?? ["local"]}
         onModeChange={(nextMode) => setForm((c) => ({ ...c, mode: nextMode }))}
