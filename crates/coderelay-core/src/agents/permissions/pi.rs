@@ -36,7 +36,9 @@ impl CliPermissions for PiPermissions {
     fn scan_from_help(&self, help_text: &str) -> Vec<PermissionOption> {
         let mut options = vec![default_option()];
         if help_text.contains("--tools")
-            && let Some(read_only) = known_options().into_iter().find(|opt| opt.id == "read-only")
+            && let Some(read_only) = known_options()
+                .into_iter()
+                .find(|opt| opt.id == "read-only")
         {
             options.push(read_only);
         }

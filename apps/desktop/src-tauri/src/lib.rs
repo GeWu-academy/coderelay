@@ -696,10 +696,7 @@ struct DeleteWorkspaceRequest {
 }
 
 #[tauri::command]
-fn delete_workspace(
-    app: AppHandle,
-    request: DeleteWorkspaceRequest,
-) -> Result<bool, String> {
+fn delete_workspace(app: AppHandle, request: DeleteWorkspaceRequest) -> Result<bool, String> {
     let trimmed = request.workspace.trim();
     if trimmed.is_empty() {
         return Ok(false);
@@ -951,13 +948,14 @@ fn read_workspace_file(request: ReadWorkspaceFileRequest) -> Result<WorkspaceFil
         buf.truncate(MAX_FILE_PREVIEW_BYTES);
     }
     let has_nul = buf.iter().take(8192).any(|&byte| byte == 0);
-    let (is_binary, content, line_count) = if has_nul || (!truncated && std::str::from_utf8(&buf).is_err()) {
-        (true, String::new(), 0)
-    } else {
-        let text = String::from_utf8_lossy(&buf).into_owned();
-        let lines = text.lines().count();
-        (false, text, lines)
-    };
+    let (is_binary, content, line_count) =
+        if has_nul || (!truncated && std::str::from_utf8(&buf).is_err()) {
+            (true, String::new(), 0)
+        } else {
+            let text = String::from_utf8_lossy(&buf).into_owned();
+            let lines = text.lines().count();
+            (false, text, lines)
+        };
     let name = target
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -1171,14 +1169,24 @@ mod tests {
             )
             .expect("create session");
 
-        assert!(store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));
+        assert!(
+            store
+                .get_recent_workspaces(10)
+                .expect("list")
+                .contains(&ws.to_owned())
+        );
 
         store
             .delete_workspace_sessions(Some(ws))
             .expect("delete sessions");
         let removed = store.remove_recent_workspace(ws).expect("remove recent");
         assert!(removed);
-        assert!(!store.get_recent_workspaces(10).expect("list").contains(&ws.to_owned()));
+        assert!(
+            !store
+                .get_recent_workspaces(10)
+                .expect("list")
+                .contains(&ws.to_owned())
+        );
     }
 
     #[test]

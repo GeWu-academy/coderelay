@@ -96,10 +96,7 @@ pub fn permission_options(agent: AgentId) -> Vec<PermissionOption> {
 }
 
 /// Resolve a permission id to its argv fragment. `None` means the CLI default.
-pub fn permission_args(
-    agent: AgentId,
-    permission: Option<&str>,
-) -> Result<Vec<String>, String> {
+pub fn permission_args(agent: AgentId, permission: Option<&str>) -> Result<Vec<String>, String> {
     let Some(id) = permission else {
         return Ok(Vec::new());
     };
@@ -178,9 +175,8 @@ pub fn scan_permissions(
             .iter()
             .map(|cli| {
                 let id = cli.id;
-                let handle = scope.spawn(move || {
-                    scan_agent_permissions(runner, cli, environment, timeout)
-                });
+                let handle =
+                    scope.spawn(move || scan_agent_permissions(runner, cli, environment, timeout));
                 (id, handle)
             })
             .collect();
@@ -188,9 +184,7 @@ pub fn scan_permissions(
         handles
             .into_iter()
             .map(|(id, handle)| {
-                let options = handle
-                    .join()
-                    .unwrap_or_else(|_| permission_options(id));
+                let options = handle.join().unwrap_or_else(|_| permission_options(id));
                 (id, options)
             })
             .collect()
@@ -372,7 +366,13 @@ mod tests {
             .collect();
         assert_eq!(
             codex_ids,
-            vec!["default", "read-only", "workspace-write", "approve-for-me", "full-access"]
+            vec![
+                "default",
+                "read-only",
+                "workspace-write",
+                "approve-for-me",
+                "full-access"
+            ]
         );
 
         let claude_ids: Vec<_> = by_id[&AgentId::Claude]
@@ -402,10 +402,7 @@ mod tests {
     #[test]
     fn unavailable_cli_returns_only_default_and_failed_scan_falls_back() {
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            "/usr/bin/codex".to_owned(),
-            Err("timed out".to_owned()),
-        );
+        outputs.insert("/usr/bin/codex".to_owned(), Err("timed out".to_owned()));
         let runner = MockRunner { outputs };
 
         let unavailable = detected_cli(AgentId::Pi, "", false);
