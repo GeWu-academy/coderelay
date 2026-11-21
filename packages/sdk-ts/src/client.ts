@@ -206,6 +206,8 @@ export class CoderelayClient {
         reject(error);
       });
       let stderrTail = "";
+      let exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null = null;
+      let stderrEnded = false;
       let exitFallbackTimer: ReturnType<typeof setTimeout> | undefined;
       const finishWithExit = (code: number | null, signal: NodeJS.Signals | null) => {
         if (exitFallbackTimer) {
@@ -218,11 +220,32 @@ export class CoderelayClient {
           new Error(`CodeRelay host exited (${code ?? signal ?? "unknown"})${details ? `: ${details}` : ""}`),
         );
       };
+      const scheduleExitFallback = (delayMs: number) => {
+        if (!exitInfo || this.child !== child) {
+          return;
+        }
+        if (exitFallbackTimer) {
+          clearTimeout(exitFallbackTimer);
+        }
+        const { code, signal } = exitInfo;
+        // Fallback when a runtime emits "exit" without following up with "close".
+        exitFallbackTimer = setTimeout(() => {
+          lines.close();
+          finishWithExit(code, signal);
+        }, delayMs);
+        exitFallbackTimer.unref?.();
+      };
       // "close" follows stdio drainage, so a final completion can still be read.
       child.once("close", finishWithExit);
       child.stderr.setEncoding("utf8");
       child.stderr.on("data", (chunk: string) => {
         stderrTail = (stderrTail + chunk).slice(-8_000);
+      });
+      child.stderr.once("end", () => {
+        stderrEnded = true;
+        if (exitInfo) {
+          scheduleExitFallback(20);
+        }
       });
       // Failed writes are reported to their own request via the write callback.
       child.stdin.on("error", () => {});
@@ -233,15 +256,8 @@ export class CoderelayClient {
         }
       });
       child.once("exit", (code, signal) => {
-        if (this.child !== child) {
-          return;
-        }
-        // Fallback when a runtime emits "exit" without following up with "close".
-        exitFallbackTimer = setTimeout(() => {
-          lines.close();
-          finishWithExit(code, signal);
-        }, 50);
-        exitFallbackTimer.unref?.();
+        exitInfo = { code, signal };
+        scheduleExitFallback(stderrEnded ? 20 : 500);
       });
     });
     await this.startPromise;

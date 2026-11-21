@@ -93,11 +93,12 @@ lines.on("line", (line) => {
       event: { kind: "assistant_text", text: "hello " },
     });
     if (process.argv.includes("--exit-during-run")) {
-      process.stderr.write("fixture interrupted\n");
       process.exitCode = 23;
       lines.close();
       process.stdin.destroy();
-      setTimeout(() => process.exit(23), 20);
+      process.stderr.write("fixture interrupted\n", () => {
+        setTimeout(() => process.exit(23), 20);
+      });
       return;
     }
     if (process.argv.includes("--hold-run")) {
