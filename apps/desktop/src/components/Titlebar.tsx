@@ -1,18 +1,42 @@
-import { PanelLeftIcon, TerminalIcon } from "./icons";
+import type { RightPanelMode } from "../stores/navigationStore";
+import { AgentsIcon, PanelLeftIcon, TerminalIcon } from "./icons";
 
 export interface TitlebarProps {
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   rightSidebarOpen: boolean;
+  rightPanelMode?: RightPanelMode;
   onToggleRightSidebar: () => void;
+  onToggleRightPanelMode?: (mode: RightPanelMode) => void;
 }
 
 export function Titlebar({
   sidebarCollapsed = false,
   onToggleSidebar,
   rightSidebarOpen,
+  rightPanelMode = "agents",
   onToggleRightSidebar,
+  onToggleRightPanelMode,
 }: TitlebarProps) {
+  const agentsActive = rightSidebarOpen && rightPanelMode === "agents";
+  const terminalActive = rightSidebarOpen && rightPanelMode === "terminal";
+
+  function handleToggleAgents() {
+    if (onToggleRightPanelMode) {
+      onToggleRightPanelMode("agents");
+    } else {
+      onToggleRightSidebar();
+    }
+  }
+
+  function handleToggleTerminal() {
+    if (onToggleRightPanelMode) {
+      onToggleRightPanelMode("terminal");
+    } else {
+      onToggleRightSidebar();
+    }
+  }
+
   return (
     <header
       className="relative z-20 flex min-h-[38px] shrink-0 basis-[38px] items-center justify-between border-b border-line bg-canvas pr-3.5 pl-[76px] select-none"
@@ -36,11 +60,24 @@ export function Titlebar({
         ) : null}
         <button
           aria-label="Agents"
+          aria-pressed={agentsActive}
           className={`grid h-7 w-7 shrink-0 place-items-center rounded-[7px] transition-colors duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-35 ${
-            rightSidebarOpen ? "bg-surface-subtle text-ink" : "bg-transparent text-muted"
+            agentsActive ? "bg-surface-subtle text-ink" : "bg-transparent text-muted"
           }`}
-          onClick={onToggleRightSidebar}
+          onClick={handleToggleAgents}
           title="Agents"
+          type="button"
+        >
+          <AgentsIcon size={15} />
+        </button>
+        <button
+          aria-label="Terminal"
+          aria-pressed={terminalActive}
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-[7px] transition-colors duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-35 ${
+            terminalActive ? "bg-surface-subtle text-ink" : "bg-transparent text-muted"
+          }`}
+          onClick={handleToggleTerminal}
+          title="Terminal"
           type="button"
         >
           <TerminalIcon size={15} />

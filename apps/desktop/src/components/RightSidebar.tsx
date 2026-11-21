@@ -1,35 +1,77 @@
+import type { RightPanelMode } from "../stores/navigationStore";
 import type { AgentEntry } from "../types";
+import { AgentsIcon, TerminalIcon } from "./icons";
+import { TerminalPanel } from "./TerminalPanel";
 
 export interface RightSidebarProps {
   open: boolean;
+  mode: RightPanelMode;
+  onChangeMode: (mode: RightPanelMode) => void;
   agents: AgentEntry[];
   selectedAgentId: string;
   onSelectAgent: (agent: AgentEntry) => void;
+  workspaceCwd: string;
 }
 
 export function RightSidebar({
   open,
+  mode,
+  onChangeMode,
   agents,
   selectedAgentId,
   onSelectAgent,
+  workspaceCwd,
 }: RightSidebarProps) {
+  const panelWidthClass = !open
+    ? "pointer-events-none w-0 shrink-0 basis-0 border-l border-transparent opacity-0"
+    : mode === "terminal"
+      ? "w-[420px] max-w-[48vw] shrink-0 basis-[420px] border-l border-line opacity-100"
+      : "w-[220px] shrink-0 basis-[220px] border-l border-line opacity-100";
+
   return (
     <aside
       aria-hidden={!open}
-      aria-label="Agents"
-      className={`relative flex min-h-0 flex-col overflow-hidden bg-sidebar transition-[width,flex-basis,opacity,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,flex-basis] ${
-        open
-          ? "w-[220px] shrink-0 basis-[220px] border-l border-line opacity-100"
-          : "pointer-events-none w-0 shrink-0 basis-0 border-l border-transparent opacity-0"
-      }`}
+      aria-label={mode === "terminal" ? "Terminal" : "Agents"}
+      className={`relative flex min-h-0 flex-col overflow-hidden bg-sidebar transition-[width,flex-basis,opacity,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,flex-basis] ${panelWidthClass}`}
     >
       <div
-        className={`flex min-h-0 h-full w-[220px] min-w-[220px] flex-1 flex-col transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform ${
+        className={`flex min-h-0 h-full w-full flex-1 flex-col transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform ${
           open ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-3.5 opacity-0"
         }`}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pt-1 pb-[18px] [scrollbar-color:rgba(0,0,0,0.12)_transparent] [scrollbar-width:thin]">
-          <div className="flex flex-col gap-[3px] pt-2.5">
+        <div className="flex shrink-0 items-center gap-1 border-b border-line px-2.5 py-2">
+          <button
+            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              mode === "agents"
+                ? "bg-surface-subtle text-ink"
+                : "text-muted hover:bg-surface-subtle/60 hover:text-ink"
+            }`}
+            onClick={() => onChangeMode("agents")}
+            type="button"
+          >
+            <AgentsIcon size={13} />
+            <span>Agents</span>
+          </button>
+          <button
+            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              mode === "terminal"
+                ? "bg-surface-subtle text-ink"
+                : "text-muted hover:bg-surface-subtle/60 hover:text-ink"
+            }`}
+            onClick={() => onChangeMode("terminal")}
+            type="button"
+          >
+            <TerminalIcon size={13} />
+            <span>Terminal</span>
+          </button>
+        </div>
+
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto px-2.5 pt-1 pb-[18px] [scrollbar-color:rgba(0,0,0,0.12)_transparent] [scrollbar-width:thin] ${
+            mode === "agents" ? "block" : "hidden"
+          }`}
+        >
+          <div className="flex flex-col gap-[3px] pt-2">
             {agents.map((agent) => {
               const isSelected = selectedAgentId === agent.id;
               const toneClass = agent.available
@@ -55,6 +97,17 @@ export function RightSidebar({
               );
             })}
           </div>
+        </div>
+
+        <div
+          className={`min-h-0 flex-1 flex-col ${
+            mode === "terminal" ? "flex" : "hidden"
+          }`}
+        >
+          <TerminalPanel
+            active={open && mode === "terminal"}
+            workspaceCwd={workspaceCwd}
+          />
         </div>
       </div>
     </aside>

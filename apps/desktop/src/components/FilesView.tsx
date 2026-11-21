@@ -2,8 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { getCodeThemePalette, useThemeStore } from "../stores/themeStore";
 import type { FileTreeEntry, WorkspaceFileContent } from "../types";
 import { messageOf, workspaceName } from "../utils";
+import { tokenColor, tokenizeCodeLines } from "../utils/codeHighlight";
 import {
   CheckIcon,
   ChevronRightIcon,
@@ -262,6 +264,7 @@ interface WorkspaceWheelProps {
   currentWorkspace: string;
   onSelectWorkspace?: (workspace: string) => void;
   onDeleteWorkspace?: (workspace: string) => void;
+  onPickWorkspace?: () => void;
 }
 
 const WHEEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
@@ -275,6 +278,7 @@ function WorkspaceWheel({
   currentWorkspace,
   onSelectWorkspace,
   onDeleteWorkspace,
+  onPickWorkspace,
 }: WorkspaceWheelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
@@ -494,7 +498,7 @@ function WorkspaceWheel({
                 className={`absolute inset-x-2 z-10 flex h-[28px] items-center justify-between gap-1.5 rounded-lg px-2.5 ${
                   isCenter ? "text-ink" : "text-muted hover:text-ink-soft"
                 }`}
-                title={workspace || "Workspace"}
+                title={workspace || (onPickWorkspace ? "点击选择文件夹" : "Workspace")}
               >
                 <button
                   type="button"
@@ -503,10 +507,14 @@ function WorkspaceWheel({
                       stepBy(offset);
                     } else if (isPendingCommit) {
                       commitWorkspace(workspace);
+                    } else if (!workspace && onPickWorkspace) {
+                      onPickWorkspace();
                     }
                   }}
                   className={`flex min-w-0 flex-1 items-center gap-1.5 text-left ${
-                    isCenter && !isPendingCommit ? "cursor-default" : "cursor-pointer"
+                    isCenter && !isPendingCommit && (Boolean(workspace) || !onPickWorkspace)
+                      ? "cursor-default"
+                      : "cursor-pointer"
                   }`}
                 >
                   <FolderIcon
@@ -603,6 +611,16 @@ export function FilesView({
   const [copied, setCopied] = useState(false);
 
   const workspaceRequestId = useRef(0);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const loadDirectory = useCallback(
     async (relativePath: string, requestToken: number) => {
@@ -750,7 +768,13 @@ export function FilesView({
     try {
       await navigator.clipboard.writeText(fileContent.path);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      if (copyTimerRef.current !== null) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopied(false);
+      }, 1600);
     } catch {
       // ignore clipboard errors
     }
@@ -765,12 +789,23 @@ export function FilesView({
     (entry) => !entry.name.startsWith("."),
   );
   const rootLoading = loadingDirs.has("");
+  const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
+  const codePalette = useMemo(
+    () => getCodeThemePalette(effectiveCodeTheme),
+    [effectiveCodeTheme],
+  );
+
   const lines = useMemo(() => {
     if (!fileContent || fileContent.isBinary) {
       return [];
     }
     return fileContent.content.split("\n");
   }, [fileContent]);
+
+  const tokenizedLines = useMemo(
+    () => tokenizeCodeLines(lines, fileContent?.extension ?? null),
+    [lines, fileContent?.extension],
+  );
 
   return (
     <motion.section
@@ -829,6 +864,7 @@ export function FilesView({
           currentWorkspace={workspaceInput}
           onSelectWorkspace={onSelectWorkspace}
           onDeleteWorkspace={onDeleteWorkspace}
+          onPickWorkspace={onPickWorkspace}
         />
 
         <div className="border-b border-line px-2.5 py-1.5">
@@ -995,16 +1031,43 @@ export function FilesView({
                 </p>
               </div>
             ) : (
-              <div className="min-h-0 flex-1 overflow-auto py-3">
+              <div
+                className="min-h-0 flex-1 overflow-auto py-3 transition-colors duration-150"
+                data-code-theme={effectiveCodeTheme}
+                style={{
+                  backgroundColor: codePalette.background,
+                  color: codePalette.foreground,
+                }}
+              >
                 <table className="w-full border-collapse font-code text-[12.5px] leading-[1.6]">
                   <tbody>
-                    {lines.map((line, index) => (
-                      <tr key={index} className="hover:bg-surface-subtle/50">
-                        <td className="w-12 select-none pr-4 pl-4 text-right align-top text-[11px] text-muted/70">
+                    {tokenizedLines.map((tokens, index) => (
+                      <tr
+                        key={index}
+                        style={{ ["--code-line-hover" as string]: codePalette.lineHover }}
+                        className="hover:bg-[var(--code-line-hover)]"
+                      >
+                        <td
+                          className="w-12 select-none pr-4 pl-4 text-right align-top text-[11px]"
+                          style={{ color: codePalette.lineNumber }}
+                        >
                           {index + 1}
                         </td>
-                        <td className="pr-6 whitespace-pre text-ink">
-                          {line || " "}
+                        <td className="pr-6 whitespace-pre">
+                          {tokens.length === 0
+                            ? " "
+                            : tokens.map((token, tokenIdx) =>
+                                token.type === "plain" ? (
+                                  <span key={tokenIdx}>{token.text}</span>
+                                ) : (
+                                  <span
+                                    key={tokenIdx}
+                                    style={{ color: tokenColor(token.type, codePalette) }}
+                                  >
+                                    {token.text}
+                                  </span>
+                                ),
+                              )}
                         </td>
                       </tr>
                     ))}

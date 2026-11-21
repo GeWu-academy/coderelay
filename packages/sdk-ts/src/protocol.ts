@@ -208,6 +208,11 @@ export interface StatusEvent {
   text: string;
 }
 
+export interface ThinkingEvent {
+  kind: "thinking";
+  text: string;
+}
+
 export interface AssistantTextEvent {
   kind: "assistant_text";
   text: string;
@@ -249,6 +254,7 @@ export interface AbortedEvent {
 export type AgentEvent =
   | SessionStartedEvent
   | StatusEvent
+  | ThinkingEvent
   | AssistantTextEvent
   | ToolStartedEvent
   | ToolFinishedEvent

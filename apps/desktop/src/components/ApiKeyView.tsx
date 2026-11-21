@@ -1,30 +1,105 @@
+import { invoke } from "@tauri-apps/api/core";
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 
 import type { JevSettings } from "../types";
+import { messageOf } from "../utils";
 import { CheckIcon, CloseIcon, KeyIcon } from "./icons";
 
 export interface ApiKeyViewProps {
-  jevBusy: boolean;
-  jevSettings: JevSettings | null;
-  jevApiKeyInput: string;
+  jevBusy?: boolean;
+  jevSettings?: JevSettings | null;
+  jevApiKeyInput?: string;
   notice?: string | null;
-  onJevApiKeyInputChange: (value: string) => void;
-  onSaveJevApiKey: () => void;
-  onClearJevApiKey: () => void;
+  onJevApiKeyInputChange?: (value: string) => void;
+  onSaveJevApiKey?: () => void;
+  onClearJevApiKey?: () => void;
 }
 
 const ICON_BTN_CLASS =
   "grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-transparent text-muted transition-colors duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-35";
 
 export function ApiKeyView({
-  jevBusy,
-  jevSettings,
-  jevApiKeyInput,
-  notice,
+  jevBusy: controlledBusy,
+  jevSettings: controlledSettings,
+  jevApiKeyInput: controlledInput,
+  notice: controlledNotice,
   onJevApiKeyInputChange,
   onSaveJevApiKey,
   onClearJevApiKey,
-}: ApiKeyViewProps) {
+}: ApiKeyViewProps = {}) {
+  const isControlled = controlledSettings !== undefined || onJevApiKeyInputChange !== undefined;
+
+  const [internalBusy, setInternalBusy] = useState(false);
+  const [internalSettings, setInternalSettings] = useState<JevSettings | null>(null);
+  const [internalInput, setInternalInput] = useState("");
+  const [internalNotice, setInternalNotice] = useState<string | null>(null);
+  const [internalError, setInternalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isControlled) {
+      return;
+    }
+    let cancelled = false;
+    void invoke<JevSettings>("get_jev_settings")
+      .then((settings) => {
+        if (!cancelled) {
+          setInternalSettings(settings);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setInternalError(messageOf(error));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isControlled]);
+
+  async function handleInternalSave(): Promise<void> {
+    const apiKey = internalInput.trim();
+    if (!apiKey) {
+      return;
+    }
+    setInternalBusy(true);
+    setInternalNotice(null);
+    setInternalError(null);
+    try {
+      const settings = await invoke<JevSettings>("save_jev_api_key", { apiKey });
+      setInternalSettings(settings);
+      setInternalInput("");
+      setInternalNotice("API Key 已保存到本地 SQLite。");
+    } catch (error) {
+      setInternalError(messageOf(error));
+    } finally {
+      setInternalBusy(false);
+    }
+  }
+
+  async function handleInternalClear(): Promise<void> {
+    setInternalBusy(true);
+    setInternalNotice(null);
+    setInternalError(null);
+    try {
+      const settings = await invoke<JevSettings>("clear_jev_api_key");
+      setInternalSettings(settings);
+      setInternalInput("");
+      setInternalNotice("已从本地 SQLite 清除 API Key。");
+    } catch (error) {
+      setInternalError(messageOf(error));
+    } finally {
+      setInternalBusy(false);
+    }
+  }
+
+  const jevBusy = controlledBusy ?? internalBusy;
+  const jevSettings = controlledSettings !== undefined ? controlledSettings : internalSettings;
+  const jevApiKeyInput = controlledInput ?? internalInput;
+  const notice = controlledNotice !== undefined ? controlledNotice : (internalError ?? internalNotice);
+  const handleInputChange = onJevApiKeyInputChange ?? setInternalInput;
+  const handleSave = onSaveJevApiKey ?? (() => void handleInternalSave());
+  const handleClear = onClearJevApiKey ?? (() => void handleInternalClear());
   const isConfigured = Boolean(jevSettings?.stored || jevSettings?.environmentConfigured);
   const statusLabel = jevSettings?.stored
     ? "已存储在本地安全数据库 (SQLite)"
@@ -86,7 +161,7 @@ export function ApiKeyView({
               className="min-w-0 flex-1 border-0 bg-transparent font-code text-xs text-ink placeholder:text-zinc-400 focus:outline-none"
               disabled={jevBusy}
               id="jev-api-key"
-              onChange={(event) => onJevApiKeyInputChange(event.target.value)}
+              onChange={(event) => handleInputChange(event.target.value)}
               placeholder={jevSettings?.stored ? "••••••••••••••••••••" : "填入 TYPESAFE_API_KEY"}
               spellCheck={false}
               type="password"
@@ -97,7 +172,7 @@ export function ApiKeyView({
               aria-label="Save API Key"
               className={ICON_BTN_CLASS}
               disabled={jevBusy || !jevApiKeyInput.trim()}
-              onClick={onSaveJevApiKey}
+              onClick={handleSave}
               title="保存 API Key"
               type="button"
             >
@@ -109,7 +184,7 @@ export function ApiKeyView({
                 aria-label="Clear API Key"
                 className={ICON_BTN_CLASS}
                 disabled={jevBusy}
-                onClick={onClearJevApiKey}
+                onClick={handleClear}
                 title="清除已存 API Key"
                 type="button"
               >

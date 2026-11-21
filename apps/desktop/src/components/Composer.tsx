@@ -1,5 +1,11 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import type { AgentEntry, AgentPermissions, ModelOption } from "../types";
 import {
@@ -11,9 +17,10 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronDownIcon,
-  FolderIcon,
   RouteIcon,
+  ShieldIcon,
   StopIcon,
+  TerminalIcon,
 } from "./icons";
 
 export interface ComposerProps {
@@ -23,8 +30,6 @@ export interface ComposerProps {
   running: boolean;
   onStartRun: () => void;
   onCancelRun: () => void;
-  workspaceInput: string;
-  onPickWorkspace: () => void;
   mode: string;
   routingModes: string[];
   onModeChange: (mode: string) => void;
@@ -41,13 +46,14 @@ export interface ComposerProps {
 }
 
 const ACTION_BTN_BASE =
-  "grid h-7 w-7 place-items-center rounded-md transition-all duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-30";
+  "grid h-[26px] w-[26px] place-items-center rounded-lg transition-all duration-140 enabled:cursor-pointer enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-30";
 
 type ActiveMenu = "mode" | "cli" | "model" | "permission" | null;
 
 interface DropdownOption {
   value: string;
   label: string;
+  dangerous?: boolean;
 }
 
 interface CustomSelectPillProps {
@@ -59,6 +65,10 @@ interface CustomSelectPillProps {
   onToggle: () => void;
   disabled?: boolean;
   title?: string;
+  menuTitle?: string;
+  leadingIcon?: ReactNode;
+  align?: "left" | "right";
+  placement?: "top" | "bottom";
   maxLabelWidth?: string;
   minDropdownWidth?: string;
   isDangerous?: boolean;
@@ -73,8 +83,12 @@ function CustomSelectPill({
   onToggle,
   disabled = false,
   title,
+  menuTitle,
+  leadingIcon,
+  align = "right",
+  placement = "top",
   maxLabelWidth = "max-w-[100px]",
-  minDropdownWidth = "min-w-[130px]",
+  minDropdownWidth = "min-w-[140px]",
   isDangerous = false,
 }: CustomSelectPillProps) {
   return (
@@ -85,23 +99,30 @@ function CustomSelectPill({
         onClick={onToggle}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`group relative inline-flex h-[26px] cursor-pointer items-center gap-1 rounded-md border px-2 text-xs font-medium transition-all duration-140 select-none ${
+        className={`group relative inline-flex h-[26px] cursor-pointer items-center gap-1.5 rounded-[7px] px-2 text-xs font-medium tracking-[-0.01em] transition-all duration-140 select-none active:scale-[0.98] ${
           open
             ? isDangerous
-              ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-              : "border-line-strong bg-surface-hover text-ink"
+              ? "bg-amber-500/14 text-amber-700 dark:text-amber-300"
+              : "bg-surface-subtle text-ink"
             : isDangerous
-              ? "border-amber-500/30 bg-amber-500/5 text-amber-700 hover:border-amber-500/50 hover:bg-amber-500/10 dark:text-amber-300"
-              : "border-line/70 bg-surface-subtle/50 text-muted-strong hover:border-line-strong hover:bg-surface-subtle hover:text-ink"
+              ? "bg-amber-500/9 text-amber-700 hover:bg-amber-500/14 dark:text-amber-300"
+              : "bg-transparent text-muted-strong hover:bg-surface-subtle/85 hover:text-ink"
         } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
+        {leadingIcon ? (
+          <span className="flex shrink-0 items-center justify-center">
+            {leadingIcon}
+          </span>
+        ) : null}
         <span className={`truncate ${maxLabelWidth}`}>{label}</span>
         <span
           className={`transition-transform duration-150 ${
-            open ? "rotate-180 text-ink" : "text-muted/60 group-hover:text-muted"
+            open
+              ? "rotate-180 text-ink"
+              : "text-muted/45 group-hover:text-muted-strong"
           }`}
         >
-          <ChevronDownIcon size={10} />
+          <ChevronDownIcon size={9} />
         </span>
       </button>
 
@@ -109,13 +130,22 @@ function CustomSelectPill({
         {open && !disabled ? (
           <motion.div
             role="listbox"
-            initial={{ opacity: 0, scale: 0.96, y: 3 }}
+            initial={{ opacity: 0, scale: 0.96, y: placement === "top" ? 4 : -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 3 }}
-            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute bottom-[calc(100%+5px)] right-0 z-50 flex max-h-[260px] flex-col overflow-hidden rounded-[11px] border border-line-strong bg-surface/98 p-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_2px_6px_rgba(0,0,0,0.04)] backdrop-blur-md ${minDropdownWidth}`}
+            exit={{ opacity: 0, scale: 0.96, y: placement === "top" ? 4 : -4 }}
+            transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+            className={`absolute z-50 flex max-h-[300px] flex-col overflow-hidden rounded-[12px] border border-line-strong/80 bg-surface/98 p-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-2px_rgba(0,0,0,0.05),0_0_0_0.5px_rgba(0,0,0,0.03)] backdrop-blur-xl ${
+              placement === "top"
+                ? "bottom-[calc(100%+6px)]"
+                : "top-[calc(100%+6px)]"
+            } ${align === "left" ? "left-0" : "right-0"} ${minDropdownWidth}`}
           >
-            <div className="flex-1 overflow-y-auto p-0.5 [scrollbar-color:rgba(0,0,0,0.12)_transparent] [scrollbar-width:thin]">
+            {menuTitle ? (
+              <div className="px-2.5 pt-1 pb-1 text-[10px] font-medium tracking-[0.04em] text-muted/65 select-none">
+                {menuTitle}
+              </div>
+            ) : null}
+            <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {options.map((opt) => {
                 const isSelected = opt.value === value;
                 return (
@@ -125,16 +155,24 @@ function CustomSelectPill({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => onSelect(opt.value)}
-                    className={`flex w-full items-center gap-1.5 rounded-[6px] px-2 py-1.5 text-left text-xs transition-colors duration-100 ${
+                    className={`flex w-full cursor-pointer items-center justify-between gap-3 rounded-[7px] px-2.5 py-1.5 text-left text-xs leading-4 transition-colors duration-100 ${
                       isSelected
-                        ? "bg-surface-hover font-medium text-ink"
-                        : "text-ink-soft hover:bg-surface-subtle hover:text-ink"
+                        ? "bg-surface-subtle font-medium text-ink"
+                        : "text-ink-soft hover:bg-surface-subtle/70 hover:text-ink"
                     }`}
                   >
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center text-ink">
-                      {isSelected ? <CheckIcon size={11} /> : null}
+                    <span
+                      className={`truncate ${
+                        opt.dangerous
+                          ? "text-amber-600 dark:text-amber-300"
+                          : ""
+                      }`}
+                    >
+                      {opt.label}
                     </span>
-                    <span className="truncate">{opt.label}</span>
+                    {isSelected ? (
+                      <CheckIcon size={12} className="shrink-0 text-ink/80" />
+                    ) : null}
                   </button>
                 );
               })}
@@ -153,8 +191,6 @@ export function Composer({
   running,
   onStartRun,
   onCancelRun,
-  workspaceInput,
-  onPickWorkspace,
   mode,
   routingModes,
   onModeChange,
@@ -258,7 +294,8 @@ export function Composer({
     permissionChoices[0];
   const permissionOptions: DropdownOption[] = permissionChoices.map((item) => ({
     value: item.id,
-    label: item.dangerous ? `⚠ ${item.label}` : item.label,
+    label: item.label,
+    dangerous: Boolean(item.dangerous),
   }));
 
   function handlePermissionChange(nextPermission: string) {
@@ -290,10 +327,11 @@ export function Composer({
         ];
 
   const hasPrompt = Boolean(prompt.trim());
+  const dropdownPlacement = compact ? "top" : "bottom";
 
   return (
     <div
-      className={`mx-auto w-[min(700px,100%)] border border-line-strong bg-surface transition-[border-color,box-shadow] duration-180 focus-within:border-line-strong focus-within:shadow-[0_16px_44px_-8px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.035)] ${
+      className={`mx-auto w-[min(700px,100%)] border border-line-strong bg-surface transition-[border-color,box-shadow] duration-180 focus-within:border-ink/30 focus-within:shadow-[0_16px_44px_-8px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.035)] ${
         compact
           ? "rounded-[18px] shadow-[0_6px_24px_-4px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.02)]"
           : "rounded-[22px] shadow-[0_10px_36px_-8px_rgba(0,0,0,0.055),0_2px_6px_rgba(0,0,0,0.025)]"
@@ -309,35 +347,15 @@ export function Composer({
         value={prompt}
         onChange={(event) => onPromptChange(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="›"
         disabled={running}
       />
 
-      <div className="flex items-center justify-between gap-2 px-3.5 pt-1.5 pb-3">
-        <div className="flex items-center gap-1.5">
-          <button
-            aria-label="选择文件夹"
-            className={`${ACTION_BTN_BASE} bg-transparent text-muted`}
-            type="button"
-            onClick={onPickWorkspace}
-            title={workspaceInput ? `选择文件夹（当前：${workspaceInput}）` : "选择文件夹"}
-          >
-            <FolderIcon size={14} />
-          </button>
-          <button
-            aria-label="Route preview"
-            className={`${ACTION_BTN_BASE} bg-transparent text-muted`}
-            disabled={!hasPrompt}
-            type="button"
-            onClick={onPreviewRoute}
-            title="Route preview"
-          >
-            <RouteIcon size={14} />
-          </button>
-        </div>
-
-        <div ref={containerRef} className="flex items-center gap-1 flex-wrap justify-end">
-          {/* 第一块：选模式 */}
+      <div
+        ref={containerRef}
+        className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1 pb-2.5"
+      >
+        {/* 左侧：路由模式 + 路由预览 */}
+        <div className="flex items-center gap-0.5">
           <CustomSelectPill
             label={formatModeLabel(activeMode)}
             value={activeMode}
@@ -349,11 +367,32 @@ export function Composer({
             }
             disabled={running}
             title={`模式: ${activeMode}`}
-            maxLabelWidth="max-w-[75px]"
-            minDropdownWidth="min-w-[110px]"
+            menuTitle="路由模式"
+            align="left"
+            placement={dropdownPlacement}
+            maxLabelWidth="max-w-[85px]"
+            minDropdownWidth="min-w-[132px]"
           />
 
-          {/* 第二块：选 CLI */}
+          <span
+            aria-hidden="true"
+            className="mx-0.5 h-3 w-px bg-line-strong/60"
+          />
+
+          <button
+            aria-label="Route preview"
+            className={`${ACTION_BTN_BASE} bg-transparent text-muted/75`}
+            disabled={!hasPrompt}
+            type="button"
+            onClick={onPreviewRoute}
+            title="Route preview"
+          >
+            <RouteIcon size={14} />
+          </button>
+        </div>
+
+        {/* 右侧：执行引擎 (CLI / 模型) + 权限 + 发送 */}
+        <div className="flex flex-wrap items-center justify-end gap-0.5">
           <CustomSelectPill
             label={currentAgentLabel}
             value={activeAgent}
@@ -365,11 +404,25 @@ export function Composer({
             }
             disabled={running}
             title={`CLI: ${currentAgentLabel}`}
+            menuTitle="执行 CLI"
+            placement={dropdownPlacement}
+            leadingIcon={
+              <TerminalIcon
+                size={12}
+                className="text-muted/70 transition-colors group-hover:text-muted-strong"
+              />
+            }
             maxLabelWidth="max-w-[95px]"
-            minDropdownWidth="min-w-[130px]"
+            minDropdownWidth="min-w-[144px]"
           />
 
-          {/* 第三块：选 agent / 模型 */}
+          <span
+            aria-hidden="true"
+            className="select-none text-[11px] text-muted/40"
+          >
+            /
+          </span>
+
           <CustomSelectPill
             label={currentModelLabel}
             value={activeModel}
@@ -381,54 +434,69 @@ export function Composer({
             }
             disabled={running}
             title={`模型: ${currentModelLabel}`}
-            maxLabelWidth="max-w-[130px]"
-            minDropdownWidth="min-w-[180px]"
+            menuTitle="模型"
+            placement={dropdownPlacement}
+            maxLabelWidth="max-w-[145px]"
+            minDropdownWidth="min-w-[190px]"
           />
 
-          {/* 第四块：选权限（仅当该 CLI 有多个权限档位） */}
           {currentPermission && permissionChoices.length > 1 ? (
-            <CustomSelectPill
-              label={
-                currentPermission.dangerous
-                  ? `⚠ ${currentPermission.label}`
-                  : currentPermission.label
-              }
-              value={currentPermission.id}
-              options={permissionOptions}
-              onSelect={handlePermissionChange}
-              open={activeMenu === "permission"}
-              onToggle={() =>
-                setActiveMenu((curr) =>
-                  curr === "permission" ? null : "permission",
-                )
-              }
-              disabled={running}
-              title={`权限: ${currentPermission.label}（${currentPermission.description}）`}
-              maxLabelWidth="max-w-[100px]"
-              minDropdownWidth="min-w-[140px]"
-              isDangerous={Boolean(currentPermission.dangerous)}
-            />
+            <>
+              <span
+                aria-hidden="true"
+                className="mx-1 h-3 w-px bg-line-strong/60"
+              />
+              <CustomSelectPill
+                label={currentPermission.label}
+                value={currentPermission.id}
+                options={permissionOptions}
+                onSelect={handlePermissionChange}
+                open={activeMenu === "permission"}
+                onToggle={() =>
+                  setActiveMenu((curr) =>
+                    curr === "permission" ? null : "permission",
+                  )
+                }
+                disabled={running}
+                title={`权限: ${currentPermission.label}（${currentPermission.description}）`}
+                menuTitle="权限等级"
+                placement={dropdownPlacement}
+                leadingIcon={
+                  <ShieldIcon
+                    size={12}
+                    className={
+                      currentPermission.dangerous
+                        ? "text-amber-600 dark:text-amber-300"
+                        : "text-muted/70 transition-colors group-hover:text-muted-strong"
+                    }
+                  />
+                }
+                maxLabelWidth="max-w-[100px]"
+                minDropdownWidth="min-w-[144px]"
+                isDangerous={Boolean(currentPermission.dangerous)}
+              />
+            </>
           ) : null}
 
           {running ? (
             <motion.button
               aria-label="Stop"
-              className="ml-0.5 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full bg-ink text-canvas transition-all duration-140 hover:opacity-85"
+              className="ml-1.5 grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full bg-ink text-canvas shadow-[0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-140 hover:opacity-85"
               onClick={onCancelRun}
               title="Stop"
               type="button"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.94 }}
             >
-              <StopIcon size={11} />
+              <StopIcon size={10} />
             </motion.button>
           ) : (
             <motion.button
               aria-label="Run"
-              className={`ml-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full transition-all duration-140 ${
+              className={`ml-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-full transition-all duration-140 ${
                 hasPrompt
-                  ? "cursor-pointer bg-ink text-canvas enabled:hover:opacity-85 disabled:bg-surface-subtle disabled:text-muted"
-                  : "bg-surface-subtle text-muted"
+                  ? "cursor-pointer bg-ink text-canvas shadow-[0_1px_3px_rgba(0,0,0,0.14)] enabled:hover:opacity-90"
+                  : "bg-surface-subtle/80 text-muted/45"
               }`}
               disabled={!hasPrompt}
               onClick={onStartRun}

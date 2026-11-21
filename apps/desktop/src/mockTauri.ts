@@ -510,6 +510,106 @@ export async function mockInvoke(
       };
       return result;
     }
+    case "terminal_create": {
+      const cwd =
+        typeof args.cwd === "string" && args.cwd.trim()
+          ? args.cwd.trim()
+          : mockDiscovery.cwd;
+      return {
+        terminalId: `mock-term-${Date.now()}`,
+        shell: "/bin/zsh",
+        cwd,
+      };
+    }
+    case "terminal_write":
+    case "terminal_resize":
+    case "terminal_close":
+      return null;
+    case "git_status":
+      return {
+        isRepo: true,
+        repoRoot: "/Users/demo/coderelay",
+        branch: "feat/scm-view",
+        upstream: "origin/feat/scm-view",
+        ahead: 1,
+        behind: 0,
+        detached: false,
+        entries: [
+          {
+            path: "src/App.tsx",
+            origPath: null,
+            indexStatus: "M",
+            worktreeStatus: ".",
+            staged: true,
+            unstaged: false,
+            untracked: false,
+            conflicted: false,
+          },
+          {
+            path: "src/components/ScmView.tsx",
+            origPath: null,
+            indexStatus: "?",
+            worktreeStatus: "?",
+            staged: false,
+            unstaged: false,
+            untracked: true,
+            conflicted: false,
+          },
+        ],
+      };
+    case "git_diff": {
+      const req = (args.request ?? {}) as { path?: string; staged?: boolean };
+      return {
+        path: req.path ?? "src/App.tsx",
+        staged: Boolean(req.staged),
+        diff: "diff --git a/src/App.tsx b/src/App.tsx\n--- a/src/App.tsx\n+++ b/src/App.tsx\n@@ -1,2 +1,3 @@\n export function App() {\n+  // SCM route added\n   return <main>CodeRelay</main>;\n }",
+        isBinary: false,
+        additions: 1,
+        deletions: 0,
+      };
+    }
+    case "git_branches":
+      return [
+        {
+          name: "feat/scm-view",
+          fullName: "heads/feat/scm-view",
+          isRemote: false,
+          isCurrent: true,
+          upstream: "origin/feat/scm-view",
+          lastCommitOid: "a1b2c3d",
+          committerDate: 1763700000,
+        },
+        {
+          name: "main",
+          fullName: "heads/main",
+          isRemote: false,
+          isCurrent: false,
+          upstream: "origin/main",
+          lastCommitOid: "9f8e7d6",
+          committerDate: 1763690000,
+        },
+        {
+          name: "origin/main",
+          fullName: "remotes/origin/main",
+          isRemote: true,
+          isCurrent: false,
+          upstream: null,
+          lastCommitOid: "9f8e7d6",
+          committerDate: 1763690000,
+        },
+      ];
+    case "git_stage":
+    case "git_unstage":
+    case "git_discard":
+      return null;
+    case "git_commit":
+    case "git_checkout":
+    case "git_delete_branch":
+    case "git_sync":
+    case "git_init":
+      return { ok: true, message: "Mock git action completed" };
+    case "git_generate_commit_message":
+      return "feat(desktop): add source control view with branch management";
     default:
       console.warn(`[mockTauri] Unhandled command: ${cmd}`);
       return null;

@@ -23,6 +23,8 @@ pub enum AgentEvent {
     #[serde(rename_all = "camelCase")]
     Status { text: String },
     #[serde(rename_all = "camelCase")]
+    Thinking { text: String },
+    #[serde(rename_all = "camelCase")]
     AssistantText { text: String },
     #[serde(rename_all = "camelCase")]
     ToolStarted { tool: String },
@@ -89,6 +91,37 @@ pub fn parse_structured_line(line: &str) -> Option<AgentEvent> {
     let kind = value.get("type")?.as_str()?;
 
     match kind {
+        "thinking" | "reasoning" | "thought" | "thinking_delta" | "reasoning_delta" => {
+            let text = text_value(
+                &value,
+                &["thinking", "text", "content", "delta", "reasoning"],
+            )?;
+            (!text.is_empty()).then_some(AgentEvent::Thinking { text })
+        }
+        "content_block_delta" => {
+            let delta = value.get("delta")?;
+            let delta_type = delta.get("type").and_then(Value::as_str)?;
+            match delta_type {
+                "thinking_delta" => {
+                    let text = text_value(delta, &["thinking", "text"])?;
+                    (!text.is_empty()).then_some(AgentEvent::Thinking { text })
+                }
+                "text_delta" => {
+                    let text = text_value(delta, &["text"])?;
+                    (!text.is_empty()).then_some(AgentEvent::AssistantText { text })
+                }
+                _ => None,
+            }
+        }
+        "item.completed" | "item.updated" => {
+            let item = value.get("item")?;
+            if item.get("type").and_then(Value::as_str) == Some("reasoning") {
+                let text = text_value(item, &["text", "thinking", "content"])?;
+                (!text.is_empty()).then_some(AgentEvent::Thinking { text })
+            } else {
+                None
+            }
+        }
         "assistant_text" | "text" | "message" => {
             let text = text_value(&value, &["text", "content", "delta"])?;
             (!text.is_empty()).then_some(AgentEvent::AssistantText { text })
@@ -149,5 +182,59 @@ pub fn summarize_events(events: &[AgentEvent]) -> String {
         format!("…{}", joined.chars().skip(count - 4000).collect::<String>())
     } else {
         joined
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_structured_thinking_variants_separately_from_assistant_text() {
+        assert_eq!(
+            parse_structured_line(r#"{"type":"thinking","text":"step 1"}"#),
+            Some(AgentEvent::Thinking {
+                text: "step 1".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_structured_line(r#"{"type":"reasoning","content":"analyzing"}"#),
+            Some(AgentEvent::Thinking {
+                text: "analyzing".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_structured_line(
+                r#"{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"deep thought"}}"#
+            ),
+            Some(AgentEvent::Thinking {
+                text: "deep thought".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_structured_line(
+                r#"{"type":"item.completed","item":{"type":"reasoning","text":"codex reason"}}"#
+            ),
+            Some(AgentEvent::Thinking {
+                text: "codex reason".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_structured_line(r#"{"type":"thinking","text":""}"#),
+            None
+        );
+    }
+
+    #[test]
+    fn summarize_events_excludes_thinking_from_output_summary() {
+        let events = vec![
+            AgentEvent::Thinking {
+                text: "secret reasoning".to_owned(),
+            },
+            AgentEvent::AssistantText {
+                text: "final answer".to_owned(),
+            },
+        ];
+        assert_eq!(summarize_events(&events), "final answer");
     }
 }

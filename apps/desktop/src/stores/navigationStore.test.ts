@@ -6,9 +6,12 @@ import {
   isConversationRouteActive,
   isFilesRouteActive,
   isNewChatRouteActive,
+  isRightPanelMode,
+  isScmRouteActive,
   isSessionRouteActive,
   isSessionsRouteActive,
   isStatsRouteActive,
+  RIGHT_PANEL_MODES,
   useNavigationStore,
 } from "./navigationStore";
 import {
@@ -32,11 +35,12 @@ describe("useNavigationStore & sidebar activation state", () => {
   });
 
   it("maintains SSOT with WORKSPACE_VIEWS and validates views correctly", () => {
-    expect(WORKSPACE_VIEWS).toEqual(["workspace", "files", "sessions", "stats", "config", "apikeys"]);
+    expect(WORKSPACE_VIEWS).toEqual(["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"]);
 
     // Test valid views (non-empty real values)
     expect(isWorkspaceView("workspace")).toBe(true);
     expect(isWorkspaceView("files")).toBe(true);
+    expect(isWorkspaceView("scm")).toBe(true);
     expect(isWorkspaceView("sessions")).toBe(true);
     expect(isWorkspaceView("stats")).toBe(true);
     expect(isWorkspaceView("config")).toBe(true);
@@ -61,6 +65,10 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(isConversationView("files")).toBe(false);
     expect(isConversationRouteActive("files")).toBe(false);
     expect(isFilesRouteActive("files")).toBe(true);
+    expect(isConversationView("scm")).toBe(false);
+    expect(isConversationRouteActive("scm")).toBe(false);
+    expect(isScmRouteActive("scm")).toBe(true);
+    expect(getActiveSidebarRoute("scm", "sess-1")).toBe("scm");
     expect(isConversationView("sessions")).toBe(false);
     expect(isConversationRouteActive("sessions")).toBe(false);
     expect(isConversationView("stats")).toBe(false);
@@ -202,5 +210,28 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(useNavigationStore.getState().workspaceDropdownOpen).toBe(true);
     store.setWorkspaceDropdownOpen(false);
     expect(useNavigationStore.getState().workspaceDropdownOpen).toBe(false);
+  });
+
+  it("toggles right panel modes (agents / terminal) and validates SSOT guard", () => {
+    expect(RIGHT_PANEL_MODES).toEqual(["agents", "terminal"]);
+    expect(isRightPanelMode("agents")).toBe(true);
+    expect(isRightPanelMode("terminal")).toBe(true);
+    expect(isRightPanelMode("unknown")).toBe(false);
+    expect(isRightPanelMode(null)).toBe(false);
+
+    useNavigationStore.setState({ rightSidebarOpen: false, rightPanelMode: "agents" });
+
+    useNavigationStore.getState().toggleRightPanelMode("terminal");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(true);
+    expect(useNavigationStore.getState().rightPanelMode).toBe("terminal");
+
+    // Switching directly from terminal to agents keeps panel open on agents.
+    useNavigationStore.getState().toggleRightPanelMode("agents");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(true);
+    expect(useNavigationStore.getState().rightPanelMode).toBe("agents");
+
+    // Toggling the already active mode closes the panel.
+    useNavigationStore.getState().toggleRightPanelMode("agents");
+    expect(useNavigationStore.getState().rightSidebarOpen).toBe(false);
   });
 });

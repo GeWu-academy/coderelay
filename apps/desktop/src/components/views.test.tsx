@@ -10,11 +10,16 @@ import {
   stepWorkspaceIndex,
 } from "./FilesView";
 import { IconRail } from "./IconRail";
+import { RightSidebar } from "./RightSidebar";
+import { ScmView } from "./ScmView";
 import { Sidebar } from "./Sidebar";
 import { StatsView } from "./StatsView";
+import { TerminalPanel } from "./TerminalPanel";
+import { ThinkingBar } from "./ThinkingBar";
 import { Titlebar } from "./Titlebar";
+import { WorkspaceView as WorkspacePanelView } from "./WorkspaceView";
 import { isConversationRouteActive } from "../stores/navigationStore";
-import type { JevSettings, WorkspaceView } from "../types";
+import type { AgentEntry, JevSettings, WorkspaceView } from "../types";
 
 describe("Decoupled ApiKeyView & ConfigView", () => {
   it("renders ApiKeyView with stored SQLite key and ensures no config yaml elements exist", () => {
@@ -119,6 +124,13 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(html).toContain("红色");
     expect(html).toContain("自定义背景图");
     expect(html).toContain("上传背景图片文件");
+
+    // Verify Code Color Style options
+    expect(html).toContain("代码颜色风格");
+    expect(html).toContain("GitHub Light");
+    expect(html).toContain("One Dark");
+    expect(html).toContain("Dracula");
+    expect(html).toContain("Tokyo Night");
 
     // Strictly ensure Decoupling: API Key elements must NOT be coupled into ConfigView
     expect(html).not.toContain("API Key");
@@ -255,8 +267,27 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(statsRoute.sidebarHtml).toBeNull();
   });
 
-  it("renders opened workspaces in sidebar even when there are no sessions yet", () => {
-    const sidebarHtml = renderToStaticMarkup(
+  it("filters sidebar sessions strictly by the selected workspace in the top dropdown", () => {
+    const sharedSessions = [
+      {
+        id: "sess-1",
+        title: "现有项目任务",
+        cliId: "codex",
+        createdAt: 1729999999000,
+        updatedAt: 1730000000000,
+        workspace: "/Users/allure/Desktop/coderelay",
+      },
+      {
+        id: "sess-2",
+        title: "独立会话任务",
+        cliId: "claude",
+        createdAt: 1729999999000,
+        updatedAt: 1730000001000,
+        workspace: "",
+      },
+    ];
+
+    const emptyProjectSidebarHtml = renderToStaticMarkup(
       <Sidebar
         collapsed={false}
         workspaceInput="/Users/allure/Projects/brand-new-project"
@@ -271,16 +302,7 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
         loading={false}
         onRefreshDiscovery={() => {}}
         onStartNewTask={() => {}}
-        sessions={[
-          {
-            id: "sess-1",
-            title: "现有项目任务",
-            cliId: "codex",
-            createdAt: 1729999999000,
-            updatedAt: 1730000000000,
-            workspace: "/Users/allure/Desktop/coderelay",
-          },
-        ]}
+        sessions={sharedSessions}
         activeSessionId="sess-1"
         onOpenSession={() => {}}
         onDeleteSession={() => {}}
@@ -288,11 +310,42 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
       />,
     );
 
-    // Both the active opened workspace without sessions and existing workspace with sessions are shown
-    expect(sidebarHtml).toContain("brand-new-project");
-    expect(sidebarHtml).toContain("coderelay");
-    expect(sidebarHtml).toContain("现有项目任务");
-    expect(sidebarHtml).toContain("暂无会话");
+    // Selected workspace is shown in the top dropdown, and its empty state is shown below
+    expect(emptyProjectSidebarHtml).toContain("brand-new-project");
+    expect(emptyProjectSidebarHtml).toContain("暂无会话");
+    // Other workspaces and their sessions are NOT shown in the session list
+    expect(emptyProjectSidebarHtml).not.toContain("现有项目任务");
+    expect(emptyProjectSidebarHtml).not.toContain("独立会话任务");
+    expect(emptyProjectSidebarHtml).not.toContain("coderelay");
+
+    const activeProjectSidebarHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={false}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={[
+          "/Users/allure/Projects/brand-new-project",
+          "/Users/allure/Desktop/coderelay",
+        ]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={sharedSessions}
+        activeSessionId="sess-1"
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+        onDeleteWorkspaceSessions={() => {}}
+      />,
+    );
+
+    expect(activeProjectSidebarHtml).toContain("coderelay");
+    expect(activeProjectSidebarHtml).toContain("现有项目任务");
+    expect(activeProjectSidebarHtml).not.toContain("brand-new-project");
+    expect(activeProjectSidebarHtml).not.toContain("独立会话任务");
+    expect(activeProjectSidebarHtml).not.toContain("暂无会话");
   });
 
   it("renders StatsView with CLI usage ranking, minimalist line chart, and GitHub heatmap", () => {
@@ -575,5 +628,212 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
       />,
     );
     expect(emptySidebarHtml).toContain("选择文件夹");
+  });
+
+  it("renders RightSidebar in agents, terminal, and closed states", () => {
+    const sampleAgents: AgentEntry[] = [
+      {
+        id: "claude",
+        label: "Claude Code",
+        enabled: true,
+        isDefault: true,
+        available: true,
+        command: "claude",
+        path: "/usr/local/bin/claude",
+        version: "2.1.0",
+        models: ["claude-sonnet-4-5"],
+        runtime: "native",
+        source: "path",
+        candidates: [],
+        diagnostics: [],
+      },
+      {
+        id: "codex",
+        label: "Codex CLI",
+        enabled: true,
+        isDefault: false,
+        available: false,
+        command: "codex",
+        path: "",
+        version: null,
+        models: ["gpt-5-codex"],
+        runtime: "native",
+        source: "config",
+        candidates: [],
+        diagnostics: [{ level: "warn", message: "codex executable not found in PATH" }],
+      },
+    ];
+
+    const agentsHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={true}
+        mode="agents"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(agentsHtml).toContain('aria-label="Agents"');
+    expect(agentsHtml).toContain('aria-hidden="false"');
+    expect(agentsHtml).toContain("w-[220px]");
+    expect(agentsHtml).toContain("Claude Code");
+    expect(agentsHtml).toContain("Codex CLI");
+
+    const terminalHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={true}
+        mode="terminal"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(terminalHtml).toContain('aria-label="Terminal"');
+    expect(terminalHtml).toContain("w-[420px]");
+    expect(terminalHtml).toContain("New terminal");
+    expect(terminalHtml).toContain("暂无活动终端");
+
+    const closedHtml = renderToStaticMarkup(
+      <RightSidebar
+        open={false}
+        mode="terminal"
+        onChangeMode={() => {}}
+        agents={sampleAgents}
+        selectedAgentId="claude"
+        onSelectAgent={() => {}}
+        workspaceCwd="/Users/allure/Desktop/coderelay"
+      />,
+    );
+    expect(closedHtml).toContain('aria-hidden="true"');
+    expect(closedHtml).toContain("w-0");
+  });
+
+  it("renders TerminalPanel empty state with create button", () => {
+    const html = renderToStaticMarkup(
+      <TerminalPanel active={false} workspaceCwd="/Users/allure/Desktop/coderelay" />,
+    );
+    expect(html).toContain("暂无活动终端");
+    expect(html).toContain("新建终端");
+    expect(html).toContain('aria-label="New terminal"');
+  });
+
+  it("renders ThinkingBar as a single collapsed line by default and reveals detail only when expanded", () => {
+    const thinking = "Step 1: inspect event parser\nStep 2: verify UI output";
+
+    const collapsedHtml = renderToStaticMarkup(<ThinkingBar thinking={thinking} />);
+    expect(collapsedHtml).toContain('data-testid="thinking-bar"');
+    expect(collapsedHtml).toContain('data-expanded="false"');
+    expect(collapsedHtml).toContain("Thinking");
+    expect(collapsedHtml).toContain("2L");
+    expect(collapsedHtml).toContain("Step 2: verify UI output");
+    expect(collapsedHtml).not.toContain('data-testid="thinking-detail"');
+    expect(collapsedHtml).not.toContain("Step 1: inspect event parser");
+
+    const expandedHtml = renderToStaticMarkup(
+      <ThinkingBar thinking={thinking} defaultExpanded />,
+    );
+    expect(expandedHtml).toContain('data-expanded="true"');
+    expect(expandedHtml).toContain('data-testid="thinking-detail"');
+    expect(expandedHtml).toContain("Step 1: inspect event parser");
+    expect(expandedHtml).toContain("Step 2: verify UI output");
+  });
+
+  it("separates inline and structured thinking from visible output in WorkspaceView", () => {
+    const html = renderToStaticMarkup(
+      <WorkspacePanelView
+        error={null}
+        showThread
+        running={false}
+        result={null}
+        preview={null}
+        thinking="Structured thought line"
+        output={"<thinking>Inline thought line</thinking>\nFinal visible answer"}
+        activity={[]}
+        renderComposer={() => <div />}
+      />,
+    );
+
+    expect(html).toContain('data-testid="thinking-bar"');
+    expect(html).toContain('data-expanded="false"');
+    expect(html).toContain("Final visible answer");
+    expect(html).not.toContain("<thinking>");
+    expect(html).not.toContain("Structured thought line");
+  });
+
+  it("renders Sidebar as collapsible docked panel with collapse button", () => {
+    const expandedHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={false}
+        onCollapse={() => {}}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={["/Users/allure/Desktop/coderelay"]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={[]}
+        activeSessionId={null}
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+      />,
+    );
+    expect(expandedHtml).toContain("basis-[240px]");
+    expect(expandedHtml).toContain('aria-label="收起侧边栏"');
+    expect(expandedHtml).toContain('aria-hidden="false"');
+
+    const collapsedHtml = renderToStaticMarkup(
+      <Sidebar
+        collapsed={true}
+        onCollapse={() => {}}
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={["/Users/allure/Desktop/coderelay"]}
+        workspaceDropdownOpen={false}
+        onToggleWorkspaceDropdown={() => {}}
+        onSelectWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        loading={false}
+        onRefreshDiscovery={() => {}}
+        onStartNewTask={() => {}}
+        sessions={[]}
+        activeSessionId={null}
+        onOpenSession={() => {}}
+        onDeleteSession={() => {}}
+      />,
+    );
+    expect(collapsedHtml).toContain("w-0 shrink-0 basis-0");
+    expect(collapsedHtml).toContain('aria-hidden="true"');
+  });
+
+  it("renders Source Control route in IconRail and ScmView with workspace & empty state", () => {
+    const railHtml = renderToStaticMarkup(
+      <IconRail currentView="scm" onSelectView={() => {}} />,
+    );
+    expect(railHtml).toContain('aria-label="Source Control"');
+    expect(railHtml).toContain("源码");
+
+    const scmHtml = renderToStaticMarkup(
+      <ScmView
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        selectedAgentId="codex"
+        selectedModelId="gpt-5.4"
+        onPickWorkspace={() => {}}
+      />,
+    );
+    expect(scmHtml).toContain("coderelay");
+    expect(scmHtml).toContain("源代码管理");
+    expect(scmHtml).toContain("在左侧选择任意变更文件以查看 Diff 对比");
+
+    const emptyScmHtml = renderToStaticMarkup(
+      <ScmView workspaceInput="" onPickWorkspace={() => {}} />,
+    );
+    expect(emptyScmHtml).toContain("尚未选择工作区");
+    expect(emptyScmHtml).toContain("选择工作区目录");
   });
 });

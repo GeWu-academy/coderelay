@@ -12,23 +12,42 @@ use coderelay_core::config::{
 };
 use coderelay_core::router::jev::{self, TYPESAFE_ENV_KEY};
 use coderelay_core::{
-    AgentAbortHandle, AgentEvent, AgentRunOptions, AgentRunResult, AgentRunStatus, AppendTurnInput,
-    CORE_VERSION, ListSessionsOptions, ModelCatalog, ROUTING_MODES, RouteRequest, RoutingMode,
-    SessionRecord, SessionStore, SessionTurn, TurnContextSource, TurnProtocol, TurnRunStatus,
-    build_prompt_with_context, default_session_db_path, start_agent_run,
+    AgentAbortHandle, AgentEvent, AgentId, AgentRunOptions, AgentRunResult, AgentRunStatus,
+    AppendTurnInput, CORE_VERSION, DetectedCli, ListSessionsOptions, ModelCatalog, ROUTING_MODES,
+    RouteRequest, RoutingMode, SessionRecord, SessionStore, SessionTurn, TurnContextSource,
+    TurnProtocol, TurnRunStatus, build_prompt_with_context, default_session_db_path,
+    start_agent_run,
 };
 use coderelay_protocol::PROTOCOL_VERSION;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+mod git;
+mod terminal;
+use git::{
+    git_branches, git_checkout, git_commit, git_delete_branch, git_diff, git_discard,
+    git_generate_commit_message, git_init, git_stage, git_status, git_sync, git_unstage,
+};
+use terminal::{
+    TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write,
+};
+
 const RUN_EVENT: &str = "run-event";
 const RUN_COMPLETED: &str = "run-completed";
 const SESSION_UPDATED: &str = "session-updated";
+
+type PermissionsCacheKey = Vec<(AgentId, String, Option<String>, bool)>;
+
+struct CachedPermissions {
+    key: PermissionsCacheKey,
+    permissions: Vec<AgentPermissions>,
+}
 
 #[derive(Default)]
 struct DesktopState {
     runs: Mutex<HashMap<String, AgentAbortHandle>>,
     sessions: Mutex<Option<SessionStore>>,
+    permissions_cache: Mutex<Option<CachedPermissions>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -41,9 +60,9 @@ struct RuntimeStatus {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
-struct WorkspaceRequest {
-    cwd: Option<String>,
-    config_path: Option<String>,
+pub(crate) struct WorkspaceRequest {
+    pub(crate) cwd: Option<String>,
+    pub(crate) config_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -68,13 +87,13 @@ struct AgentPermissions {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SelectionRequest {
+pub(crate) struct SelectionRequest {
     #[serde(default)]
-    workspace: WorkspaceRequest,
-    request: RouteRequest,
-    mode: Option<RoutingMode>,
-    agent: Option<String>,
-    model: Option<String>,
+    pub(crate) workspace: WorkspaceRequest,
+    pub(crate) request: RouteRequest,
+    pub(crate) mode: Option<RoutingMode>,
+    pub(crate) agent: Option<String>,
+    pub(crate) model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -210,7 +229,7 @@ fn config_path(request: &WorkspaceRequest, cwd: &Path) -> Result<PathBuf, String
     Ok(loaded.path.unwrap_or_else(|| project_config_path(cwd)))
 }
 
-async fn context_for(request: &WorkspaceRequest) -> Result<CliContext, String> {
+pub(crate) async fn context_for(request: &WorkspaceRequest) -> Result<CliContext, String> {
     let cwd = workspace_cwd(request)?;
     let config_path = request.config_path.as_ref().map(PathBuf::from);
     tauri::async_runtime::spawn_blocking(move || {
@@ -242,7 +261,7 @@ fn with_session_store<T>(
     action(guard.as_mut().expect("session store initialized"))
 }
 
-fn stored_jev_api_key(app: &AppHandle) -> Result<Option<String>, String> {
+pub(crate) fn stored_jev_api_key(app: &AppHandle) -> Result<Option<String>, String> {
     with_session_store(&app.state::<DesktopState>(), |store| {
         store.get_jev_api_key().map_err(|error| error.to_string())
     })
@@ -293,18 +312,50 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
             .get_recent_workspaces(8)
             .map_err(|error| error.to_string())
     })?;
-    let detected = context.detected.clone();
-    let environment = context.environment.clone();
-    let scanned_permissions = tauri::async_runtime::spawn_blocking(move || {
-        coderelay_core::scan_permissions(
-            &coderelay_core::SystemHost,
-            &detected,
-            &environment,
-            coderelay_core::DEFAULT_PERMISSION_SCAN_TIMEOUT,
-        )
-    })
-    .await
-    .map_err(|error| format!("扫描 CLI 权限失败: {error}"))?;
+    let permissions_key: PermissionsCacheKey = context
+        .detected
+        .iter()
+        .map(|cli: &DetectedCli| (cli.id, cli.path.clone(), cli.version.clone(), cli.available))
+        .collect();
+    let cached_permissions = app
+        .state::<DesktopState>()
+        .permissions_cache
+        .lock()
+        .ok()
+        .and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|cached| cached.key == permissions_key)
+                .map(|cached| cached.permissions.clone())
+        });
+    let permissions = match cached_permissions {
+        Some(cached) => cached,
+        None => {
+            let detected = context.detected.clone();
+            let environment = context.environment.clone();
+            let scanned_permissions = tauri::async_runtime::spawn_blocking(move || {
+                coderelay_core::scan_permissions(
+                    &coderelay_core::SystemHost,
+                    &detected,
+                    &environment,
+                    coderelay_core::DEFAULT_PERMISSION_SCAN_TIMEOUT,
+                )
+            })
+            .await
+            .map_err(|error| format!("扫描 CLI 权限失败: {error}"))?;
+            let mapped: Vec<AgentPermissions> = scanned_permissions
+                .into_iter()
+                .map(|(cli_id, options)| AgentPermissions { cli_id, options })
+                .collect();
+            if let Ok(mut guard) = app.state::<DesktopState>().permissions_cache.lock() {
+                *guard = Some(CachedPermissions {
+                    key: permissions_key,
+                    permissions: mapped.clone(),
+                });
+            }
+            mapped
+        }
+    };
     Ok(DiscoveryPayload {
         cwd: cwd_string,
         config_path: context
@@ -316,15 +367,12 @@ async fn discover(app: AppHandle, request: WorkspaceRequest) -> Result<Discovery
         routing_modes: ROUTING_MODES.to_vec(),
         agents: build_agent_entries(&context),
         catalog: context.catalog.clone(),
-        permissions: scanned_permissions
-            .into_iter()
-            .map(|(cli_id, options)| AgentPermissions { cli_id, options })
-            .collect(),
+        permissions,
         recent_workspaces,
     })
 }
 
-async fn select_for(
+pub(crate) async fn select_for(
     context: &CliContext,
     request: &SelectionRequest,
     stored_jev_api_key: Option<&str>,
@@ -844,7 +892,7 @@ struct WorkspaceFileContent {
 
 const MAX_FILE_PREVIEW_BYTES: usize = 512 * 1024;
 
-fn resolve_workspace_subpath(
+pub(crate) fn resolve_workspace_subpath(
     cwd: Option<String>,
     relative_path: Option<&str>,
 ) -> Result<(PathBuf, PathBuf), String> {
@@ -985,6 +1033,7 @@ fn supported_agents() -> Vec<coderelay_core::AgentDescriptor> {
 pub fn run() {
     tauri::Builder::default()
         .manage(DesktopState::default())
+        .manage(TerminalRegistry::default())
         .invoke_handler(tauri::generate_handler![
             runtime_status,
             supported_agents,
@@ -1006,10 +1055,31 @@ pub fn run() {
             save_config,
             record_workspace,
             list_directory,
-            read_workspace_file
+            read_workspace_file,
+            terminal_create,
+            terminal_write,
+            terminal_resize,
+            terminal_close,
+            git_status,
+            git_diff,
+            git_stage,
+            git_unstage,
+            git_discard,
+            git_commit,
+            git_branches,
+            git_checkout,
+            git_delete_branch,
+            git_sync,
+            git_init,
+            git_generate_commit_message
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running CodeRelay desktop");
+        .build(tauri::generate_context!())
+        .expect("error while building CodeRelay desktop")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                app_handle.state::<TerminalRegistry>().kill_all();
+            }
+        });
 }
 
 #[cfg(test)]

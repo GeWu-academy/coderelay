@@ -1,33 +1,110 @@
+import { invoke } from "@tauri-apps/api/core";
 import { motion } from "motion/react";
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useThemeStore } from "../stores/themeStore";
-import { THEME_PRESETS } from "../types";
-import { CheckIcon, ImageIcon, PaletteIcon, RefreshIcon, TrashIcon } from "./icons";
+import { useNavigationStore } from "../stores/navigationStore";
+import { getCodeThemePalette, useThemeStore } from "../stores/themeStore";
+import { useWorkbenchStore } from "../stores/workbenchStore";
+import { CODE_THEME_PRESETS, THEME_PRESETS, type ConfigSource } from "../types";
+import { messageOf } from "../utils";
+import { CheckIcon, CodeIcon, ImageIcon, PaletteIcon, RefreshIcon, TrashIcon } from "./icons";
 
 export interface ConfigViewProps {
   configPath?: string;
-  configBusy: boolean;
-  configDraft: string;
-  onConfigDraftChange: (value: string) => void;
-  onLoadConfigSource: () => void;
-  onSaveConfig: () => void;
+  configBusy?: boolean;
+  configDraft?: string;
+  onConfigDraftChange?: (value: string) => void;
+  onLoadConfigSource?: () => void;
+  onSaveConfig?: () => void;
 }
 
 const ICON_BTN_CLASS =
   "grid h-7 w-7 shrink-0 place-items-center rounded-[7px] bg-transparent text-muted transition-colors duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-35";
 
 export function ConfigView({
-  configPath,
-  configBusy,
-  configDraft,
+  configPath: controlledPath,
+  configBusy: controlledBusy,
+  configDraft: controlledDraft,
   onConfigDraftChange,
   onLoadConfigSource,
   onSaveConfig,
-}: ConfigViewProps) {
+}: ConfigViewProps = {}) {
+  const isControlled = controlledDraft !== undefined || onConfigDraftChange !== undefined;
+
+  const workspaceInput = useWorkbenchStore((s) => s.workspaceInput);
+  const loadDiscovery = useWorkbenchStore((s) => s.loadDiscovery);
+  const setView = useNavigationStore((s) => s.setView);
+
+  const [internalSource, setInternalSource] = useState<ConfigSource | null>(null);
+  const [internalDraft, setInternalDraft] = useState("");
+  const [internalBusy, setInternalBusy] = useState(false);
+  const [internalError, setInternalError] = useState<string | null>(null);
+
+  const loadInternalConfig = useCallback(async (): Promise<void> => {
+    setInternalBusy(true);
+    setInternalError(null);
+    try {
+      const source = await invoke<ConfigSource>("read_config_source", {
+        request: {
+          cwd: workspaceInput.trim() || null,
+          configPath: null,
+        },
+      });
+      setInternalSource(source);
+      setInternalDraft(source.raw);
+    } catch (error) {
+      setInternalError(messageOf(error));
+    } finally {
+      setInternalBusy(false);
+    }
+  }, [workspaceInput]);
+
+  useEffect(() => {
+    if (isControlled) {
+      return;
+    }
+    void loadInternalConfig();
+  }, [isControlled, loadInternalConfig]);
+
+  async function saveInternalConfig(): Promise<void> {
+    setInternalBusy(true);
+    setInternalError(null);
+    try {
+      const path = await invoke<string>("save_config", {
+        request: {
+          workspace: {
+            cwd: workspaceInput.trim() || null,
+            configPath: null,
+          },
+          raw: internalDraft,
+        },
+      });
+      setInternalSource((current) =>
+        current
+          ? { ...current, path, exists: true, raw: internalDraft }
+          : { path, exists: true, raw: internalDraft },
+      );
+      await loadDiscovery(workspaceInput);
+      setView("config");
+    } catch (error) {
+      setInternalError(messageOf(error));
+    } finally {
+      setInternalBusy(false);
+    }
+  }
+
+  const configPath = controlledPath ?? internalSource?.path;
+  const configBusy = controlledBusy ?? internalBusy;
+  const configDraft = controlledDraft ?? internalDraft;
+  const handleDraftChange = onConfigDraftChange ?? setInternalDraft;
+  const handleReload = onLoadConfigSource ?? (() => void loadInternalConfig());
+  const handleSave = onSaveConfig ?? (() => void saveInternalConfig());
   const currentPreset = useThemeStore((s) => s.preset);
   const effectiveTheme = useThemeStore((s) => s.effectiveTheme);
   const setPreset = useThemeStore((s) => s.setPreset);
+  const currentCodeTheme = useThemeStore((s) => s.codeTheme);
+  const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
+  const setCodeTheme = useThemeStore((s) => s.setCodeTheme);
   const customBackground = useThemeStore((s) => s.customBackground);
   const customBackgroundOpacity = useThemeStore((s) => s.customBackgroundOpacity);
   const setCustomBackground = useThemeStore((s) => s.setCustomBackground);
@@ -88,6 +165,12 @@ export function ConfigView({
 
   const activePreset =
     THEME_PRESETS.find((p) => p.id === currentPreset) ?? THEME_PRESETS[0];
+  const activeCodeTheme =
+    CODE_THEME_PRESETS.find((p) => p.id === currentCodeTheme) ??
+    CODE_THEME_PRESETS[0];
+  const resolvedCodePreset =
+    CODE_THEME_PRESETS.find((p) => p.id === effectiveCodeTheme) ??
+    CODE_THEME_PRESETS[1];
 
   return (
     <motion.section
@@ -109,7 +192,7 @@ export function ConfigView({
               aria-label="Reload"
               className={ICON_BTN_CLASS}
               disabled={configBusy}
-              onClick={onLoadConfigSource}
+              onClick={handleReload}
               title="Reload"
               type="button"
             >
@@ -119,7 +202,7 @@ export function ConfigView({
               aria-label="Save"
               className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full bg-ink text-canvas transition-all duration-140 enabled:hover:opacity-85 disabled:bg-surface-subtle disabled:text-muted"
               disabled={configBusy || !configDraft.trim()}
-              onClick={onSaveConfig}
+              onClick={handleSave}
               title="Save"
               type="button"
             >
@@ -127,6 +210,12 @@ export function ConfigView({
             </button>
           </div>
         </div>
+
+        {internalError ? (
+          <div className="rounded-xl border border-line bg-surface-subtle px-4 py-3 text-xs text-ink">
+            {internalError}
+          </div>
+        ) : null}
 
         {/* Theme Presets Selection (ChatGPT Style) */}
         <section
@@ -311,10 +400,108 @@ export function ConfigView({
           </div>
         </section>
 
+        {/* Code Syntax Color Style Selection */}
+        <section
+          className="flex flex-col gap-3 rounded-xl border border-line bg-sidebar p-3.5"
+          aria-label="代码颜色风格"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CodeIcon size={16} />
+              <span className="text-xs font-semibold tracking-[-0.01em] text-ink">
+                代码颜色风格
+              </span>
+              <span className="text-[11px] text-muted">
+                代码文件浏览器的语法高亮配色
+              </span>
+            </div>
+            <span className="font-code text-[11px] text-muted-strong">
+              当前：{activeCodeTheme?.name ?? "跟随主题"}
+              {currentCodeTheme === "auto"
+                ? ` → ${resolvedCodePreset?.name ?? "GitHub Light"}`
+                : ""}
+            </span>
+          </div>
+
+          <div
+            className="grid grid-cols-3 gap-2.5 max-[860px]:grid-cols-2 max-[560px]:grid-cols-1"
+            role="radiogroup"
+            aria-label="选择代码颜色风格"
+          >
+            {CODE_THEME_PRESETS.map((codePreset) => {
+              const isSelected = currentCodeTheme === codePreset.id;
+              const previewPalette =
+                codePreset.id === "auto"
+                  ? getCodeThemePalette(effectiveCodeTheme)
+                  : codePreset.palette;
+              return (
+                <button
+                  key={codePreset.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setCodeTheme(codePreset.id)}
+                  className={`group relative flex flex-col gap-2 rounded-[11px] border p-2.5 text-left transition-all duration-140 ${
+                    isSelected
+                      ? "border-ink bg-surface shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
+                      : "border-line bg-surface/50 hover:border-line-strong hover:bg-surface"
+                  }`}
+                >
+                  {/* Miniature Code Snippet Preview */}
+                  <div
+                    className="relative flex h-14 w-full flex-col justify-center gap-0.5 overflow-hidden rounded-[7px] border border-line px-2.5 py-1.5 font-code text-[10px] leading-[1.35]"
+                    style={{
+                      backgroundColor: previewPalette.background,
+                      color: previewPalette.foreground,
+                    }}
+                  >
+                    <div className="truncate">
+                      <span style={{ color: previewPalette.comment }}>{"// syntax"}</span>
+                    </div>
+                    <div className="truncate">
+                      <span style={{ color: previewPalette.keyword }}>fn </span>
+                      <span style={{ color: previewPalette.func }}>relay</span>
+                      <span>(</span>
+                      <span style={{ color: previewPalette.type }}>Str</span>
+                      <span>) {"{"}</span>
+                    </div>
+                    <div className="truncate pl-2">
+                      <span style={{ color: previewPalette.keyword }}>return </span>
+                      <span style={{ color: previewPalette.string }}>"ok"</span>
+                      <span>;</span>
+                    </div>
+
+                    {isSelected ? (
+                      <div className="absolute top-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-ink text-canvas shadow-xs">
+                        <CheckIcon size={10} />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Preset Label & Description */}
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-semibold text-ink">
+                        {codePreset.name}
+                      </span>
+                      <span className="rounded bg-surface-subtle px-1.5 py-0.5 font-code text-[10px] text-muted-strong">
+                        {codePreset.subtitle}
+                      </span>
+                    </div>
+                    <p className="line-clamp-1 text-[11px] leading-tight text-muted">
+                      {codePreset.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <textarea
           aria-label="Config YAML"
           className="min-h-[420px] w-full flex-1 resize-none rounded-[14px] border border-line bg-sidebar p-[18px] font-code text-xs leading-[1.7] text-ink transition-colors duration-140 outline-none [tab-size:2] focus:border-line-strong"
-          onChange={(event) => onConfigDraftChange(event.target.value)}
+          onChange={(event) => handleDraftChange(event.target.value)}
           spellCheck={false}
           value={configDraft}
         />
