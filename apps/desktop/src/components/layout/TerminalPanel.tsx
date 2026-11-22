@@ -5,8 +5,8 @@ import { Terminal, type ITheme } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useThemeStore } from "../stores/themeStore";
-import { CloseIcon, PlusIcon, RefreshIcon, TerminalIcon } from "./icons";
+import { useThemeStore } from "../../stores/themeStore";
+import { CloseIcon, PlusIcon, RefreshIcon, TerminalIcon } from "../icons";
 
 interface TerminalCreateResponse {
   terminalId: string;

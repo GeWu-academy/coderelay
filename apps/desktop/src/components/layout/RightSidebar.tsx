@@ -1,6 +1,6 @@
-import type { RightPanelMode } from "../stores/navigationStore";
-import type { AgentEntry } from "../types";
-import { AgentsIcon, CliIcon, TerminalIcon } from "./icons";
+import type { RightPanelMode } from "../../stores/navigationStore";
+import type { AgentEntry } from "../../types";
+import { AgentsIcon, CliIcon, TerminalIcon } from "../icons";
 import { TerminalPanel } from "./TerminalPanel";
 
 export interface RightSidebarProps {

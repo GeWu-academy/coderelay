@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { workspaceName } from "../utils";
-import { ChevronDownIcon, FolderIcon, PlusIcon, TrashIcon } from "./icons";
+import { workspaceName } from "../../utils";
+import { ChevronDownIcon, FolderIcon, PlusIcon, TrashIcon } from "../icons";
 
 export function buildWorkspaceWheelList(
   workspaceInput: string,

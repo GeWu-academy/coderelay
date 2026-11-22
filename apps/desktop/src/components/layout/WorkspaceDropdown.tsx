@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 
-import { workspaceName } from "../utils";
-import { ChevronDownIcon, FolderIcon, PlusIcon } from "./icons";
+import { workspaceName } from "../../utils";
+import { ChevronDownIcon, FolderIcon, PlusIcon } from "../icons";
 
 export interface WorkspaceDropdownProps {
   isOpen: boolean;

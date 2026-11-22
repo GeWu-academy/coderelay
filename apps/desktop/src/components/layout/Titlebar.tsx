@@ -1,5 +1,5 @@
-import type { RightPanelMode } from "../stores/navigationStore";
-import { AgentsIcon, PanelLeftIcon, TerminalIcon } from "./icons";
+import type { RightPanelMode } from "../../stores/navigationStore";
+import { AgentsIcon, PanelLeftIcon, TerminalIcon } from "../icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 export interface TitlebarProps {
