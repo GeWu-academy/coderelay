@@ -12,7 +12,11 @@ import {
   TrashIcon,
 } from "../../components/icons";
 import { useNavigationStore } from "../../stores/navigationStore";
-import { getCodeThemePalette, useThemeStore } from "../../stores/themeStore";
+import {
+  getCodeThemePalette,
+  resolveEffectiveCodeTheme,
+  useThemeStore,
+} from "../../stores/themeStore";
 import { useWorkbenchStore } from "../../stores/workbenchStore";
 import {
   CODE_THEME_PRESETS,
@@ -21,6 +25,7 @@ import {
   type ConfigSource,
 } from "../../types";
 import { messageOf } from "../../utils";
+import { tokenColor, tokenizeCodeLines } from "../../utils/codeHighlight";
 import { SemanticFolderIcon } from "../files/folderStyles";
 
 export interface ConfigViewProps {
@@ -41,6 +46,14 @@ const PILL_ACTIVE_CLASS =
   "border-ink bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]";
 const PILL_IDLE_CLASS =
   "border-line bg-surface/40 text-muted-strong hover:border-line-strong hover:bg-surface hover:text-ink";
+
+const CODE_PREVIEW_LINES = [
+  "// 语法高亮示例",
+  "const hi = (n: number) =>",
+  '  greet("ok", n + 1);',
+] as const;
+
+const CODE_PREVIEW_TOKEN_LINES = tokenizeCodeLines(CODE_PREVIEW_LINES, "ts");
 
 export function ConfigView({
   configPath: controlledPath,
@@ -123,7 +136,7 @@ export function ConfigView({
   const currentPreset = useThemeStore((s) => s.preset);
   const setPreset = useThemeStore((s) => s.setPreset);
   const currentCodeTheme = useThemeStore((s) => s.codeTheme);
-  const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
+  const colorScheme = useThemeStore((s) => s.colorScheme);
   const setCodeTheme = useThemeStore((s) => s.setCodeTheme);
   const currentFolderStyle = useThemeStore((s) => s.folderStyle);
   const setFolderStyle = useThemeStore((s) => s.setFolderStyle);
@@ -275,13 +288,13 @@ export function ConfigView({
           </div>
 
           {/* 代码颜色风格 */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
-            <div className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-medium text-ink">
+          <div className="flex flex-wrap items-start gap-x-3 gap-y-2 py-2.5">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 pt-1 text-xs font-medium text-ink">
               <CodeIcon size={14} />
               <span>代码颜色风格</span>
             </div>
             <div
-              className="flex flex-1 flex-wrap items-center gap-1.5"
+              className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-3"
               role="radiogroup"
               aria-label="选择代码颜色风格"
             >
@@ -289,7 +302,7 @@ export function ConfigView({
                 const isSelected = currentCodeTheme === codePreset.id;
                 const previewPalette =
                   codePreset.id === "auto"
-                    ? getCodeThemePalette(effectiveCodeTheme)
+                    ? getCodeThemePalette(resolveEffectiveCodeTheme("auto", colorScheme))
                     : codePreset.palette;
                 return (
                   <button
@@ -297,19 +310,55 @@ export function ConfigView({
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
+                    data-code-theme-option={codePreset.id}
                     onClick={() => setCodeTheme(codePreset.id)}
-                    className={`${PILL_BASE_CLASS} ${isSelected ? PILL_ACTIVE_CLASS : PILL_IDLE_CLASS}`}
+                    className={`group flex cursor-pointer flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors duration-140 ${
+                      isSelected
+                        ? "border-ink bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                        : "border-line bg-surface/40 hover:border-line-strong hover:bg-surface"
+                    }`}
                   >
-                    <span
-                      className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-line-strong"
-                      style={{ backgroundColor: previewPalette.background }}
+                    <div
+                      aria-hidden="true"
+                      className="overflow-hidden rounded-[6px] border border-black/10 px-2 py-1.5 font-code text-[10px] leading-[1.45]"
+                      style={{
+                        backgroundColor: previewPalette.background,
+                        color: previewPalette.foreground,
+                      }}
                     >
+                      {CODE_PREVIEW_TOKEN_LINES.map((tokens, lineIdx) => (
+                        <div key={lineIdx} className="flex items-baseline gap-1.5 whitespace-pre">
+                          <span
+                            className="w-2.5 shrink-0 select-none text-right text-[9px] opacity-70"
+                            style={{ color: previewPalette.lineNumber }}
+                          >
+                            {lineIdx + 1}
+                          </span>
+                          <span className="truncate">
+                            {tokens.map((token, tokenIdx) => (
+                              <span
+                                key={tokenIdx}
+                                style={{ color: tokenColor(token.type, previewPalette) }}
+                              >
+                                {token.text}
+                              </span>
+                            ))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-1 px-0.5">
                       <span
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: previewPalette.keyword }}
-                      />
-                    </span>
-                    <span>{codePreset.name}</span>
+                        className={`truncate text-xs ${
+                          isSelected ? "font-medium text-ink" : "text-muted-strong group-hover:text-ink"
+                        }`}
+                      >
+                        {codePreset.name}
+                      </span>
+                      <span className="shrink-0 rounded bg-surface-subtle px-1 py-0.5 text-[10px] leading-none text-muted">
+                        {codePreset.subtitle}
+                      </span>
+                    </div>
                   </button>
                 );
               })}

@@ -848,8 +848,14 @@ export function ScmView({
         ) : null}
         {notice ? (
           <div className="mx-3 mt-2 flex items-start justify-between gap-2 rounded-[8px] border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-            <span className="break-all">{notice}</span>
-            <button onClick={() => setNotice(null)} type="button">
+            <span className="line-clamp-2 break-words" title={notice}>
+              {notice}
+            </span>
+            <button
+              className="shrink-0"
+              onClick={() => setNotice(null)}
+              type="button"
+            >
               <CloseIcon size={12} />
             </button>
           </div>

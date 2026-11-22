@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { CODE_THEME_PRESETS } from "../../types";
 import { ConfigView } from "./ConfigView";
 
 describe("ConfigView", () => {
@@ -38,12 +39,22 @@ describe("ConfigView", () => {
     expect(html).toContain("自定义背景图");
     expect(html).toContain("上传背景图片文件");
 
-    // Verify Code Color Style options
+    // Verify Code Color Style options and live code snippet previews
     expect(html).toContain("代码颜色风格");
     expect(html).toContain("GitHub Light");
     expect(html).toContain("One Dark");
     expect(html).toContain("Dracula");
     expect(html).toContain("Tokyo Night");
+    expect(html).toContain("// 语法高亮示例");
+    expect(html).toContain("greet");
+    for (const preset of CODE_THEME_PRESETS) {
+      expect(html).toContain(`data-code-theme-option="${preset.id}"`);
+      expect(html).toContain(preset.subtitle);
+      if (preset.id !== "auto") {
+        expect(html).toContain(`background-color:${preset.palette.background}`);
+        expect(html).toContain(`color:${preset.palette.keyword}`);
+      }
+    }
 
     // Verify Folder Style options
     expect(html).toContain("文件夹样式");

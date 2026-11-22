@@ -619,6 +619,27 @@ pub fn git_discard(request: GitDiscardRequest) -> Result<(), String> {
     Ok(())
 }
 
+fn summarize_commit_output(out: &str) -> String {
+    let mut lines = out.lines().map(str::trim).filter(|line| !line.is_empty());
+
+    let Some(header) = lines.next() else {
+        return "提交成功".to_owned();
+    };
+
+    let stat = lines.next().filter(|line| {
+        !line.starts_with("create mode ")
+            && !line.starts_with("delete mode ")
+            && !line.starts_with("mode change ")
+            && !line.starts_with("rename ")
+            && !line.starts_with("copy ")
+    });
+
+    match stat {
+        Some(summary) => format!("{header} · {summary}"),
+        None => header.to_owned(),
+    }
+}
+
 #[tauri::command]
 pub fn git_commit(request: GitCommitRequest) -> Result<GitActionResult, String> {
     let repo_root = require_git_repo_root(request.cwd)?;
@@ -633,7 +654,7 @@ pub fn git_commit(request: GitCommitRequest) -> Result<GitActionResult, String> 
     };
     Ok(GitActionResult {
         ok: true,
-        message: out.trim().to_owned(),
+        message: summarize_commit_output(&out),
     })
 }
 
@@ -904,5 +925,25 @@ diff --git a/src/a.ts b/src/a.ts
 +const c = 4;
 ";
         assert_eq!(count_diff_stats(diff), (2, 1));
+    }
+
+    #[test]
+    fn summarizes_verbose_commit_output() {
+        let verbose = "\
+[main a8f2d29] feat: 初始化项目目录
+ 19 files changed, 2068 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 README.md
+ create mode 100644 package.json
+";
+        assert_eq!(
+            summarize_commit_output(verbose),
+            "[main a8f2d29] feat: 初始化项目目录 · 19 files changed, 2068 insertions(+)"
+        );
+        assert_eq!(
+            summarize_commit_output("[main a8f2d29] chore: empty\n create mode 100644 a.txt\n"),
+            "[main a8f2d29] chore: empty"
+        );
+        assert_eq!(summarize_commit_output("   \n  "), "提交成功");
     }
 }
