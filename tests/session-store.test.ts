@@ -191,25 +191,27 @@ describe("session store", () => {
     expect(defaultSessionDbPath(customHome)).toBe(join(customHome, ".coderelay", "sessions.db"));
 
     // Windows paths with backslashes
-    expect(defaultSessionDbPath("C:\\Users\\tester")).toBe("C:\\Users\\tester\\.coderelay\\sessions.db");
-    expect(
-      defaultSessionDbPath(undefined, { USERPROFILE: "C:\\Users\\winuser" }, "win32"),
-    ).toBe("C:\\Users\\winuser\\.coderelay\\sessions.db");
+    expect(defaultSessionDbPath("C:\\Users\\tester")).toBe(
+      "C:\\Users\\tester\\.coderelay\\sessions.db",
+    );
+    expect(defaultSessionDbPath(undefined, { USERPROFILE: "C:\\Users\\winuser" }, "win32")).toBe(
+      "C:\\Users\\winuser\\.coderelay\\sessions.db",
+    );
 
     // Linux
-    expect(
-      defaultSessionDbPath(undefined, { HOME: "/home/linuxuser" }, "linux"),
-    ).toBe("/home/linuxuser/.coderelay/sessions.db");
+    expect(defaultSessionDbPath(undefined, { HOME: "/home/linuxuser" }, "linux")).toBe(
+      "/home/linuxuser/.coderelay/sessions.db",
+    );
 
     // macOS
-    expect(
-      defaultSessionDbPath(undefined, { HOME: "/Users/macuser" }, "darwin"),
-    ).toBe("/Users/macuser/.coderelay/sessions.db");
+    expect(defaultSessionDbPath(undefined, { HOME: "/Users/macuser" }, "darwin")).toBe(
+      "/Users/macuser/.coderelay/sessions.db",
+    );
 
     // CODERELAY_HOME override
-    expect(
-      defaultSessionDbPath(undefined, { CODERELAY_HOME: "/custom/global" }),
-    ).toBe("/custom/global/.coderelay/sessions.db");
+    expect(defaultSessionDbPath(undefined, { CODERELAY_HOME: "/custom/global" })).toBe(
+      "/custom/global/.coderelay/sessions.db",
+    );
   });
 
   test("persists workspace info on sessions and queries by workspace", async () => {
@@ -308,13 +310,23 @@ describe("session store", () => {
   });
 
   test("isDuplicateColumnError accurately identifies duplicate column errors", () => {
-    expect(isDuplicateColumnError(new Error("duplicate column name: workspace"), "workspace")).toBe(true);
-    expect(isDuplicateColumnError(new Error("duplicate column name: WORKSPACE"), "workspace")).toBe(true);
-    expect(isDuplicateColumnError(new Error("duplicate column name: model_id"), "workspace")).toBe(false);
-    expect(isDuplicateColumnError(new Error("attempt to write a readonly database"), "workspace")).toBe(false);
+    expect(isDuplicateColumnError(new Error("duplicate column name: workspace"), "workspace")).toBe(
+      true,
+    );
+    expect(isDuplicateColumnError(new Error("duplicate column name: WORKSPACE"), "workspace")).toBe(
+      true,
+    );
+    expect(isDuplicateColumnError(new Error("duplicate column name: model_id"), "workspace")).toBe(
+      false,
+    );
+    expect(
+      isDuplicateColumnError(new Error("attempt to write a readonly database"), "workspace"),
+    ).toBe(false);
     expect(isDuplicateColumnError(new Error("database is locked"), "workspace")).toBe(false);
     expect(isDuplicateColumnError(new Error("disk I/O error"), "workspace")).toBe(false);
-    expect(isDuplicateColumnError(new Error("database disk image is malformed"), "workspace")).toBe(false);
+    expect(isDuplicateColumnError(new Error("database disk image is malformed"), "workspace")).toBe(
+      false,
+    );
     expect(isDuplicateColumnError(null)).toBe(false);
   });
 
@@ -330,9 +342,9 @@ describe("session store", () => {
 
     const db = new Database(path);
     try {
-      expect(() =>
-        applyColumnMigration(db, "ALTER TABLE sessions ADD COLUMN"),
-      ).toThrowError(/Migration failed for column/);
+      expect(() => applyColumnMigration(db, "ALTER TABLE sessions ADD COLUMN")).toThrowError(
+        /Migration failed for column/,
+      );
     } finally {
       db.close();
     }

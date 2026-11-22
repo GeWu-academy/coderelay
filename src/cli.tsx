@@ -20,11 +20,14 @@ import {
 } from "./config/activation";
 import { defaultConfig, type Config, type RoutingMode } from "./config/schema";
 import { loadConfig, saveActivationDecisions } from "./config/loader";
-import { CLI_IDS, cliLaunchTarget, type CliId, type DetectedCli, type LaunchTarget } from "./models/cli";
 import {
-  summarizeEvents,
-  type AgentEvent,
-} from "./models/agent-events";
+  CLI_IDS,
+  cliLaunchTarget,
+  type CliId,
+  type DetectedCli,
+  type LaunchTarget,
+} from "./models/cli";
+import { summarizeEvents, type AgentEvent } from "./models/agent-events";
 import type { SessionTurn, TurnContextSource } from "./models/session";
 import { routeWithJev } from "./router/jev";
 import { hasAmbiguousRoute, resolveRoutingMode, route } from "./router/router";
@@ -131,9 +134,7 @@ function tree() {
       phase={phase}
       probes={probes}
       activationOptions={
-        phase === "activating" && activationTargets.length > 0
-          ? activationTargets
-          : undefined
+        phase === "activating" && activationTargets.length > 0 ? activationTargets : undefined
       }
       activationMode={activationMode}
       onSaveActivation={(options) => {
@@ -231,11 +232,7 @@ async function loadAppConfig(): Promise<Config> {
   return loaded.config;
 }
 
-function resolveTarget(
-  cliId: CliId,
-  config: Config,
-  bin: string,
-): LaunchTarget {
+function resolveTarget(cliId: CliId, config: Config, bin: string): LaunchTarget {
   const configured = config.agents[cliId]?.command?.trim();
   if (configured) {
     const resolved = resolveCommand(configured);
@@ -264,10 +261,7 @@ function needsSelecting(catalog: ModelCatalog): boolean {
 }
 
 /** 本机首次确认：只把已安装且用户还没决策过的 CLI 拿来问。 */
-function enterActivationConfirm(
-  detected: readonly DetectedCli[],
-  config: Config,
-): boolean {
+function enterActivationConfirm(detected: readonly DetectedCli[], config: Config): boolean {
   const options = toActivationOptions(detected, config);
   const pending = pendingActivation(options);
   if (pending.length === 0) {
@@ -282,12 +276,7 @@ function enterActivationConfirm(
 
 /** /activate：给全部 CLI 一个入口，方便随时取消或重新启用。 */
 async function requestActivationManager(): Promise<void> {
-  if (
-    phase === "probing" ||
-    phase === "starting" ||
-    phase === "running" ||
-    phase === "selecting"
-  ) {
+  if (phase === "probing" || phase === "starting" || phase === "running" || phase === "selecting") {
     return;
   }
   flowSeq += 1;
@@ -318,9 +307,7 @@ async function requestActivationManager(): Promise<void> {
   rerender();
 }
 
-async function handleSaveActivation(
-  options: readonly ActivationOption[],
-): Promise<void> {
+async function handleSaveActivation(options: readonly ActivationOption[]): Promise<void> {
   if (phase !== "activating") {
     return;
   }
@@ -377,7 +364,13 @@ async function runPromptFlow(prompt: string): Promise<void> {
   if (!text) {
     return;
   }
-  if (phase === "probing" || phase === "starting" || phase === "running" || phase === "selecting" || phase === "activating") {
+  if (
+    phase === "probing" ||
+    phase === "starting" ||
+    phase === "running" ||
+    phase === "selecting" ||
+    phase === "activating"
+  ) {
     return;
   }
   const flow = ++flowSeq;
@@ -391,10 +384,7 @@ async function runPromptFlow(prompt: string): Promise<void> {
   try {
     config = await loadAppConfig();
   } catch (error) {
-    failTerminal(
-      `配置无效：${error instanceof Error ? error.message : String(error)}`,
-      flow,
-    );
+    failTerminal(`配置无效：${error instanceof Error ? error.message : String(error)}`, flow);
     return;
   }
   if (flow !== flowSeq) {
@@ -462,14 +452,10 @@ async function runPromptFlow(prompt: string): Promise<void> {
   // 模式 2：Jev 模型决策 (jev) - 调用 TypeSafe Jev 模型决策，不走自动推断
   if (effectiveMode === "jev") {
     try {
-      const jevResult = await routeWithJev(
-        { prompt: text },
-        candidates,
-        {
-          apiKey: config.routing.typesafeApiKey,
-          endpoint: config.routing.typesafeEndpoint,
-        },
-      );
+      const jevResult = await routeWithJev({ prompt: text }, candidates, {
+        apiKey: config.routing.typesafeApiKey,
+        endpoint: config.routing.typesafeEndpoint,
+      });
       if (flow !== flowSeq) {
         return;
       }
@@ -512,10 +498,7 @@ async function runPromptFlow(prompt: string): Promise<void> {
   }
 
   // 歧义（前两名分数相同）或探测不完整时进入统一选择器，由用户确认。
-  if (
-    hasAmbiguousRoute({ prompt: text }, config, candidates) ||
-    needsSelecting(catalog)
-  ) {
+  if (hasAmbiguousRoute({ prompt: text }, config, candidates) || needsSelecting(catalog)) {
     pendingPrompt = text;
     pendingCatalog = catalog;
     pendingConfig = config;
@@ -560,9 +543,7 @@ async function startExecution(
   const reusedNative = capabilities?.nativeResume === true && Boolean(nativeSessionIds[cliId]);
   const nativeSessionId = reusedNative ? nativeSessionIds[cliId] : undefined;
   // 原生 resume 优先原文；不支持时走现有 transcript 注入；跨 CLI 切换同样走 transcript。
-  const finalPrompt = reusedNative
-    ? prompt
-    : buildPromptWithContext(previousTurns, prompt);
+  const finalPrompt = reusedNative ? prompt : buildPromptWithContext(previousTurns, prompt);
   const contextSource: TurnContextSource = reusedNative
     ? "native"
     : previousTurns.length > 0
@@ -571,12 +552,19 @@ async function startExecution(
 
   const agentConfig = config.agents[cliId];
   const args: readonly string[] = adapter.buildPromptArgs
-    ? adapter.buildPromptArgs({ prompt: finalPrompt, model: modelId, extraArgs: agentConfig?.extraArgs, nativeSessionId })
+    ? adapter.buildPromptArgs({
+        prompt: finalPrompt,
+        model: modelId,
+        extraArgs: agentConfig?.extraArgs,
+        nativeSessionId,
+      })
     : adapter.promptArgs(finalPrompt);
 
   const probe = catalog.probes.find((item) => item.cliId === cliId);
   const probedModel = modelId ? probe?.models.find((item) => item.modelId === modelId) : undefined;
-  const structured = (probedModel?.capabilities.structuredEvents ?? probe?.models[0]?.capabilities.structuredEvents) === true;
+  const structured =
+    (probedModel?.capabilities.structuredEvents ??
+      probe?.models[0]?.capabilities.structuredEvents) === true;
   const protocol = structured ? "structured" : "text";
 
   initialId = cliId;
@@ -648,8 +636,16 @@ async function startExecution(
   if (result.status === "completed") {
     phase = "completed";
     const seconds = (result.durationMs / 1000).toFixed(1);
-    const contextMark = contextSource === "native" ? " · 原生会话" : contextSource === "transcript" ? " · transcript 上下文" : "";
-    lastResult = { phase: "completed", message: `✓ ${cliId}${modelId ? `:${modelId}` : ""} · ${seconds}s${contextMark}` };
+    const contextMark =
+      contextSource === "native"
+        ? " · 原生会话"
+        : contextSource === "transcript"
+          ? " · transcript 上下文"
+          : "";
+    lastResult = {
+      phase: "completed",
+      message: `✓ ${cliId}${modelId ? `:${modelId}` : ""} · ${seconds}s${contextMark}`,
+    };
     try {
       sessionStore.appendTurn({
         sessionId: currentSessionId,
@@ -719,7 +715,10 @@ async function startExecution(
   } else {
     phase = "failed";
     const detail = result.stderrTail.trim() || `exit ${result.code ?? "—"}`;
-    lastResult = { phase: "failed", message: `× ${cliId}${modelId ? `:${modelId}` : ""} 失败：${detail.slice(0, 300)}` };
+    lastResult = {
+      phase: "failed",
+      message: `× ${cliId}${modelId ? `:${modelId}` : ""} 失败：${detail.slice(0, 300)}`,
+    };
     try {
       sessionStore.appendTurn({
         sessionId: currentSessionId,
@@ -745,7 +744,13 @@ async function startExecution(
 }
 
 async function requestModelSelector(): Promise<void> {
-  if (phase === "probing" || phase === "starting" || phase === "running" || phase === "selecting" || phase === "activating") {
+  if (
+    phase === "probing" ||
+    phase === "starting" ||
+    phase === "running" ||
+    phase === "selecting" ||
+    phase === "activating"
+  ) {
     return;
   }
   const flow = ++flowSeq;
@@ -759,10 +764,7 @@ async function requestModelSelector(): Promise<void> {
   try {
     config = await loadAppConfig();
   } catch (error) {
-    failTerminal(
-      `配置无效：${error instanceof Error ? error.message : String(error)}`,
-      flow,
-    );
+    failTerminal(`配置无效：${error instanceof Error ? error.message : String(error)}`, flow);
     return;
   }
   if (flow !== flowSeq) {
@@ -806,8 +808,7 @@ async function handleSelectModel(option: ModelOption): Promise<void> {
     // 无 prompt 的 /model：只记录手动选择，下次提交优先使用。
     // 选择器已按 CLI 隔离候选，这里再挡一道，避免跨 CLI 的陈旧选择落盘。
     const ownsModel = catalog.options.some(
-      (item) =>
-        item.cliId === option.cliId && item.modelId === option.modelId,
+      (item) => item.cliId === option.cliId && item.modelId === option.modelId,
     );
     if (!ownsModel) {
       return;
@@ -819,7 +820,10 @@ async function handleSelectModel(option: ModelOption): Promise<void> {
     phase = "idle";
     probes = undefined;
     modelOptions = undefined;
-    lastResult = { phase: "completed", message: `已选择 ${option.cliId}:${option.modelId}，下次提交将使用它` };
+    lastResult = {
+      phase: "completed",
+      message: `已选择 ${option.cliId}:${option.modelId}，下次提交将使用它`,
+    };
     rerender();
     return;
   }
@@ -886,15 +890,19 @@ function handleNewSession(): void {
 }
 
 async function launch(request: LaunchRequest): Promise<void> {
-  if (phase === "probing" || phase === "starting" || phase === "running" || phase === "selecting" || phase === "activating") {
+  if (
+    phase === "probing" ||
+    phase === "starting" ||
+    phase === "running" ||
+    phase === "selecting" ||
+    phase === "activating"
+  ) {
     return;
   }
   if (running) {
     return;
   }
-  const detected = clis.find(
-    (cli) => cli.id === request.id && cli.available,
-  );
+  const detected = clis.find((cli) => cli.id === request.id && cli.available);
   const target = detected ? cliLaunchTarget(detected) : null;
   const adapter = getCliAdapter(request.id);
   initialId = request.id;

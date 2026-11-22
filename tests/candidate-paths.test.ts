@@ -13,9 +13,7 @@ import {
 
 describe("executableNames", () => {
   test("returns the bare name off Windows", () => {
-    expect(executableNames("codex", "darwin", { PATHEXT: ".EXE" })).toEqual([
-      "codex",
-    ]);
+    expect(executableNames("codex", "darwin", { PATHEXT: ".EXE" })).toEqual(["codex"]);
     expect(executableNames("codex", "linux", {})).toEqual(["codex"]);
   });
 
@@ -48,15 +46,12 @@ describe("executableNames", () => {
 
 describe("candidatePathsInDir", () => {
   test("joins with the platform separator and tolerates a trailing one", () => {
-    expect(candidatePathsInDir("/opt/bin", "codex", "linux", {})).toEqual([
-      "/opt/bin/codex",
+    expect(candidatePathsInDir("/opt/bin", "codex", "linux", {})).toEqual(["/opt/bin/codex"]);
+    expect(candidatePathsInDir("/opt/bin/", "codex", "linux", {})).toEqual(["/opt/bin/codex"]);
+    expect(candidatePathsInDir("C:\\npm", "claude", "win32", { PATHEXT: ".CMD" })).toEqual([
+      "C:\\npm\\claude.cmd",
+      "C:\\npm\\claude",
     ]);
-    expect(candidatePathsInDir("/opt/bin/", "codex", "linux", {})).toEqual([
-      "/opt/bin/codex",
-    ]);
-    expect(
-      candidatePathsInDir("C:\\npm", "claude", "win32", { PATHEXT: ".CMD" }),
-    ).toEqual(["C:\\npm\\claude.cmd", "C:\\npm\\claude"]);
   });
 });
 
@@ -119,13 +114,23 @@ describe("classifySource", () => {
     );
     expect(classifySource("/opt/homebrew/bin/omp", "darwin", "/Users/tester", {})).toBe("brew");
     expect(
-      classifySource("C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd", "win32", "C:\\Users\\tester", env),
+      classifySource(
+        "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
+        "win32",
+        "C:\\Users\\tester",
+        env,
+      ),
     ).toBe("npm");
   });
 
   test("Windows matching ignores case and separator style", () => {
     expect(
-      classifySource("c:/users/tester/appdata/roaming/npm/claude.cmd", "win32", "C:\\Users\\tester", env),
+      classifySource(
+        "c:/users/tester/appdata/roaming/npm/claude.cmd",
+        "win32",
+        "C:\\Users\\tester",
+        env,
+      ),
     ).toBe("npm");
   });
 
@@ -141,33 +146,31 @@ describe("dedupePaths", () => {
       "/a/codex",
       "/b/codex",
     ]);
-    expect(
-      dedupePaths(["C:\\A\\codex.exe", "c:\\a\\CODEX.EXE"], "win32"),
-    ).toEqual(["C:\\A\\codex.exe"]);
-    expect(dedupePaths(["/A/codex", "/a/codex"], "linux")).toEqual([
-      "/A/codex",
-      "/a/codex",
+    expect(dedupePaths(["C:\\A\\codex.exe", "c:\\a\\CODEX.EXE"], "win32")).toEqual([
+      "C:\\A\\codex.exe",
     ]);
+    expect(dedupePaths(["/A/codex", "/a/codex"], "linux")).toEqual(["/A/codex", "/a/codex"]);
   });
 });
 
 describe("pathEntries / isDirOnPath", () => {
   test("splits on the platform separator", () => {
     expect(pathEntries("linux", { PATH: "/a:/b::/c" })).toEqual(["/a", "/b", "/c"]);
-    expect(pathEntries("win32", { PATH: "C:\\a;C:\\b" })).toEqual([
-      "C:\\a",
-      "C:\\b",
-    ]);
+    expect(pathEntries("win32", { PATH: "C:\\a;C:\\b" })).toEqual(["C:\\a", "C:\\b"]);
     expect(pathEntries("linux", {})).toEqual([]);
   });
 
   test("matches despite trailing separators", () => {
-    expect(isDirOnPath("/home/tester/.local/bin", "linux", {
-      PATH: "/usr/bin:/home/tester/.local/bin/",
-    })).toBe(true);
-    expect(isDirOnPath("/home/tester/.local/bin", "linux", {
-      PATH: "/usr/bin:/home/tester/.local/binx",
-    })).toBe(false);
+    expect(
+      isDirOnPath("/home/tester/.local/bin", "linux", {
+        PATH: "/usr/bin:/home/tester/.local/bin/",
+      }),
+    ).toBe(true);
+    expect(
+      isDirOnPath("/home/tester/.local/bin", "linux", {
+        PATH: "/usr/bin:/home/tester/.local/binx",
+      }),
+    ).toBe(false);
   });
 
   test("Windows matches case-insensitively in either separator style", () => {

@@ -102,9 +102,7 @@ export function SessionsView({
         {/* Header Bar */}
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <h2 className="m-0 text-[15px] font-semibold tracking-[-0.015em] text-ink">
-              会话路由
-            </h2>
+            <h2 className="m-0 text-[15px] font-semibold tracking-[-0.015em] text-ink">会话路由</h2>
             <span className="truncate font-code text-xs text-muted-strong">
               {workspaceName(workspaceInput)}
             </span>

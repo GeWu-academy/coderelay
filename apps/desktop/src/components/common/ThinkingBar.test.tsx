@@ -16,9 +16,7 @@ describe("ThinkingBar", () => {
     expect(collapsedHtml).not.toContain('data-testid="thinking-detail"');
     expect(collapsedHtml).not.toContain("Step 1: inspect event parser");
 
-    const expandedHtml = renderToStaticMarkup(
-      <ThinkingBar thinking={thinking} defaultExpanded />,
-    );
+    const expandedHtml = renderToStaticMarkup(<ThinkingBar thinking={thinking} defaultExpanded />);
     expect(expandedHtml).toContain('data-expanded="true"');
     expect(expandedHtml).toContain('data-testid="thinking-detail"');
     expect(expandedHtml).toContain("Step 1: inspect event parser");

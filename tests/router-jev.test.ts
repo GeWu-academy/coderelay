@@ -50,10 +50,7 @@ describe("resolveTypesafeApiKey", () => {
   test("reads key from local env file in directory", async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "coderelay-env-test-"));
     try {
-      await writeFile(
-        join(tmpDir, ".env.local"),
-        "TYPESAFE_API_KEY=apikey_mock_12345\n",
-      );
+      await writeFile(join(tmpDir, ".env.local"), "TYPESAFE_API_KEY=apikey_mock_12345\n");
       const key = await resolveTypesafeApiKey({ cwd: tmpDir });
       expect(key).toBe("apikey_mock_12345");
     } finally {
@@ -64,10 +61,7 @@ describe("resolveTypesafeApiKey", () => {
   test("ignores deprecated env.locaj typo file", async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "coderelay-env-test-"));
     try {
-      await writeFile(
-        join(tmpDir, "env.locaj"),
-        "TYPESAFE_API_KEY=apikey_mock_12345\n",
-      );
+      await writeFile(join(tmpDir, "env.locaj"), "TYPESAFE_API_KEY=apikey_mock_12345\n");
       const key = await resolveTypesafeApiKey({ cwd: tmpDir });
       expect(key).toBeNull();
     } finally {
@@ -113,13 +107,16 @@ describe("buildJevRequest", () => {
   ];
 
   test("builds typed choice question with candidate criteria", () => {
-    const req = buildJevRequest({
-      prompt: "Fix bug in backend",
-      language: "typescript",
-      files: ["src/router.ts"],
-      contextSize: 24_000,
-      requiredStrengths: ["coding"],
-    }, candidates);
+    const req = buildJevRequest(
+      {
+        prompt: "Fix bug in backend",
+        language: "typescript",
+        files: ["src/router.ts"],
+        contextSize: 24_000,
+        requiredStrengths: ["coding"],
+      },
+      candidates,
+    );
     expect(req.state).toContain("Fix bug in backend");
     expect(req.state).toContain("Language: typescript");
     expect(req.state).toContain("Files: src/router.ts");
@@ -158,9 +155,7 @@ describe("routeWithJev", () => {
   ];
 
   test("throws JevError when candidates list is empty", async () => {
-    expect(
-      routeWithJev({ prompt: "hello" }, [], { apiKey: "test" }),
-    ).rejects.toThrow(JevError);
+    expect(routeWithJev({ prompt: "hello" }, [], { apiKey: "test" })).rejects.toThrow(JevError);
   });
 
   test("throws JevError when no apiKey is available", async () => {
@@ -214,14 +209,10 @@ describe("routeWithJev", () => {
       });
     };
 
-    const decision = await routeWithJev(
-      { prompt: "Refactor architecture" },
-      candidates,
-      {
-        apiKey: "test_key",
-        fetchFn: mockFetch,
-      },
-    );
+    const decision = await routeWithJev({ prompt: "Refactor architecture" }, candidates, {
+      apiKey: "test_key",
+      fetchFn: mockFetch,
+    });
 
     expect(decision.agent).toBe("claude");
     expect(decision.confidence).toBe(0.88);
@@ -343,11 +334,10 @@ describe("routeWithJev", () => {
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
 
-    const decision = await routeWithJev(
-      { prompt: "Refactor" },
-      modeledCandidates,
-      { apiKey: "test_key", fetchFn: mockFetch },
-    );
+    const decision = await routeWithJev({ prompt: "Refactor" }, modeledCandidates, {
+      apiKey: "test_key",
+      fetchFn: mockFetch,
+    });
 
     expect(decision.agent).toBe("codex");
     expect(decision.model).toBe("o3-mini");

@@ -11,9 +11,7 @@ import {
 
 describe("commitPresets", () => {
   it("keeps COMMIT_TYPE_PRESETS and COMMIT_MESSAGE_PRESETS consistent with COMMIT_TYPES", () => {
-    expect(COMMIT_TYPE_PRESETS.map((item) => item.type)).toEqual([
-      ...COMMIT_TYPES,
-    ]);
+    expect(COMMIT_TYPE_PRESETS.map((item) => item.type)).toEqual([...COMMIT_TYPES]);
     for (const preset of COMMIT_TYPE_PRESETS) {
       expect(preset.label.length).toBeGreaterThan(0);
       expect(preset.description.length).toBeGreaterThan(0);
@@ -48,17 +46,11 @@ describe("commitPresets", () => {
   it("applies or replaces commit type prefix while preserving scope and body", () => {
     expect(applyCommitTypePrefix("", "feat")).toBe("feat: ");
     expect(applyCommitTypePrefix("   ", "fix")).toBe("fix: ");
-    expect(applyCommitTypePrefix("支持快捷预设", "feat")).toBe(
-      "feat: 支持快捷预设",
-    );
-    expect(applyCommitTypePrefix("fix: 支持快捷预设", "refactor")).toBe(
-      "refactor: 支持快捷预设",
-    );
+    expect(applyCommitTypePrefix("支持快捷预设", "feat")).toBe("feat: 支持快捷预设");
+    expect(applyCommitTypePrefix("fix: 支持快捷预设", "refactor")).toBe("refactor: 支持快捷预设");
     expect(applyCommitTypePrefix("feat(scm)!: 支持快捷预设", "fix")).toBe(
       "fix(scm)!: 支持快捷预设",
     );
-    expect(applyCommitTypePrefix("foo: 保留非标准前缀", "docs")).toBe(
-      "docs: foo: 保留非标准前缀",
-    );
+    expect(applyCommitTypePrefix("foo: 保留非标准前缀", "docs")).toBe("docs: foo: 保留非标准前缀");
   });
 });

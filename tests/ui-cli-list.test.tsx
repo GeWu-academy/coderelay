@@ -101,9 +101,7 @@ describe("CLI rail labels", () => {
 });
 
 async function renderApp(clis: readonly DetectedCli[]) {
-  const instance = render(
-    <App clis={clis} onLaunch={() => undefined} onExit={() => undefined} />,
-  );
+  const instance = render(<App clis={clis} onLaunch={() => undefined} onExit={() => undefined} />);
   await nextTick();
   return instance;
 }

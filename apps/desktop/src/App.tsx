@@ -1,13 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, type ReactNode } from "react";
 
-import {
-  IconRail,
-  RightSidebar,
-  Sidebar,
-  Titlebar,
-  WorkbenchComposer,
-} from "./components";
+import { IconRail, RightSidebar, Sidebar, Titlebar, WorkbenchComposer } from "./components";
 import { WorkbenchLayout } from "./layouts/WorkbenchLayout";
 import {
   ApiKeyView,
@@ -83,9 +77,7 @@ export function App() {
 
   const isConversationRoute = isConversationRouteActive(view);
   const agents = discovery?.agents ?? [];
-  const showThread = Boolean(
-    preview || output || activity.length > 0 || result || running,
-  );
+  const showThread = Boolean(preview || output || activity.length > 0 || result || running);
 
   function renderMainView(): ReactNode {
     switch (view) {

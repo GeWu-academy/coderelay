@@ -38,11 +38,7 @@ export function stabilizeWorkspaceOrder(
   return [...added, ...kept];
 }
 
-export function stepWorkspaceIndex(
-  currentIndex: number,
-  delta: number,
-  total: number,
-): number {
+export function stepWorkspaceIndex(currentIndex: number, delta: number, total: number): number {
   if (total <= 1) {
     return 0;
   }
@@ -314,9 +310,7 @@ export function WorkspaceWheel({
                   />
                   <span
                     className={`truncate font-code ${
-                      isCenter
-                        ? "text-[11.5px] font-semibold text-ink"
-                        : "text-[11px] font-normal"
+                      isCenter ? "text-[11.5px] font-semibold text-ink" : "text-[11px] font-normal"
                     }`}
                   >
                     {workspace ? workspaceName(workspace) : "未选择文件夹"}

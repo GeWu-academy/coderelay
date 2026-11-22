@@ -33,7 +33,12 @@ export const ModelConfigSchema = z.object({
   strengths: z.array(z.enum(MODEL_STRENGTHS)).default([]),
   description: z.string().optional(),
   contextWindow: z.number().int().positive("contextWindow must be positive").optional(),
-  cost: z.number().int().min(1, "cost must be between 1 and 5").max(5, "cost must be between 1 and 5").optional(),
+  cost: z
+    .number()
+    .int()
+    .min(1, "cost must be between 1 and 5")
+    .max(5, "cost must be between 1 and 5")
+    .optional(),
   default: z.boolean().optional(),
 });
 
@@ -60,19 +65,21 @@ export const RuleWhenSchema = z
     /** Any of these keywords found in the prompt triggers the rule. */
     keywords: z.array(z.string().min(1)).optional(),
     /** Any of these regular expressions matching the prompt triggers the rule. */
-    patterns: z
-      .array(
-        z
-          .string()
-          .refine(isRegExp, "must be a valid regular expression"),
-      )
-      .optional(),
+    patterns: z.array(z.string().refine(isRegExp, "must be a valid regular expression")).optional(),
     /** Languages (`--lang`) that trigger the rule. */
     languages: z.array(z.string().min(1)).optional(),
     /** Any of these globs matching a request file triggers the rule. */
     files: z.array(z.string().min(1)).optional(),
-    minPromptLength: z.number().int().nonnegative("minPromptLength must be non-negative").optional(),
-    maxPromptLength: z.number().int().nonnegative("maxPromptLength must be non-negative").optional(),
+    minPromptLength: z
+      .number()
+      .int()
+      .nonnegative("minPromptLength must be non-negative")
+      .optional(),
+    maxPromptLength: z
+      .number()
+      .int()
+      .nonnegative("maxPromptLength must be non-negative")
+      .optional(),
   })
   .refine(
     (data) =>
@@ -276,7 +283,11 @@ export const ConfigSchema = BaseConfigSchema.superRefine((config, ctx) => {
     if (rule.use.model) {
       if (requestedAgent && isAgentId(requestedAgent)) {
         const agent = config.agents[requestedAgent];
-        if (agent && agent.models.length > 0 && !agent.models.some((m) => m.id === rule.use.model)) {
+        if (
+          agent &&
+          agent.models.length > 0 &&
+          !agent.models.some((m) => m.id === rule.use.model)
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `model is not configured for ${requestedAgent}: ${rule.use.model} (in rule "${rule.name}")`,

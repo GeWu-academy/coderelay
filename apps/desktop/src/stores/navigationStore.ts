@@ -9,14 +9,7 @@ export function isRightPanelMode(val: unknown): val is RightPanelMode {
 }
 
 export type SidebarRouteId =
-  | "new-chat"
-  | `session:${string}`
-  | "files"
-  | "scm"
-  | "sessions"
-  | "stats"
-  | "config"
-  | "apikeys";
+  "new-chat" | `session:${string}` | "files" | "scm" | "sessions" | "stats" | "config" | "apikeys";
 
 export interface NavigationState {
   view: WorkspaceView;
@@ -83,10 +76,7 @@ export function isSessionRouteActive(
   return view === "workspace" && activeSessionId === sessionId;
 }
 
-export function isNewChatRouteActive(
-  view: WorkspaceView,
-  activeSessionId: string | null,
-): boolean {
+export function isNewChatRouteActive(view: WorkspaceView, activeSessionId: string | null): boolean {
   return view === "workspace" && activeSessionId === null;
 }
 
@@ -254,8 +244,7 @@ export const useNavigationStore = create<NavigationState>((set) => ({
     set({ sidebarCollapsed: collapsed });
   },
 
-  toggleRightSidebar: () =>
-    set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
 
   setRightSidebarOpen: (open: boolean) => set({ rightSidebarOpen: open }),
 
@@ -269,14 +258,12 @@ export const useNavigationStore = create<NavigationState>((set) => ({
 
   setRightPanelMode: (mode: RightPanelMode) => set({ rightPanelMode: mode }),
 
-  toggleProjectExpanded: () =>
-    set((state) => ({ projectExpanded: !state.projectExpanded })),
+  toggleProjectExpanded: () => set((state) => ({ projectExpanded: !state.projectExpanded })),
 
   setProjectExpanded: (expanded: boolean) => set({ projectExpanded: expanded }),
 
   toggleWorkspaceDropdown: () =>
     set((state) => ({ workspaceDropdownOpen: !state.workspaceDropdownOpen })),
 
-  setWorkspaceDropdownOpen: (open: boolean) =>
-    set({ workspaceDropdownOpen: open }),
+  setWorkspaceDropdownOpen: (open: boolean) => set({ workspaceDropdownOpen: open }),
 }));

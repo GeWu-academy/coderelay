@@ -6,9 +6,7 @@ import type { DetectedCli } from "../src/models/cli";
 
 const ADAPTERS = { homeDir: "/home/tester", env: {} };
 
-function detectedCli(
-  overrides: Partial<DetectedCli> & { id: DetectedCli["id"] },
-): DetectedCli {
+function detectedCli(overrides: Partial<DetectedCli> & { id: DetectedCli["id"] }): DetectedCli {
   return {
     bin: overrides.id,
     path: "",
@@ -50,8 +48,7 @@ const DETECTED: readonly DetectedCli[] = [
     diagnostics: [
       {
         level: "info",
-        message:
-          "未发现 omp。已检查 PATH 与常见安装目录：/Users/me/.local/bin, /Users/me/.bun/bin",
+        message: "未发现 omp。已检查 PATH 与常见安装目录：/Users/me/.local/bin, /Users/me/.bun/bin",
       },
     ],
   }),
@@ -92,12 +89,7 @@ describe("buildAgentList", () => {
     };
     const entries = buildAgentList(config, DETECTED, ADAPTERS);
 
-    expect(entries.map((entry) => entry.id)).toEqual([
-      "codex",
-      "claude",
-      "pi",
-      "omp",
-    ]);
+    expect(entries.map((entry) => entry.id)).toEqual(["codex", "claude", "pi", "omp"]);
     expect(entryFor(entries, "pi").enabled).toBe(false);
   });
 
@@ -112,9 +104,9 @@ describe("buildAgentList", () => {
       env: {},
     };
 
-    expect(entryFor(buildAgentList(config, DETECTED, ADAPTERS), "codex")).toMatchObject(
-      { command: "/opt/custom/codex" },
-    );
+    expect(entryFor(buildAgentList(config, DETECTED, ADAPTERS), "codex")).toMatchObject({
+      command: "/opt/custom/codex",
+    });
   });
 
   test("survives a CLI the scan never returned", () => {
@@ -133,10 +125,9 @@ describe("buildAgentList", () => {
 
 describe("formatAgentList", () => {
   test("shows the runtime, the source and the scanned path", () => {
-    const output = formatAgentList(
-      buildAgentList(defaultConfig(), DETECTED, ADAPTERS),
-      { platform: "darwin" },
-    );
+    const output = formatAgentList(buildAgentList(defaultConfig(), DETECTED, ADAPTERS), {
+      platform: "darwin",
+    });
 
     expect(output).toContain("Codex (codex) [enabled default]");
     expect(output).toContain("  status: 0.154.0");
@@ -169,25 +160,21 @@ describe("formatAgentList", () => {
     );
 
     const output = formatAgentList(twoCandidates, { platform: "linux" });
-    expect(output).toContain(
-      "  candidates: /opt/bin/codex (path), /usr/local/bin/codex (npm)",
-    );
+    expect(output).toContain("  candidates: /opt/bin/codex (path), /usr/local/bin/codex (npm)");
   });
 
   test("a single candidate is not repeated as an alternative list", () => {
-    const output = formatAgentList(
-      buildAgentList(defaultConfig(), DETECTED, ADAPTERS),
-      { platform: "darwin" },
-    );
+    const output = formatAgentList(buildAgentList(defaultConfig(), DETECTED, ADAPTERS), {
+      platform: "darwin",
+    });
 
     expect(output).not.toContain("  candidates:");
   });
 
   test("an unavailable CLI gets copy-ready install commands and its diagnostics", () => {
-    const output = formatAgentList(
-      buildAgentList(defaultConfig(), DETECTED, ADAPTERS),
-      { platform: "darwin" },
-    );
+    const output = formatAgentList(buildAgentList(defaultConfig(), DETECTED, ADAPTERS), {
+      platform: "darwin",
+    });
 
     expect(output).toContain("  info: 未发现 omp");
     expect(output).toContain("  install:");
@@ -200,9 +187,7 @@ describe("formatAgentList", () => {
       (entry) => entry.id === "codex",
     );
 
-    expect(formatAgentList(entries, { platform: "darwin" })).not.toContain(
-      "install:",
-    );
+    expect(formatAgentList(entries, { platform: "darwin" })).not.toContain("install:");
   });
 
   test("Windows guidance names the PowerShell and winget entry points", () => {
@@ -215,10 +200,9 @@ describe("formatAgentList", () => {
   });
 
   test("every CLI is separated by a blank line", () => {
-    const output = formatAgentList(
-      buildAgentList(defaultConfig(), DETECTED, ADAPTERS),
-      { platform: "darwin" },
-    );
+    const output = formatAgentList(buildAgentList(defaultConfig(), DETECTED, ADAPTERS), {
+      platform: "darwin",
+    });
 
     expect(output.split("\n\n")).toHaveLength(4);
   });

@@ -9,21 +9,11 @@ export interface AppHeaderProps {
 
 export function AppHeader({ mode }: AppHeaderProps) {
   const modeBadge =
-    mode === "jev"
-      ? "[决策: JEV]"
-      : mode === "manual"
-        ? "[决策: 手动]"
-        : "[决策: 本地]";
-  const modeColor =
-    mode === "jev" ? theme.ok : mode === "manual" ? theme.accent : theme.muted;
+    mode === "jev" ? "[决策: JEV]" : mode === "manual" ? "[决策: 手动]" : "[决策: 本地]";
+  const modeColor = mode === "jev" ? theme.ok : mode === "manual" ? theme.accent : theme.muted;
 
   return (
-    <Box
-      flexDirection="row"
-      paddingX={2}
-      paddingTop={1}
-      justifyContent="space-between"
-    >
+    <Box flexDirection="row" paddingX={2} paddingTop={1} justifyContent="space-between">
       <Box flexDirection="row">
         <Text bold color={theme.brand}>
           code

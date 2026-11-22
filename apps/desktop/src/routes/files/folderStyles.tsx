@@ -122,7 +122,15 @@ export const FOLDER_SEMANTIC_TABLE: Readonly<Record<FolderSemanticKind, FolderSe
     }),
     routes: Object.freeze({
       kind: "routes",
-      aliases: Object.freeze(["routes", "route", "pages", "page", "screens", "router", "navigation"]),
+      aliases: Object.freeze([
+        "routes",
+        "route",
+        "pages",
+        "page",
+        "screens",
+        "router",
+        "navigation",
+      ]),
       colorClass: "text-indigo-600 dark:text-indigo-400",
       icon: Compass,
     }),

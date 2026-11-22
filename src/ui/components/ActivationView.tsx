@@ -14,18 +14,13 @@ export interface ActivationViewProps {
 }
 
 /** Rows the cursor may land on: installed CLIs are the only ones worth toggling. */
-export function selectableIndices(
-  options: readonly ActivationOption[],
-): readonly number[] {
+export function selectableIndices(options: readonly ActivationOption[]): readonly number[] {
   return options
     .map((option, index) => (option.available ? index : -1))
     .filter((index) => index >= 0);
 }
 
-export function isSelectable(
-  options: readonly ActivationOption[],
-  index: number,
-): boolean {
+export function isSelectable(options: readonly ActivationOption[], index: number): boolean {
   return options[index]?.available === true;
 }
 
@@ -64,9 +59,7 @@ function statusColor(option: ActivationOption): string | undefined {
 }
 
 export function ActivationView({ mode, options, cursor }: ActivationViewProps) {
-  const activeCount = options.filter(
-    (option) => option.available && option.enabled,
-  ).length;
+  const activeCount = options.filter((option) => option.available && option.enabled).length;
 
   return (
     <Box flexDirection="column" paddingX={2}>
@@ -91,15 +84,10 @@ export function ActivationView({ mode, options, cursor }: ActivationViewProps) {
         return (
           <Text key={option.cliId}>
             <Text color={theme.accent}>{`${marker} `}</Text>
-            <Text
-              bold={focused}
-              color={option.available ? theme.text : theme.muted}
-            >
+            <Text bold={focused} color={option.available ? theme.text : theme.muted}>
               {`${box} ${name}`}
             </Text>
-            <Text color={theme.muted}>
-              {" ".repeat(Math.max(1, nameWidth - name.length))}
-            </Text>
+            <Text color={theme.muted}>{" ".repeat(Math.max(1, nameWidth - name.length))}</Text>
             <Text color={statusColor(option)}>{statusText(option)}</Text>
           </Text>
         );
@@ -111,9 +99,7 @@ export function ActivationView({ mode, options, cursor }: ActivationViewProps) {
             当前没有已激活的 CLI，自动路由将无法执行任务；可稍后用 /activate 重新启用。
           </Text>
         ) : null}
-        <Text color={theme.muted}>
-          激活状态会保存到 ~/.coderelay/config.yaml
-        </Text>
+        <Text color={theme.muted}>激活状态会保存到 ~/.coderelay/config.yaml</Text>
       </Box>
     </Box>
   );

@@ -82,9 +82,7 @@ export function ScmOutputPanel({
                 key={entry.id}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-semibold text-ink">
-                    &gt; {entry.command}
-                  </span>
+                  <span className="truncate font-semibold text-ink">&gt; {entry.command}</span>
                   <div className="flex shrink-0 items-center gap-2 text-[10px]">
                     <span
                       className={

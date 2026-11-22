@@ -41,15 +41,10 @@ export interface ThemeState {
 }
 
 export function getSystemColorScheme(): ColorSchemeMode {
-  if (
-    typeof window === "undefined" ||
-    typeof window.matchMedia !== "function"
-  ) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return "light";
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function resolveEffectiveTheme(
@@ -208,9 +203,7 @@ const FALLBACK_CODE_PALETTE: CodeThemePalette = {
   property: "#0550ae",
 };
 
-export function getCodeThemePalette(
-  resolvedCodeTheme: ResolvedCodeThemeId,
-): CodeThemePalette {
+export function getCodeThemePalette(resolvedCodeTheme: ResolvedCodeThemeId): CodeThemePalette {
   const found = CODE_THEME_PRESETS.find((item) => item.id === resolvedCodeTheme);
   return found?.palette ?? CODE_THEME_PRESETS[1]?.palette ?? FALLBACK_CODE_PALETTE;
 }
@@ -295,19 +288,13 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       undefined,
       get().customBackground,
     );
-    const effectiveCodeTheme = resolveEffectiveCodeTheme(
-      get().codeTheme,
-      colorScheme,
-    );
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(get().codeTheme, colorScheme);
     set({ preset, effectiveTheme, colorScheme, effectiveCodeTheme });
   },
 
   setCodeTheme: (codeTheme: CodeThemeId) => {
     persistCodeTheme(codeTheme);
-    const effectiveCodeTheme = resolveEffectiveCodeTheme(
-      codeTheme,
-      get().colorScheme,
-    );
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(codeTheme, get().colorScheme);
     set({ codeTheme, effectiveCodeTheme });
   },
 
@@ -341,10 +328,7 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     const currentPreset = useThemeStore.getState().preset;
     if (currentPreset === "system") {
       const systemMode = event.matches ? "dark" : "light";
-      const { effectiveTheme, colorScheme } = applyThemeToDocument(
-        "system",
-        systemMode,
-      );
+      const { effectiveTheme, colorScheme } = applyThemeToDocument("system", systemMode);
       const effectiveCodeTheme = resolveEffectiveCodeTheme(
         useThemeStore.getState().codeTheme,
         colorScheme,

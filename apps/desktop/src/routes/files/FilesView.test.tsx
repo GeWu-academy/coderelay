@@ -6,16 +6,11 @@ import { closeFileTab, FilesView } from "./FilesView";
 
 describe("FilesView", () => {
   it("renders Files route in IconRail and VS Code-style Explorer in FilesView without embedded workspace wheel", () => {
-    const railHtml = renderToStaticMarkup(
-      <IconRail currentView="files" onSelectView={() => {}} />,
-    );
+    const railHtml = renderToStaticMarkup(<IconRail currentView="files" onSelectView={() => {}} />);
     expect(railHtml).toContain('aria-label="Files"');
 
     const filesHtml = renderToStaticMarkup(
-      <FilesView
-        workspaceInput="/Users/allure/Desktop/coderelay"
-        onPickWorkspace={() => {}}
-      />,
+      <FilesView workspaceInput="/Users/allure/Desktop/coderelay" onPickWorkspace={() => {}} />,
     );
     expect(filesHtml).toContain("Explorer");
     expect(filesHtml).not.toContain("Workspace wheel switcher");
@@ -50,10 +45,7 @@ describe("FilesView", () => {
 
   it("leaves workspace empty without showing home directory when no folder is selected", () => {
     const emptyFilesHtml = renderToStaticMarkup(
-      <FilesView
-        workspaceInput=""
-        onPickWorkspace={() => {}}
-      />,
+      <FilesView workspaceInput="" onPickWorkspace={() => {}} />,
     );
     expect(emptyFilesHtml).toContain("未选择文件夹");
     expect(emptyFilesHtml).toContain("Open a folder to browse and inspect its files.");

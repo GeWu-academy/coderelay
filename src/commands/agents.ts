@@ -1,7 +1,4 @@
-import {
-  getCliAdapters,
-  type CliAdapterOptions,
-} from "../agents/cli-adapters";
+import { getCliAdapters, type CliAdapterOptions } from "../agents/cli-adapters";
 import { loadConfig } from "../config/loader";
 import type { Config } from "../config/schema";
 import {
@@ -114,10 +111,9 @@ export function formatAgentList(
       const defaultMarker = entry.isDefault ? " default" : "";
       const enabledMarker = entry.enabled ? "enabled" : "disabled";
       const availability = entry.available
-        ? entry.version ?? "available（版本未知）"
+        ? (entry.version ?? "available（版本未知）")
         : "not found";
-      const models =
-        entry.models.length > 0 ? entry.models.join(", ") : "(adapter default)";
+      const models = entry.models.length > 0 ? entry.models.join(", ") : "(adapter default)";
 
       return [
         `${entry.label} (${entry.id}) [${enabledMarker}${defaultMarker}]`,
@@ -130,9 +126,7 @@ export function formatAgentList(
         entry.candidates.length > 1
           ? `  candidates: ${entry.candidates.map(candidateLabel).join(", ")}`
           : null,
-        ...entry.diagnostics.map(
-          (diagnostic) => `  ${diagnostic.level}: ${diagnostic.message}`,
-        ),
+        ...entry.diagnostics.map((diagnostic) => `  ${diagnostic.level}: ${diagnostic.message}`),
         ...(entry.available
           ? []
           : ["  install:", ...installHintLines(entry.id, platform).map((line) => `    ${line}`)]),
@@ -156,14 +150,8 @@ export async function runAgentsCommand(
         ? await loadConfig({ cwd: options.cwd, path: options.configPath })
         : { config: options.config };
     const detected = await scan(options.scanner);
-    const entries = buildAgentList(
-      loaded.config,
-      detected,
-      dependencies.adapters,
-    );
-    write(
-      `${formatAgentList(entries, { platform: dependencies.platform })}\n`,
-    );
+    const entries = buildAgentList(loaded.config, detected, dependencies.adapters);
+    write(`${formatAgentList(entries, { platform: dependencies.platform })}\n`);
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

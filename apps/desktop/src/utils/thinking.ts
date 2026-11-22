@@ -85,10 +85,7 @@ export function splitThinkingAndOutput(rawText: string): SplitThinkingResult {
 /**
  * Combine structured thinking events with any inline extracted thinking without duplicating content.
  */
-export function mergeThinkingContent(
-  structuredThinking: string,
-  inlineThinking: string,
-): string {
+export function mergeThinkingContent(structuredThinking: string, inlineThinking: string): string {
   const structured = structuredThinking.trim();
   const inline = inlineThinking.trim();
   if (!structured) {

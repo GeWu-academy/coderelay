@@ -74,10 +74,7 @@ describe("first-run detection", () => {
       await saveActivationDecisions([{ cliId: "pi", enabled: false }], { cwd });
       const loaded = await loadConfig({ cwd });
       const options = toActivationOptions(DETECTED, loaded.config);
-      expect(pendingActivation(options).map((item) => item.cliId)).toEqual([
-        "codex",
-        "claude",
-      ]);
+      expect(pendingActivation(options).map((item) => item.cliId)).toEqual(["codex", "claude"]);
     });
   });
 
@@ -86,10 +83,7 @@ describe("first-run detection", () => {
       await saveActivationDecisions([{ cliId: "codex", enabled: true }], { cwd });
       const loaded = await loadConfig({ cwd });
       const options = toActivationOptions(DETECTED, loaded.config);
-      expect(pendingActivation(options).map((item) => item.cliId)).toEqual([
-        "claude",
-        "pi",
-      ]);
+      expect(pendingActivation(options).map((item) => item.cliId)).toEqual(["claude", "pi"]);
     });
   });
 
@@ -115,10 +109,7 @@ describe("first-run detection", () => {
 describe("saveActivationDecisions", () => {
   test("creates .coderelay/config.yaml when the file does not exist", async () => {
     await withTempDir(async (cwd) => {
-      const path = await saveActivationDecisions(
-        [{ cliId: "codex", enabled: true }],
-        { cwd },
-      );
+      const path = await saveActivationDecisions([{ cliId: "codex", enabled: true }], { cwd });
       expect(path).toBe(join(cwd, CONFIG_DIR, "config.yaml"));
       expect(path).toBe(defaultConfigPath(cwd));
       expect(await readYaml(cwd)).toContain("enabled: true");
@@ -260,10 +251,9 @@ describe("saveActivationDecisions", () => {
 
   test("saves activation decisions to global .coderelay by default", async () => {
     await withTempDir(async (mockHome) => {
-      const savedPath = await saveActivationDecisions(
-        [{ cliId: "claude", enabled: true }],
-        { homeDir: mockHome },
-      );
+      const savedPath = await saveActivationDecisions([{ cliId: "claude", enabled: true }], {
+        homeDir: mockHome,
+      });
       expect(savedPath).toBe(join(mockHome, ".coderelay", "config.yaml"));
       const content = await readFile(savedPath, "utf8");
       expect(content).toContain("claude:");
@@ -334,13 +324,15 @@ describe("saveActivationDecisions", () => {
 
   test("adapts storage location to Windows paths and environment", () => {
     // Windows path directly passed
-    expect(defaultConfigPath("C:\\Users\\tester")).toBe("C:\\Users\\tester\\.coderelay\\config.yaml");
+    expect(defaultConfigPath("C:\\Users\\tester")).toBe(
+      "C:\\Users\\tester\\.coderelay\\config.yaml",
+    );
     expect(globalConfigDir("C:\\Users\\tester")).toBe("C:\\Users\\tester\\.coderelay");
 
     // Windows resolved via USERPROFILE
-    expect(
-      defaultConfigPath(undefined, { USERPROFILE: "C:\\Users\\winuser" }, "win32"),
-    ).toBe("C:\\Users\\winuser\\.coderelay\\config.yaml");
+    expect(defaultConfigPath(undefined, { USERPROFILE: "C:\\Users\\winuser" }, "win32")).toBe(
+      "C:\\Users\\winuser\\.coderelay\\config.yaml",
+    );
 
     // Windows resolved via HOMEDRIVE + HOMEPATH
     expect(
@@ -349,25 +341,25 @@ describe("saveActivationDecisions", () => {
   });
 
   test("adapts storage location to Linux environments", () => {
-    expect(
-      defaultConfigPath(undefined, { HOME: "/home/linuxuser" }, "linux"),
-    ).toBe("/home/linuxuser/.coderelay/config.yaml");
+    expect(defaultConfigPath(undefined, { HOME: "/home/linuxuser" }, "linux")).toBe(
+      "/home/linuxuser/.coderelay/config.yaml",
+    );
   });
 
   test("supports CODERELAY_HOME override across all platforms", () => {
     // Custom path without .coderelay suffix appends it
-    expect(
-      globalConfigDir(undefined, { CODERELAY_HOME: "/opt/custom_storage" }),
-    ).toBe("/opt/custom_storage/.coderelay");
+    expect(globalConfigDir(undefined, { CODERELAY_HOME: "/opt/custom_storage" })).toBe(
+      "/opt/custom_storage/.coderelay",
+    );
 
     // Custom path already having .coderelay suffix keeps it intact
-    expect(
-      globalConfigDir(undefined, { CODERELAY_HOME: "C:\\custom\\.coderelay" }),
-    ).toBe("C:\\custom\\.coderelay");
+    expect(globalConfigDir(undefined, { CODERELAY_HOME: "C:\\custom\\.coderelay" })).toBe(
+      "C:\\custom\\.coderelay",
+    );
 
-    expect(
-      defaultConfigPath(undefined, { CODERELAY_HOME: "C:\\custom\\.coderelay" }),
-    ).toBe("C:\\custom\\.coderelay\\config.yaml");
+    expect(defaultConfigPath(undefined, { CODERELAY_HOME: "C:\\custom\\.coderelay" })).toBe(
+      "C:\\custom\\.coderelay\\config.yaml",
+    );
   });
 
   test("ConfigSchema rejects duplicate model ids for an agent", () => {
@@ -383,7 +375,9 @@ describe("saveActivationDecisions", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.some((issue) => issue.message.includes('duplicate model id "opus"'))).toBe(true);
+      expect(
+        result.error.issues.some((issue) => issue.message.includes('duplicate model id "opus"')),
+      ).toBe(true);
     }
   });
 });

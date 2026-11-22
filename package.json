@@ -14,6 +14,8 @@
     "@types/bun": "latest",
     "@types/react": "^19.3.0",
     "ink-testing-library": "^4.0.0",
+    "oxlint": "^1.94.0",
+    "prettier": "^3.10.1",
     "typescript": "^5"
   },
   "dependencies": {
@@ -28,6 +30,10 @@
     "dev": "bun run desktop:dev",
     "start": "bun run desktop:dev",
     "test": "bun test",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "bunx tsc --noEmit",
     "issues:doc": "bun scripts/generate-issues-doc.ts",
     "desktop:dev": "cd apps/desktop && bunx tauri dev",
@@ -45,7 +51,7 @@
     "cli:build": "cargo build --release -p coderelay-cli",
     "cli:install": "cargo install --path crates/coderelay-cli --locked",
     "version:check": "bun scripts/check-versions.ts",
-    "check": "bun run version:check && bun run typecheck && bun test && bun run sdk:typecheck && bun run sdk:test && bun run rust:fmt && bun run rust:clippy && bun run rust:test"
+    "check": "bun run version:check && bun run lint && bun run format:check && bun run typecheck && bun test && bun run sdk:typecheck && bun run sdk:test && bun run rust:fmt && bun run rust:clippy && bun run rust:test"
   },
   "bin": {
     "coderelay": "src/cli.ts",

@@ -19,23 +19,22 @@ async function readJson(path: URL): Promise<unknown> {
   return JSON.parse(await Bun.file(path).text()) as unknown;
 }
 
-const root = await readJson(new URL("package.json", ROOT)) as PackageManifest;
-const sdk = await readJson(new URL("packages/sdk-ts/package.json", ROOT)) as PackageManifest;
+const root = (await readJson(new URL("package.json", ROOT))) as PackageManifest;
+const sdk = (await readJson(new URL("packages/sdk-ts/package.json", ROOT))) as PackageManifest;
 const cargo = await Bun.file(new URL("Cargo.toml", ROOT)).text();
 const workspaceSection = cargo.match(/\[workspace\.package\]([\s\S]*?)(?:\n\[|$)/)?.[1] ?? "";
 const cargoVersion = workspaceSection.match(/^\s*version\s*=\s*"([^"]+)"/m)?.[1];
 const tauriConfigUrl = new URL("apps/desktop/src-tauri/tauri.conf.json", ROOT);
-const tauri = await readJson(tauriConfigUrl) as TauriManifest;
+const tauri = (await readJson(tauriConfigUrl)) as TauriManifest;
 if (typeof tauri.version !== "string" || tauri.version.trim().length === 0) {
   throw new Error("tauri.conf.json does not contain a version or version reference");
 }
-const tauriVersion =
-  /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tauri.version)
-    ? tauri.version
-    : requireVersion(
-        (await readJson(new URL(tauri.version, tauriConfigUrl)) as PackageManifest).version,
-        "version referenced by tauri.conf.json",
-      );
+const tauriVersion = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(tauri.version)
+  ? tauri.version
+  : requireVersion(
+      ((await readJson(new URL(tauri.version, tauriConfigUrl))) as PackageManifest).version,
+      "version referenced by tauri.conf.json",
+    );
 
 const versions = {
   root: requireVersion(root.version, "package.json"),

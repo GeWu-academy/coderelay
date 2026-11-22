@@ -27,9 +27,7 @@ function nextTick(): Promise<void> {
 
 describe("App Mode & Jev Integration", () => {
   test("shows 3 decision modes on mode screen including Jev", () => {
-    const instance = render(
-      <App clis={CLIS} onLaunch={() => {}} onExit={() => {}} />,
-    );
+    const instance = render(<App clis={CLIS} onLaunch={() => {}} onExit={() => {}} />);
     const frame = instance.lastFrame() ?? "";
     expect(frame).toContain("手动选择");
     expect(frame).toContain("自动路由");

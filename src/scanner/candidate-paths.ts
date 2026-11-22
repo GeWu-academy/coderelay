@@ -47,9 +47,7 @@ export function executableNames(
 
   const names: string[] = [];
   for (const extension of extensions) {
-    const name = extension.startsWith(".")
-      ? `${bin}${extension}`
-      : `${bin}.${extension}`;
+    const name = extension.startsWith(".") ? `${bin}${extension}` : `${bin}.${extension}`;
     if (!names.includes(name)) {
       names.push(name);
     }
@@ -69,9 +67,7 @@ export function candidatePathsInDir(
 ): readonly string[] {
   const separator = platform === "win32" ? "\\" : "/";
   const base = dir.endsWith("\\") || dir.endsWith("/") ? dir.slice(0, -1) : dir;
-  return executableNames(bin, platform, env).map(
-    (name) => `${base}${separator}${name}`,
-  );
+  return executableNames(bin, platform, env).map((name) => `${base}${separator}${name}`);
 }
 
 /**
@@ -136,10 +132,7 @@ export function standardInstallDirs(
   return dirs;
 }
 
-function normalizeForCompare(
-  value: string,
-  platform: NodeJS.Platform,
-): string {
+function normalizeForCompare(value: string, platform: NodeJS.Platform): string {
   const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
   return platform === "win32" ? normalized.toLowerCase() : normalized;
 }
@@ -157,10 +150,7 @@ export function classifySource(
 ): CliSource {
   return classifySourceIn(
     filePath,
-    [
-      ...userInstallDirs(platform, homeDir, env),
-      ...standardInstallDirs(platform, homeDir),
-    ],
+    [...userInstallDirs(platform, homeDir, env), ...standardInstallDirs(platform, homeDir)],
     platform,
   );
 }

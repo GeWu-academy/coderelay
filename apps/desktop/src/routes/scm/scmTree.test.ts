@@ -112,10 +112,7 @@ describe("scmTree", () => {
       const scmNode = srcNode.children[0];
       expect(scmNode?.kind).toBe("folder");
       if (scmNode?.kind === "folder") {
-        expect(scmNode.children.map((n) => n.name)).toEqual([
-          "scmTree.ts",
-          "ScmView.tsx",
-        ]);
+        expect(scmNode.children.map((n) => n.name)).toEqual(["scmTree.ts", "ScmView.tsx"]);
       }
     }
   });

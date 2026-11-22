@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "warn"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ]
+  },
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "out",
+    "coverage",
+    "target",
+    "apps/desktop/dist",
+    "apps/desktop/src-tauri",
+    "packages/sdk-ts/dist",
+    ".claude",
+    ".cursor",
+    "docs",
+    "assets",
+    "scripts/*",
+    "!scripts/check-versions.ts"
+  ]
+}

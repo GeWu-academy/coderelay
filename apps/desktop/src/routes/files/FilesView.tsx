@@ -101,9 +101,7 @@ function TreeRows({
   onToggleDir,
   onSelectFile,
 }: TreeRowsProps) {
-  const entries = (childrenByPath[parentPath] ?? []).filter(
-    (entry) => !entry.name.startsWith("."),
-  );
+  const entries = (childrenByPath[parentPath] ?? []).filter((entry) => !entry.name.startsWith("."));
   const normalizedQuery = filterQuery.trim().toLowerCase();
 
   const visibleEntries = normalizedQuery
@@ -125,9 +123,7 @@ function TreeRows({
           <div key={entry.path}>
             <button
               type="button"
-              onClick={() =>
-                entry.isDir ? onToggleDir(entry.path) : onSelectFile(entry.path)
-              }
+              onClick={() => (entry.isDir ? onToggleDir(entry.path) : onSelectFile(entry.path))}
               style={{ paddingLeft: `${depth * 14 + 10}px` }}
               className={`group flex h-[26px] w-full items-center gap-1.5 pr-2.5 text-left text-[12.5px] transition-colors duration-100 ${
                 isSelected
@@ -160,9 +156,7 @@ function TreeRows({
 
               <span className="min-w-0 flex-1 truncate">{entry.name}</span>
 
-              {isLoading ? (
-                <span className="font-code text-[10px] text-muted">...</span>
-              ) : null}
+              {isLoading ? <span className="font-code text-[10px] text-muted">...</span> : null}
             </button>
 
             {entry.isDir && isExpanded ? (
@@ -230,10 +224,7 @@ function extensionOf(path: string): string | null {
   return name.slice(dotIndex + 1).toLowerCase();
 }
 
-export function FilesView({
-  workspaceInput,
-  onPickWorkspace,
-}: FilesViewProps) {
+export function FilesView({ workspaceInput, onPickWorkspace }: FilesViewProps) {
   const [childrenByPath, setChildrenByPath] = useState<Record<string, FileTreeEntry[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<ReadonlySet<string>>(new Set());
   const [loadingDirs, setLoadingDirs] = useState<ReadonlySet<string>>(new Set());
@@ -414,16 +405,11 @@ export function FilesView({
     }
   }
 
-  const rootEntries = (childrenByPath[""] ?? []).filter(
-    (entry) => !entry.name.startsWith("."),
-  );
+  const rootEntries = (childrenByPath[""] ?? []).filter((entry) => !entry.name.startsWith("."));
   const rootLoading = loadingDirs.has("");
   const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
   const folderStyle = useThemeStore((s) => s.folderStyle);
-  const codePalette = useMemo(
-    () => getCodeThemePalette(effectiveCodeTheme),
-    [effectiveCodeTheme],
-  );
+  const codePalette = useMemo(() => getCodeThemePalette(effectiveCodeTheme), [effectiveCodeTheme]);
 
   const lines = useMemo(() => {
     if (!fileContent || fileContent.isBinary) {
@@ -517,19 +503,13 @@ export function FilesView({
 
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {!workspaceInput.trim() ? (
-            <div className="px-3 py-4 text-[12px] text-muted">
-              未选择文件夹
-            </div>
+            <div className="px-3 py-4 text-[12px] text-muted">未选择文件夹</div>
           ) : treeError ? (
             <div className="px-3 py-4 text-[12px] text-rose-500">{treeError}</div>
           ) : rootLoading && rootEntries.length === 0 ? (
-            <div className="px-3 py-4 font-code text-[11.5px] text-muted">
-              Loading files...
-            </div>
+            <div className="px-3 py-4 font-code text-[11.5px] text-muted">Loading files...</div>
           ) : rootEntries.length === 0 ? (
-            <div className="px-3 py-4 text-[12px] text-muted">
-              Empty directory
-            </div>
+            <div className="px-3 py-4 text-[12px] text-muted">Empty directory</div>
           ) : (
             <TreeRows
               parentPath=""
@@ -583,9 +563,7 @@ export function FilesView({
                     className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 pl-3 text-left text-[12px]"
                   >
                     <FileIcon size={13} className={fileAccentClass(ext)} />
-                    <span className={`truncate ${isActive ? "font-medium" : ""}`}>
-                      {name}
-                    </span>
+                    <span className={`truncate ${isActive ? "font-medium" : ""}`}>{name}</span>
                   </button>
                   <button
                     type="button"
@@ -620,9 +598,7 @@ export function FilesView({
             <div className="flex h-10 shrink-0 items-center justify-between gap-4 border-b border-line bg-sidebar/50 px-4">
               <div className="flex min-w-0 items-center gap-2">
                 <FileIcon size={14} className={fileAccentClass(fileContent.extension)} />
-                <span className="truncate font-code text-[12px] text-ink">
-                  {fileContent.path}
-                </span>
+                <span className="truncate font-code text-[12px] text-ink">{fileContent.path}</span>
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-code text-[11px] text-muted">
@@ -653,7 +629,8 @@ export function FilesView({
                 <FilesIcon size={28} />
                 <p className="text-sm font-medium text-ink">Binary file</p>
                 <p className="font-code text-xs text-muted">
-                  {fileContent.name} ({formatFileSize(fileContent.size)}) cannot be previewed as text.
+                  {fileContent.name} ({formatFileSize(fileContent.size)}) cannot be previewed as
+                  text.
                 </p>
               </div>
             ) : (

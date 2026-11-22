@@ -75,10 +75,7 @@ export const StatsIcon = createIcon(ChartLineUp, 18);
 export const FolderIcon = createIcon(Folder, 16);
 export const SettingsIcon = createIcon(GearSix, 18);
 export const RefreshIcon = createIcon(ArrowsClockwise, 15);
-export function AgentsIcon({
-  size = 16,
-  className = "",
-}: IconProps = {}) {
+export function AgentsIcon({ size = 16, className = "" }: IconProps = {}) {
   return (
     <svg
       aria-hidden="true"

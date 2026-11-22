@@ -22,7 +22,11 @@ function fakeChild(): ChildProcess {
 function collect(
   cmd: readonly string[],
   opts?: { readonly protocol?: "structured" | "text"; readonly timeoutMs?: number },
-): { readonly events: AgentEvent[]; readonly done: Promise<Awaited<ReturnType<typeof runAgentStream>["done"]>>; readonly handle: ReturnType<typeof runAgentStream> } {
+): {
+  readonly events: AgentEvent[];
+  readonly done: Promise<Awaited<ReturnType<typeof runAgentStream>["done"]>>;
+  readonly handle: ReturnType<typeof runAgentStream>;
+} {
   const events: AgentEvent[] = [];
   const handle = runAgentStream({
     cmd,
@@ -280,7 +284,9 @@ describe("resolveAgentShell", () => {
   });
 
   test("uses shell on Windows when target is omitted for local binaries", () => {
-    expect(resolveAgentShell({}, "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd", "win32")).toBe(true);
+    expect(
+      resolveAgentShell({}, "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd", "win32"),
+    ).toBe(true);
     expect(resolveAgentShell({}, "claude.cmd", "win32")).toBe(true);
     expect(resolveAgentShell({}, "codex.exe", "win32")).toBe(true);
   });
@@ -291,14 +297,17 @@ describe("resolveAgentShell", () => {
   });
 
   test("honours explicit shell override", () => {
-    expect(resolveAgentShell({ shell: false, target: localTarget }, localTarget.path, "win32")).toBe(false);
+    expect(
+      resolveAgentShell({ shell: false, target: localTarget }, localTarget.path, "win32"),
+    ).toBe(false);
     expect(resolveAgentShell({ shell: true }, "/usr/bin/tool", "linux")).toBe(true);
   });
 });
 
 describe("runAgentStream shell handling", () => {
   test("spawns with shell: true and windowsHide: true on Windows for local .cmd target", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
+    let captured:
+      { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
     const target: LaunchTarget = {
       path: "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
       runtime: "local",
@@ -329,7 +338,8 @@ describe("runAgentStream shell handling", () => {
   });
 
   test("spawns with shell: false and detached: true on Unix", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
+    let captured:
+      { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
 
     runAgentStream({
       cmd: ["/usr/local/bin/claude", "-p", "hi"],

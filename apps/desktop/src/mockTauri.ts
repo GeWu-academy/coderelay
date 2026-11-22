@@ -16,11 +16,7 @@ import type {
 declare global {
   interface Window {
     __TAURI_INTERNALS__?: {
-      invoke: (
-        cmd: string,
-        args?: Record<string, unknown>,
-        options?: unknown,
-      ) => Promise<unknown>;
+      invoke: (cmd: string, args?: Record<string, unknown>, options?: unknown) => Promise<unknown>;
     };
   }
 }
@@ -254,10 +250,30 @@ const mockDiscovery: DiscoveryPayload = {
       cliId: "codex",
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
-        { id: "read-only", label: "只读", description: "沙箱只读，只分析不修改（最接近 plan）", dangerous: false },
-        { id: "workspace-write", label: "工作区可写", description: "沙箱内可修改工作区文件", dangerous: false },
-        { id: "approve-for-me", label: "自动审查", description: "审批请求交给自动审查，工作区可写沙箱", dangerous: false },
-        { id: "full-access", label: "完全放行", description: "跳过所有确认且不使用沙箱", dangerous: true },
+        {
+          id: "read-only",
+          label: "只读",
+          description: "沙箱只读，只分析不修改（最接近 plan）",
+          dangerous: false,
+        },
+        {
+          id: "workspace-write",
+          label: "工作区可写",
+          description: "沙箱内可修改工作区文件",
+          dangerous: false,
+        },
+        {
+          id: "approve-for-me",
+          label: "自动审查",
+          description: "审批请求交给自动审查，工作区可写沙箱",
+          dangerous: false,
+        },
+        {
+          id: "full-access",
+          label: "完全放行",
+          description: "跳过所有确认且不使用沙箱",
+          dangerous: true,
+        },
       ],
     },
     {
@@ -265,23 +281,43 @@ const mockDiscovery: DiscoveryPayload = {
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
         { id: "plan", label: "Plan", description: "只规划，不修改文件", dangerous: false },
-        { id: "acceptEdits", label: "自动接受编辑", description: "自动接受文件编辑，其余操作仍需许可", dangerous: false },
+        {
+          id: "acceptEdits",
+          label: "自动接受编辑",
+          description: "自动接受文件编辑，其余操作仍需许可",
+          dangerous: false,
+        },
         { id: "auto", label: "Auto", description: "由分类器自动判断是否放行", dangerous: false },
-        { id: "bypassPermissions", label: "完全放行", description: "跳过所有权限检查", dangerous: true },
+        {
+          id: "bypassPermissions",
+          label: "完全放行",
+          description: "跳过所有权限检查",
+          dangerous: true,
+        },
       ],
     },
     {
       cliId: "pi",
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
-        { id: "read-only", label: "只读", description: "仅启用 read/grep/find/ls，禁用 bash、edit、write", dangerous: false },
+        {
+          id: "read-only",
+          label: "只读",
+          description: "仅启用 read/grep/find/ls，禁用 bash、edit、write",
+          dangerous: false,
+        },
       ],
     },
     {
       cliId: "omp",
       options: [
         { id: "default", label: "默认", description: "沿用该 CLI 自身的配置", dangerous: false },
-        { id: "always-ask", label: "总是询问", description: "每次工具调用都需确认", dangerous: false },
+        {
+          id: "always-ask",
+          label: "总是询问",
+          description: "每次工具调用都需确认",
+          dangerous: false,
+        },
         { id: "write", label: "写入需确认", description: "approvalMode=write", dangerous: false },
         { id: "yolo", label: "完全放行", description: "自动批准所有工具调用", dangerous: true },
       ],
@@ -356,9 +392,7 @@ export async function mockInvoke(
     case "get_session": {
       const sessionId = typeof args.sessionId === "string" ? args.sessionId : "";
       const found =
-        sessionsState.find((s) => s.id === sessionId) ??
-        sessionsState[0] ??
-        defaultSessionRecord;
+        sessionsState.find((s) => s.id === sessionId) ?? sessionsState[0] ?? defaultSessionRecord;
 
       const modelId =
         found.cliId === "codex"
@@ -473,7 +507,13 @@ export async function mockInvoke(
       if (!rel) {
         const rootEntries: FileTreeEntry[] = [
           { name: "src", path: "src", isDir: true, size: 0, extension: null },
-          { name: "package.json", path: "package.json", isDir: false, size: 512, extension: "json" },
+          {
+            name: "package.json",
+            path: "package.json",
+            isDir: false,
+            size: 512,
+            extension: "json",
+          },
           { name: "README.md", path: "README.md", isDir: false, size: 1024, extension: "md" },
         ];
         return rootEntries;
@@ -494,7 +534,7 @@ export async function mockInvoke(
       const ext = name.includes(".") ? (name.split(".").pop()?.toLowerCase() ?? null) : null;
       const content =
         rel === "src/App.tsx"
-          ? 'export function App() {\n  return <main>CodeRelay</main>;\n}\n'
+          ? "export function App() {\n  return <main>CodeRelay</main>;\n}\n"
           : rel === "package.json"
             ? '{\n  "name": "coderelay",\n  "version": "0.4.4"\n}\n'
             : "# CodeRelay\n\nWorkspace file preview.\n";
@@ -512,9 +552,7 @@ export async function mockInvoke(
     }
     case "terminal_create": {
       const cwd =
-        typeof args.cwd === "string" && args.cwd.trim()
-          ? args.cwd.trim()
-          : mockDiscovery.cwd;
+        typeof args.cwd === "string" && args.cwd.trim() ? args.cwd.trim() : mockDiscovery.cwd;
       return {
         terminalId: `mock-term-${Date.now()}`,
         shell: "/bin/zsh",
@@ -676,7 +714,6 @@ export async function mockInvoke(
 
 if (typeof window !== "undefined" && !window.__TAURI_INTERNALS__) {
   window.__TAURI_INTERNALS__ = {
-    invoke: (cmd: string, args?: Record<string, unknown>) =>
-      mockInvoke(cmd, args ?? {}),
+    invoke: (cmd: string, args?: Record<string, unknown>) => mockInvoke(cmd, args ?? {}),
   };
 }

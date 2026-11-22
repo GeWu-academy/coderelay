@@ -293,7 +293,13 @@ describe("groupSessionsByWorkspace", () => {
 
   it("archives sessions by folder and preserves opened workspaces even when empty", () => {
     const groups = groupSessionsByWorkspace(
-      [make("a", "/p/alpha"), make("x"), make("b", "/p/beta"), make("c", "/p/alpha"), make("y", "")],
+      [
+        make("a", "/p/alpha"),
+        make("x"),
+        make("b", "/p/beta"),
+        make("c", "/p/alpha"),
+        make("y", ""),
+      ],
       ["/p/beta", "/p/alpha", "/p/empty"],
     );
     expect(groups.map((g) => g.workspace)).toEqual(["/p/beta", "/p/alpha", "/p/empty", null]);

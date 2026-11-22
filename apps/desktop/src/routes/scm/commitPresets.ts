@@ -89,10 +89,7 @@ export function detectCommitType(message: string): CommitType | null {
   return isCommitType(candidate) ? candidate : null;
 }
 
-export function applyCommitTypePrefix(
-  currentMessage: string,
-  nextType: CommitType,
-): string {
+export function applyCommitTypePrefix(currentMessage: string, nextType: CommitType): string {
   const trimmedStart = currentMessage.trimStart();
   const match = COMMIT_PREFIX_PATTERN.exec(trimmedStart);
   if (match && isCommitType(match[1])) {

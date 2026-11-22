@@ -62,10 +62,7 @@ export interface AgentModelRef {
  * Accepts `model` or `agent:model`. Passing `defaultAgent` lets the caller
  * resolve `agent:model` references that omit the agent.
  */
-export function parseModelRef(
-  ref: string,
-  defaultAgent?: AgentId,
-): AgentModelRef {
+export function parseModelRef(ref: string, defaultAgent?: AgentId): AgentModelRef {
   const separator = ref.indexOf(":");
   if (separator <= 0) {
     return { agent: defaultAgent, model: ref };

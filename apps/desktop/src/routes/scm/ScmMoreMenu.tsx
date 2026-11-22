@@ -1,11 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  MoreHorizontalIcon,
-} from "../../components/icons";
+import { CheckIcon, ChevronRightIcon, MoreHorizontalIcon } from "../../components/icons";
 import type { GitSortMode, GitSyncAction, GitViewMode } from "../../types";
 
 export const SCM_MENU_SUBMENUS = [
@@ -116,10 +112,7 @@ export function ScmMoreMenu({
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     };
@@ -360,9 +353,7 @@ export function ScmMoreMenu({
           aria-expanded={isActive}
           aria-haspopup="menu"
           className={`flex w-full items-center justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-left text-xs transition-colors disabled:opacity-40 ${
-            isActive
-              ? "bg-surface-subtle text-ink"
-              : "text-ink hover:bg-surface-subtle"
+            isActive ? "bg-surface-subtle text-ink" : "text-ink hover:bg-surface-subtle"
           }`}
           disabled={disabled}
           onClick={() => setActiveSubmenu((prev) => (prev === id ? null : id))}
@@ -410,9 +401,7 @@ export function ScmMoreMenu({
         aria-haspopup="menu"
         aria-label="更多 Git 操作"
         className={`grid h-7 w-7 place-items-center rounded-[7px] transition-colors ${
-          open
-            ? "bg-surface-subtle text-ink"
-            : "text-muted hover:bg-surface-subtle hover:text-ink"
+          open ? "bg-surface-subtle text-ink" : "text-muted hover:bg-surface-subtle hover:text-ink"
         }`}
         onClick={() => setOpen((prev) => !prev)}
         title="更多 Git 操作"
@@ -520,9 +509,7 @@ export function ScmMoreMenu({
               type="button"
             >
               <span>显示 GIT 输出</span>
-              {outputOpen ? (
-                <CheckIcon size={12} className="shrink-0 text-emerald-500" />
-              ) : null}
+              {outputOpen ? <CheckIcon size={12} className="shrink-0 text-emerald-500" /> : null}
             </button>
           </motion.div>
         ) : null}

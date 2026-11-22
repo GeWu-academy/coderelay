@@ -64,6 +64,12 @@ jobs:
       - name: Version alignment
         run: bun run version:check
 
+      - name: Lint
+        run: bun run lint
+
+      - name: Format check
+        run: bun run format:check
+
       - name: Root typecheck
         run: bun run typecheck
 

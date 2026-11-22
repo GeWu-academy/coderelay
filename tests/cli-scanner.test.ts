@@ -44,12 +44,7 @@ describe("CLI scanner", () => {
       homeDir: "/home/tester",
     });
 
-    expect(detected.map((cli) => cli.id)).toEqual([
-      "codex",
-      "claude",
-      "pi",
-      "omp",
-    ]);
+    expect(detected.map((cli) => cli.id)).toEqual(["codex", "claude", "pi", "omp"]);
     expect(detected[0]).toMatchObject({
       available: true,
       path: "/opt/bin/codex",
@@ -134,16 +129,12 @@ describe("CLI scanner", () => {
       "C:\\Users\\tester\\.local\\bin\\claude.exe",
       "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
     ]);
-    expect(fallback).toBe(
-      "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
-    );
+    expect(fallback).toBe("C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd");
   });
 
   test("detects only documented host markers", () => {
     expect(detectHostAgent({ CLAUDECODE: "1" })).toBe("claude");
-    expect(detectHostAgent({ CLAUDE_CODE_CHILD_SESSION: "1" })).toBe(
-      "claude",
-    );
+    expect(detectHostAgent({ CLAUDE_CODE_CHILD_SESSION: "1" })).toBe("claude");
     expect(detectHostAgent({ PI_CODING_AGENT: "true" })).toBe("pi");
     expect(detectHostAgent({ PI_CODING_AGENT: "1" })).toBe("pi");
     expect(detectHostAgent({ PI_CODING_AGENT: "yes" })).toBeNull();
@@ -199,9 +190,7 @@ describe("CLI scanner", () => {
   });
 
   test("falls back to macOS ChatGPT app bundle when CODEX_CLI_PATH is not set", async () => {
-    const accessible = new Set([
-      "/Applications/ChatGPT.app/Contents/Resources/codex",
-    ]);
+    const accessible = new Set(["/Applications/ChatGPT.app/Contents/Resources/codex"]);
     const fallback = await getCodexConfigFallback({
       platform: "darwin",
       homeDir: "/Users/tester",

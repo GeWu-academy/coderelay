@@ -235,9 +235,7 @@ type PermissionStorage = Pick<Storage, "getItem" | "setItem">;
 
 function defaultPermissionStorage(): PermissionStorage | null {
   try {
-    return typeof window !== "undefined" && window.localStorage
-      ? window.localStorage
-      : null;
+    return typeof window !== "undefined" && window.localStorage ? window.localStorage : null;
   } catch {
     return null;
   }
@@ -245,9 +243,7 @@ function defaultPermissionStorage(): PermissionStorage | null {
 
 function readPermissionMap(storage: PermissionStorage): Record<string, string> {
   try {
-    const parsed: unknown = JSON.parse(
-      storage.getItem(PERMISSION_STORAGE_KEY) ?? "{}",
-    );
+    const parsed: unknown = JSON.parse(storage.getItem(PERMISSION_STORAGE_KEY) ?? "{}");
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return {};
     }
@@ -300,10 +296,7 @@ export function savePermission(
 }
 
 /** Drop a remembered level the CLI no longer offers, so the backend never rejects it. */
-export function sanitizePermission(
-  permission: string,
-  options: readonly { id: string }[],
-): string {
+export function sanitizePermission(permission: string, options: readonly { id: string }[]): string {
   return options.some((option) => option.id === permission) ? permission : "";
 }
 
@@ -313,9 +306,7 @@ type WorkspaceStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 function defaultWorkspaceStorage(): WorkspaceStorage | null {
   try {
-    return typeof window !== "undefined" && window.localStorage
-      ? window.localStorage
-      : null;
+    return typeof window !== "undefined" && window.localStorage ? window.localStorage : null;
   } catch {
     return null;
   }

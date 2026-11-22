@@ -280,14 +280,10 @@ export function installEntriesFor(
   cliId: CliId,
   platform: InstallPlatform,
 ): readonly InstallGuideEntry[] {
-  return INSTALL_GUIDES[cliId].entries.filter((entry) =>
-    entry.platform === platform,
-  );
+  return INSTALL_GUIDES[cliId].entries.filter((entry) => entry.platform === platform);
 }
 
-export function installPlatformFor(
-  platform: NodeJS.Platform,
-): InstallPlatform {
+export function installPlatformFor(platform: NodeJS.Platform): InstallPlatform {
   if (platform === "darwin" || platform === "win32") {
     return platform;
   }

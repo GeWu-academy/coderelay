@@ -77,9 +77,7 @@ describe("CLI adapters", () => {
 
       expect(result?.ok).toBe(true);
       if (result?.ok) {
-        expect(result.models).toEqual([
-          { id: "custom/from-agent-dir", isDefault: true },
-        ]);
+        expect(result.models).toEqual([{ id: "custom/from-agent-dir", isDefault: true }]);
       }
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -281,13 +279,12 @@ describe("Pi model probing", () => {
 
       expect(result?.ok).toBe(true);
       if (result?.ok) {
-        expect(result.models).toEqual([
-          { id: "", label: "Pi 默认模型", isDefault: true },
-        ]);
+        expect(result.models).toEqual([{ id: "", label: "Pi 默认模型", isDefault: true }]);
       }
-      expect(
-        adapters.pi.buildPromptArgs?.({ prompt: "hello", model: "" }),
-      ).toEqual(["-p", "hello"]);
+      expect(adapters.pi.buildPromptArgs?.({ prompt: "hello", model: "" })).toEqual([
+        "-p",
+        "hello",
+      ]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
@@ -387,9 +384,7 @@ describe("OMP model probing", () => {
 
       expect(result?.ok).toBe(true);
       if (result?.ok) {
-        expect(result.models).toEqual([
-          { id: "local/only-model", label: "Only Model" },
-        ]);
+        expect(result.models).toEqual([{ id: "local/only-model", label: "Only Model" }]);
       }
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -404,13 +399,14 @@ describe("OMP model probing", () => {
 
       expect(result?.ok).toBe(true);
       if (result?.ok) {
-        expect(result.models).toEqual([
-          { id: "", label: "OMP 默认模型", isDefault: true },
-        ]);
+        expect(result.models).toEqual([{ id: "", label: "OMP 默认模型", isDefault: true }]);
       }
-      expect(
-        adapters.omp.buildPromptArgs?.({ prompt: "hello", model: "" }),
-      ).toEqual(["-p", "--mode", "json", "hello"]);
+      expect(adapters.omp.buildPromptArgs?.({ prompt: "hello", model: "" })).toEqual([
+        "-p",
+        "--mode",
+        "json",
+        "hello",
+      ]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

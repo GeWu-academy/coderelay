@@ -17,7 +17,9 @@ const DETECTED: DetectedCli[] = [
   { id: "omp", bin: "omp", path: "/bin/omp", version: "1", available: true },
 ];
 
-function option(overrides: Partial<ActivationOption> & { readonly cliId: CliId }): ActivationOption {
+function option(
+  overrides: Partial<ActivationOption> & { readonly cliId: CliId },
+): ActivationOption {
   return { available: true, enabled: true, decided: false, ...overrides };
 }
 
@@ -44,7 +46,13 @@ describe("toActivationOptions", () => {
 
   test("activationDecided marks an enabled CLI as decided", () => {
     const config = defaultConfig();
-    config.agents["omp"] = { enabled: true, activationDecided: true, models: [], extraArgs: [], env: {} };
+    config.agents["omp"] = {
+      enabled: true,
+      activationDecided: true,
+      models: [],
+      extraArgs: [],
+      env: {},
+    };
     const row = toActivationOptions(DETECTED, config).find((item) => item.cliId === "omp");
     expect(row).toMatchObject({ enabled: true, decided: true });
   });
@@ -52,7 +60,13 @@ describe("toActivationOptions", () => {
   test("enabled: false counts as a decision even without the flag", () => {
     // 手写 `enabled: false` 的用户已经表过态，重启后不该再被问一次。
     const config = defaultConfig();
-    config.agents["omp"] = { enabled: false, activationDecided: false, models: [], extraArgs: [], env: {} };
+    config.agents["omp"] = {
+      enabled: false,
+      activationDecided: false,
+      models: [],
+      extraArgs: [],
+      env: {},
+    };
     const row = toActivationOptions(DETECTED, config).find((item) => item.cliId === "omp");
     expect(row).toMatchObject({ enabled: false, decided: true });
   });
@@ -70,9 +84,7 @@ describe("pendingActivation", () => {
   });
 
   test("is empty once every available CLI has been decided", () => {
-    const options: ActivationOption[] = CLI_IDS.map((cliId) =>
-      option({ cliId, decided: true }),
-    );
+    const options: ActivationOption[] = CLI_IDS.map((cliId) => option({ cliId, decided: true }));
     expect(pendingActivation(options)).toHaveLength(0);
   });
 

@@ -1,8 +1,21 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
-import { CliIcon, HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "../../components/icons";
-import type { AgentEntry, ModelOption, SessionDetail, SessionRecord, SessionTurn } from "../../types";
+import {
+  CliIcon,
+  HistoryIcon,
+  RefreshIcon,
+  RouteIcon,
+  StatsIcon,
+  TerminalIcon,
+} from "../../components/icons";
+import type {
+  AgentEntry,
+  ModelOption,
+  SessionDetail,
+  SessionRecord,
+  SessionTurn,
+} from "../../types";
 import { formatTimestamp, workspaceName } from "../../utils";
 import {
   computeOverview,
@@ -199,9 +212,7 @@ export function StatsView({
               <span className="text-xs text-muted">天连续</span>
               <span className="text-xs text-muted">/ 累计 {summary.totalActiveDays} 天</span>
             </div>
-            <div className="mt-1.5 text-[11px] text-muted">
-              最长记录 {summary.longestStreak} 天
-            </div>
+            <div className="mt-1.5 text-[11px] text-muted">最长记录 {summary.longestStreak} 天</div>
           </div>
         </div>
 
@@ -484,8 +495,8 @@ export function StatsView({
                 <div className="flex items-center gap-2">
                   {hoveredHeatmapDay ? (
                     <span className="font-code text-xs text-ink">
-                      {hoveredHeatmapDay.date}:{" "}
-                      <strong>{hoveredHeatmapDay.count}</strong> 次对话更新
+                      {hoveredHeatmapDay.date}: <strong>{hoveredHeatmapDay.count}</strong>{" "}
+                      次对话更新
                     </span>
                   ) : (
                     <span>鼠标悬停方格查看每日详情</span>
@@ -674,14 +685,7 @@ function MinimalistLineChart({
         >
           <defs>
             {seriesList.map((s, idx) => (
-              <linearGradient
-                key={`grad-${s.key}`}
-                id={`grad-${idx}`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
+              <linearGradient key={`grad-${s.key}`} id={`grad-${idx}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={s.fill} stopOpacity="0.18" />
                 <stop offset="100%" stopColor={s.fill} stopOpacity="0.0" />
               </linearGradient>
@@ -830,16 +834,12 @@ function MinimalistLineChart({
       {/* Hover Tooltip Popup */}
       {hoveredDataPoint && (
         <div className="mt-2 flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-1.5 text-xs shadow-xs">
-          <span className="font-code font-medium text-ink">
-            日期: {hoveredDataPoint.dateKey}
-          </span>
+          <span className="font-code font-medium text-ink">日期: {hoveredDataPoint.dateKey}</span>
           <div className="flex items-center gap-3">
             {seriesList.map((s) => (
               <span key={s.key} className="text-muted">
                 {s.label}:{" "}
-                <strong className="font-code text-ink">
-                  {s.values[hoveredIndex ?? 0] ?? 0}
-                </strong>
+                <strong className="font-code text-ink">{s.values[hoveredIndex ?? 0] ?? 0}</strong>
               </span>
             ))}
           </div>

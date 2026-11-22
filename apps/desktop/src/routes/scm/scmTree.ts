@@ -86,11 +86,7 @@ interface MutableFolder {
   files: ScmTreeFileNode[];
 }
 
-function finalizeFolder(
-  folder: MutableFolder,
-  mode: GitSortMode,
-  staged: boolean,
-): ScmTreeNode[] {
+function finalizeFolder(folder: MutableFolder, mode: GitSortMode, staged: boolean): ScmTreeNode[] {
   const folderNodes: ScmTreeFolderNode[] = [];
   for (const child of folder.folders.values()) {
     let compactedName = child.name;

@@ -3,11 +3,7 @@ import { render } from "ink-testing-library";
 
 import type { DetectedCli } from "../src/models/cli";
 import type { SessionTurn } from "../src/models/session";
-import {
-  App,
-  type LaunchRequest,
-  type RunningTask,
-} from "../src/ui/App";
+import { App, type LaunchRequest, type RunningTask } from "../src/ui/App";
 
 const CLIS: DetectedCli[] = [
   {
@@ -232,9 +228,7 @@ describe("App UI", () => {
     first.stdin.write("\r");
     await nextTick();
 
-    expect(first.launches()).toEqual([
-      { id: "codex", mode: "prompt", prompt: "do work" },
-    ]);
+    expect(first.launches()).toEqual([{ id: "codex", mode: "prompt", prompt: "do work" }]);
     first.cleanup();
 
     const second = renderApp();
@@ -247,9 +241,7 @@ describe("App UI", () => {
     second.stdin.write("\t");
     await nextTick();
 
-    expect(second.launches()).toEqual([
-      { id: "codex", mode: "interactive" },
-    ]);
+    expect(second.launches()).toEqual([{ id: "codex", mode: "interactive" }]);
     second.cleanup();
   });
 
@@ -314,9 +306,7 @@ describe("App UI", () => {
     instance.stdin.write("\r");
     await nextTick();
 
-    expect(instance.launches()).toEqual([
-      { id: "codex", mode: "prompt", prompt: "do work" },
-    ]);
+    expect(instance.launches()).toEqual([{ id: "codex", mode: "prompt", prompt: "do work" }]);
     expect(instance.lastFrame()).toContain("写下任务");
     instance.cleanup();
   });

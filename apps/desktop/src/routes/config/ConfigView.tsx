@@ -210,9 +210,7 @@ export function ConfigView({
     >
       <div className="mx-auto flex h-full w-[min(920px,100%)] flex-col gap-3.5">
         <div className="flex items-center justify-between gap-4 border-b border-line pb-3.5">
-          <span className="truncate font-code text-xs text-muted-strong">
-            {configPath ?? ""}
-          </span>
+          <span className="truncate font-code text-xs text-muted-strong">{configPath ?? ""}</span>
           <div className="flex items-center gap-2">
             <button
               aria-label="Reload"
@@ -350,7 +348,9 @@ export function ConfigView({
                     <div className="flex items-center justify-between gap-1 px-0.5">
                       <span
                         className={`truncate text-xs ${
-                          isSelected ? "font-medium text-ink" : "text-muted-strong group-hover:text-ink"
+                          isSelected
+                            ? "font-medium text-ink"
+                            : "text-muted-strong group-hover:text-ink"
                         }`}
                       >
                         {codePreset.name}

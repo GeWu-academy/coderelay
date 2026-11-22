@@ -5,11 +5,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { render } from "ink-testing-library";
 
-import {
-  loadConfig,
-  resolveConfigPath,
-  saveActivationDecisions,
-} from "../src/config/loader";
+import { loadConfig, resolveConfigPath, saveActivationDecisions } from "../src/config/loader";
 import type { DetectedCli } from "../src/models/cli";
 import { resolveRoutingMode } from "../src/router/router";
 import { resolveLaunchCwd } from "../src/runtime/launcher";

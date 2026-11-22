@@ -41,12 +41,7 @@ import {
 import { ScmActionDialog, type ScmDialogState } from "./ScmActionDialog";
 import { ScmMoreMenu } from "./ScmMoreMenu";
 import { ScmOutputPanel } from "./ScmOutputPanel";
-import {
-  buildGitEntryTree,
-  type ScmTreeNode,
-  sortGitEntries,
-  splitPathParts,
-} from "./scmTree";
+import { buildGitEntryTree, type ScmTreeNode, sortGitEntries, splitPathParts } from "./scmTree";
 
 export interface ScmViewProps {
   workspaceInput: string;
@@ -94,7 +89,10 @@ function parseDiffLines(diff: string): ParsedDiffLine[] {
   });
 }
 
-function statusBadge(entry: GitStatusEntry, staged: boolean): { label: string; colorClass: string } {
+function statusBadge(
+  entry: GitStatusEntry,
+  staged: boolean,
+): { label: string; colorClass: string } {
   if (entry.conflicted) {
     return { label: "C", colorClass: "text-rose-600 dark:text-rose-400" };
   }
@@ -151,25 +149,17 @@ export function ScmView({
 
   const [commitMessage, setCommitMessage] = useState("");
   const [generatingCommit, setGeneratingCommit] = useState(false);
-  const [openCommitMenu, setOpenCommitMenu] = useState<"type" | "preset" | null>(
-    null,
-  );
+  const [openCommitMenu, setOpenCommitMenu] = useState<"type" | "preset" | null>(null);
   const commitTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const commitMenuRef = useRef<HTMLDivElement | null>(null);
-  const activeCommitType = useMemo(
-    () => detectCommitType(commitMessage),
-    [commitMessage],
-  );
+  const activeCommitType = useMemo(() => detectCommitType(commitMessage), [commitMessage]);
 
   useEffect(() => {
     if (!openCommitMenu) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
-      if (
-        commitMenuRef.current &&
-        !commitMenuRef.current.contains(event.target as Node)
-      ) {
+      if (commitMenuRef.current && !commitMenuRef.current.contains(event.target as Node)) {
         setOpenCommitMenu(null);
       }
     };
@@ -318,22 +308,15 @@ export function ScmView({
 
   const localBranches = useMemo(() => {
     const q = branchFilter.trim().toLowerCase();
-    return branches.filter(
-      (b) => !b.isRemote && (!q || b.name.toLowerCase().includes(q)),
-    );
+    return branches.filter((b) => !b.isRemote && (!q || b.name.toLowerCase().includes(q)));
   }, [branches, branchFilter]);
 
   const remoteBranches = useMemo(() => {
     const q = branchFilter.trim().toLowerCase();
-    return branches.filter(
-      (b) => b.isRemote && (!q || b.name.toLowerCase().includes(q)),
-    );
+    return branches.filter((b) => b.isRemote && (!q || b.name.toLowerCase().includes(q)));
   }, [branches, branchFilter]);
 
-  const parsedDiffLines = useMemo(
-    () => parseDiffLines(diffResult?.diff ?? ""),
-    [diffResult],
-  );
+  const parsedDiffLines = useMemo(() => parseDiffLines(diffResult?.diff ?? ""), [diffResult]);
 
   async function runAction(label: string, fn: () => Promise<void>) {
     setBusyAction(label);
@@ -419,7 +402,11 @@ export function ScmView({
   function handleStage(paths: string[], all = false) {
     void runAction("stage", async () => {
       await invoke("git_stage", { request: { cwd, paths, all } });
-      if (selectedTarget && !selectedTarget.staged && (all || paths.includes(selectedTarget.path))) {
+      if (
+        selectedTarget &&
+        !selectedTarget.staged &&
+        (all || paths.includes(selectedTarget.path))
+      ) {
         setSelectedTarget({ path: selectedTarget.path, staged: true, untracked: false });
       }
     });
@@ -676,9 +663,7 @@ export function ScmView({
                 onStashPopLatest={handleStashPopLatest}
                 onSync={handleSync}
                 onToggleOutput={() => setOutputOpen((prev) => !prev)}
-                onToggleViewMode={() =>
-                  setViewMode((prev) => (prev === "tree" ? "list" : "tree"))
-                }
+                onToggleViewMode={() => setViewMode((prev) => (prev === "tree" ? "list" : "tree"))}
                 onUndoLastCommit={handleUndoLastCommit}
                 onUnstageAll={() => handleUnstage([], true)}
                 outputOpen={outputOpen}
@@ -850,18 +835,14 @@ export function ScmView({
                       ? "border-ink/35 bg-surface-subtle text-ink"
                       : "border-line bg-surface text-muted hover:bg-surface-subtle hover:text-ink"
                   }`}
-                  onClick={() =>
-                    setOpenCommitMenu((prev) => (prev === "type" ? null : "type"))
-                  }
+                  onClick={() => setOpenCommitMenu((prev) => (prev === "type" ? null : "type"))}
                   type="button"
                 >
                   <span className="truncate">
                     {activeCommitType ? (
                       <>
                         类型:{" "}
-                        <span className="font-mono font-medium text-ink">
-                          {activeCommitType}
-                        </span>
+                        <span className="font-mono font-medium text-ink">{activeCommitType}</span>
                       </>
                     ) : (
                       "选择类型"
@@ -880,11 +861,7 @@ export function ScmView({
                       ? "border-ink/35 bg-surface-subtle text-ink"
                       : "border-line bg-surface text-muted hover:bg-surface-subtle hover:text-ink"
                   }`}
-                  onClick={() =>
-                    setOpenCommitMenu((prev) =>
-                      prev === "preset" ? null : "preset",
-                    )
-                  }
+                  onClick={() => setOpenCommitMenu((prev) => (prev === "preset" ? null : "preset"))}
                   type="button"
                 >
                   <span className="truncate">常用预设</span>
@@ -911,18 +888,14 @@ export function ScmView({
                       return (
                         <button
                           className={`flex items-center justify-between gap-1.5 rounded-[6px] px-2 py-1.5 text-left transition-colors ${
-                            selected
-                              ? "bg-ink text-canvas"
-                              : "text-ink hover:bg-surface-subtle"
+                            selected ? "bg-ink text-canvas" : "text-ink hover:bg-surface-subtle"
                           }`}
                           key={item.type}
                           onClick={() => handleSelectCommitType(item.type)}
                           role="menuitem"
                           type="button"
                         >
-                          <span className="font-mono text-[11px] font-medium">
-                            {item.label}
-                          </span>
+                          <span className="font-mono text-[11px] font-medium">{item.label}</span>
                           <span
                             className={`truncate text-[10.5px] ${
                               selected ? "text-canvas/75" : "text-muted"
@@ -960,9 +933,7 @@ export function ScmView({
                           role="menuitem"
                           type="button"
                         >
-                          <span className="shrink-0 text-[11px] font-medium">
-                            {preset.label}
-                          </span>
+                          <span className="shrink-0 text-[11px] font-medium">{preset.label}</span>
                           <span className="truncate font-mono text-[10.5px] text-muted">
                             {preset.message}
                           </span>
@@ -977,9 +948,7 @@ export function ScmView({
               <button
                 className="flex items-center justify-center gap-1 rounded-[7px] border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-subtle disabled:opacity-45"
                 disabled={
-                  generatingCommit ||
-                  Boolean(busyAction) ||
-                  (status?.entries.length ?? 0) === 0
+                  generatingCommit || Boolean(busyAction) || (status?.entries.length ?? 0) === 0
                 }
                 onClick={() => void handleGenerateCommitMessage()}
                 title="根据当前变更调用默认 Agent 生成 Commit Message"
@@ -991,9 +960,7 @@ export function ScmView({
               <button
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] bg-ink px-3 py-1.5 text-xs font-medium text-canvas transition-opacity hover:opacity-90 disabled:opacity-40"
                 disabled={
-                  !commitMessage.trim() ||
-                  stagedEntries.length === 0 ||
-                  Boolean(busyAction)
+                  !commitMessage.trim() || stagedEntries.length === 0 || Boolean(busyAction)
                 }
                 onClick={handleCommit}
                 type="button"
@@ -1100,11 +1067,7 @@ export function ScmView({
             <span className="line-clamp-2 break-words" title={notice}>
               {notice}
             </span>
-            <button
-              className="shrink-0"
-              onClick={() => setNotice(null)}
-              type="button"
-            >
+            <button className="shrink-0" onClick={() => setNotice(null)} type="button">
               <CloseIcon size={12} />
             </button>
           </div>
@@ -1139,10 +1102,7 @@ export function ScmView({
                 </div>
                 {viewMode === "tree"
                   ? (() => {
-                      const renderTree = (
-                        nodes: ScmTreeNode[],
-                        depth: number,
-                      ): ReactElement[] =>
+                      const renderTree = (nodes: ScmTreeNode[], depth: number): ReactElement[] =>
                         nodes.flatMap((node) => {
                           if (node.kind === "folder") {
                             const folderKey = `staged:${node.path}`;
@@ -1214,8 +1174,7 @@ export function ScmView({
                   : stagedEntries.map((entry) => {
                       const { name, dir } = splitPathParts(entry.path);
                       const badge = statusBadge(entry, true);
-                      const active =
-                        selectedTarget?.path === entry.path && selectedTarget.staged;
+                      const active = selectedTarget?.path === entry.path && selectedTarget.staged;
                       return (
                         <div
                           key={`staged-${entry.path}`}
@@ -1250,7 +1209,9 @@ export function ScmView({
                           >
                             <MinusIcon size={12} />
                           </button>
-                          <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
+                          <span
+                            className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}
+                          >
                             {badge.label}
                           </span>
                         </div>
@@ -1279,10 +1240,7 @@ export function ScmView({
                 </div>
                 {viewMode === "tree"
                   ? (() => {
-                      const renderTree = (
-                        nodes: ScmTreeNode[],
-                        depth: number,
-                      ): ReactElement[] =>
+                      const renderTree = (nodes: ScmTreeNode[], depth: number): ReactElement[] =>
                         nodes.flatMap((node) => {
                           if (node.kind === "folder") {
                             const folderKey = `changes:${node.path}`;
@@ -1375,8 +1333,7 @@ export function ScmView({
                   : unstagedEntries.map((entry) => {
                       const { name, dir } = splitPathParts(entry.path);
                       const badge = statusBadge(entry, false);
-                      const active =
-                        selectedTarget?.path === entry.path && !selectedTarget.staged;
+                      const active = selectedTarget?.path === entry.path && !selectedTarget.staged;
                       return (
                         <div
                           key={`changes-${entry.path}`}
@@ -1428,7 +1385,9 @@ export function ScmView({
                           >
                             <PlusIcon size={12} />
                           </button>
-                          <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
+                          <span
+                            className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}
+                          >
                             {badge.label}
                           </span>
                         </div>
@@ -1464,9 +1423,7 @@ export function ScmView({
         ) : !selectedTarget ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
             <GitBranchIcon size={28} className="text-dim" />
-            <p className="text-xs font-medium text-muted">
-              在左侧选择任意变更文件以查看 Diff 对比
-            </p>
+            <p className="text-xs font-medium text-muted">在左侧选择任意变更文件以查看 Diff 对比</p>
           </div>
         ) : (
           <>

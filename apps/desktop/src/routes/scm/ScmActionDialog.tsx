@@ -397,9 +397,7 @@ export function ScmActionDialog({
                   onSubmit={(e) => {
                     e.preventDefault();
                     const cmd =
-                      dialog.kind === "merge-branch"
-                        ? "git_merge_branch"
-                        : "git_rebase_branch";
+                      dialog.kind === "merge-branch" ? "git_merge_branch" : "git_rebase_branch";
                     void runDialogAction(async () => {
                       const res = await invoke<GitActionResult>(cmd, {
                         request: { cwd, branch: selectedBranch },
@@ -480,10 +478,9 @@ export function ScmActionDialog({
                             disabled={submitting}
                             onClick={() =>
                               void runDialogAction(async () => {
-                                const res = await invoke<GitActionResult>(
-                                  "git_remove_remote",
-                                  { request: { cwd, name: remote.name } },
-                                );
+                                const res = await invoke<GitActionResult>("git_remove_remote", {
+                                  request: { cwd, name: remote.name },
+                                });
                                 await reloadRemotes();
                                 onSuccess(res.message);
                               })
@@ -633,19 +630,16 @@ export function ScmActionDialog({
                               </span>
                             ) : null}
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] text-muted">
-                            {stash.message}
-                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-muted">{stash.message}</p>
                           <div className="mt-2 flex items-center gap-1.5">
                             <button
                               className="rounded-[6px] border border-line bg-surface px-2 py-1 text-[11px] text-ink hover:bg-surface-subtle disabled:opacity-40"
                               disabled={submitting}
                               onClick={() =>
                                 void runDialogAction(async () => {
-                                  const res = await invoke<GitActionResult>(
-                                    "git_stash_apply",
-                                    { request: { cwd, reference: stash.reference } },
-                                  );
+                                  const res = await invoke<GitActionResult>("git_stash_apply", {
+                                    request: { cwd, reference: stash.reference },
+                                  });
                                   onSuccess(res.message);
                                 })
                               }
@@ -658,10 +652,9 @@ export function ScmActionDialog({
                               disabled={submitting}
                               onClick={() =>
                                 void runDialogAction(async () => {
-                                  const res = await invoke<GitActionResult>(
-                                    "git_stash_pop",
-                                    { request: { cwd, reference: stash.reference } },
-                                  );
+                                  const res = await invoke<GitActionResult>("git_stash_pop", {
+                                    request: { cwd, reference: stash.reference },
+                                  });
                                   await reloadStashes();
                                   onSuccess(res.message);
                                 })
@@ -675,10 +668,9 @@ export function ScmActionDialog({
                               disabled={submitting}
                               onClick={() =>
                                 void runDialogAction(async () => {
-                                  const res = await invoke<GitActionResult>(
-                                    "git_stash_drop",
-                                    { request: { cwd, reference: stash.reference } },
-                                  );
+                                  const res = await invoke<GitActionResult>("git_stash_drop", {
+                                    request: { cwd, reference: stash.reference },
+                                  });
                                   await reloadStashes();
                                   onSuccess(res.message);
                                 })
@@ -750,7 +742,9 @@ export function ScmActionDialog({
                     />
                   </label>
                   <label className="block space-y-1">
-                    <span className="text-[11px] text-muted">附注说明 (可选，填写后创建 Annotated Tag)</span>
+                    <span className="text-[11px] text-muted">
+                      附注说明 (可选，填写后创建 Annotated Tag)
+                    </span>
                     <input
                       className="w-full rounded-[7px] border border-line bg-canvas px-2.5 py-1.5 text-xs text-ink outline-none focus:border-ink/40"
                       onChange={(e) => setTagMessage(e.target.value)}
@@ -796,14 +790,10 @@ export function ScmActionDialog({
                               <span className="font-mono text-xs font-semibold text-ink">
                                 {tag.name}
                               </span>
-                              <span className="font-mono text-[10.5px] text-dim">
-                                {tag.oid}
-                              </span>
+                              <span className="font-mono text-[10.5px] text-dim">{tag.oid}</span>
                             </div>
                             {tag.message ? (
-                              <p className="truncate text-[11px] text-muted">
-                                {tag.message}
-                              </p>
+                              <p className="truncate text-[11px] text-muted">{tag.message}</p>
                             ) : null}
                           </div>
                           <button
@@ -812,10 +802,9 @@ export function ScmActionDialog({
                             disabled={submitting}
                             onClick={() =>
                               void runDialogAction(async () => {
-                                const res = await invoke<GitActionResult>(
-                                  "git_delete_tag",
-                                  { request: { cwd, name: tag.name } },
-                                );
+                                const res = await invoke<GitActionResult>("git_delete_tag", {
+                                  request: { cwd, name: tag.name },
+                                });
                                 await reloadTags();
                                 onSuccess(res.message);
                               })

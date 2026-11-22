@@ -37,8 +37,7 @@ describe("thinking layer utilities", () => {
   });
 
   test("handles multiple thinking blocks and mixed tag variants", () => {
-    const raw =
-      "Intro\n<think>first step</think>\nMiddle\n<thinking>second step</thinking>\nEnd";
+    const raw = "Intro\n<think>first step</think>\nMiddle\n<thinking>second step</thinking>\nEnd";
     const result = splitThinkingAndOutput(raw);
 
     expect(result.thinking).toBe("first step\n\nsecond step");
@@ -47,12 +46,8 @@ describe("thinking layer utilities", () => {
   });
 
   test("merges structured thinking and inline thinking without duplication", () => {
-    expect(mergeThinkingContent("step 1\nstep 2", "step 1\nstep 2")).toBe(
-      "step 1\nstep 2",
-    );
-    expect(mergeThinkingContent("structured", "inline")).toBe(
-      "structured\n\ninline",
-    );
+    expect(mergeThinkingContent("step 1\nstep 2", "step 1\nstep 2")).toBe("step 1\nstep 2");
+    expect(mergeThinkingContent("structured", "inline")).toBe("structured\n\ninline");
     expect(mergeThinkingContent("", "inline only")).toBe("inline only");
   });
 

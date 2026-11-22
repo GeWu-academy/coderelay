@@ -7,9 +7,7 @@ import { ScmView } from "./ScmView";
 
 describe("ScmView", () => {
   it("renders Source Control route in IconRail and ScmView with workspace, more menu trigger & empty state", () => {
-    const railHtml = renderToStaticMarkup(
-      <IconRail currentView="scm" onSelectView={() => {}} />,
-    );
+    const railHtml = renderToStaticMarkup(<IconRail currentView="scm" onSelectView={() => {}} />);
     expect(railHtml).toContain('aria-label="Source Control"');
     expect(railHtml).toContain("源码");
 

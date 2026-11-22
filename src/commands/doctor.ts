@@ -22,11 +22,7 @@ import {
 } from "../models/install-guide";
 import { parseModelRef } from "../models/types";
 import { resolveCommand } from "../runtime/process";
-import {
-  isDirOnPath,
-  standardInstallDirs,
-  userInstallDirs,
-} from "../scanner/candidate-paths";
+import { isDirOnPath, standardInstallDirs, userInstallDirs } from "../scanner/candidate-paths";
 import { scanCodingClis, type ScannerOptions } from "../scanner/cli-scanner";
 
 export type DoctorStatus = "ok" | "warn" | "error";
@@ -87,11 +83,7 @@ function hasModel(agent: Config["agents"][string], model: string): boolean {
   return agent.models.some((entry) => entry.id === model);
 }
 
-function modelCouldTargetAgent(
-  config: Config,
-  agentId: CliId,
-  model: string,
-): boolean {
+function modelCouldTargetAgent(config: Config, agentId: CliId, model: string): boolean {
   const agent = config.agents[agentId];
   if (!agent) {
     return true;
@@ -148,10 +140,7 @@ function platformLabel(platform: NodeJS.Platform): string {
   return platform;
 }
 
-function shellLabel(
-  platform: NodeJS.Platform,
-  env: NodeJS.ProcessEnv,
-): string {
+function shellLabel(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string {
   if (platform === "win32") {
     return env.PSModulePath ? "PowerShell" : "cmd";
   }
@@ -186,11 +175,7 @@ function environmentCheck(environment: DoctorEnvironment): DoctorCheck {
 
 function pathCheck(environment: DoctorEnvironment): DoctorCheck {
   const dirs = [
-    ...userInstallDirs(
-      environment.platform,
-      environment.homeDir,
-      environment.env,
-    ),
+    ...userInstallDirs(environment.platform, environment.homeDir, environment.env),
     ...standardInstallDirs(environment.platform, environment.homeDir),
   ];
   const unique: string[] = [];
@@ -200,9 +185,7 @@ function pathCheck(environment: DoctorEnvironment): DoctorCheck {
     }
   }
 
-  const onPath = unique.filter((dir) =>
-    isDirOnPath(dir, environment.platform, environment.env),
-  );
+  const onPath = unique.filter((dir) => isDirOnPath(dir, environment.platform, environment.env));
   if (onPath.length > 0) {
     return {
       name: "PATH",
@@ -250,9 +233,7 @@ function cliCheck(
         name,
         status: "error",
         message: `配置的 command 不存在：${availability.path ?? ""}`,
-        details: [
-          "修正 config 中的 agents." + id + ".command，或删除它改用自动探测。",
-        ],
+        details: ["修正 config 中的 agents." + id + ".command，或删除它改用自动探测。"],
       };
     }
 
@@ -274,9 +255,7 @@ function cliCheck(
     return {
       name,
       status,
-      message: required
-        ? "未安装（当前配置需要它）"
-        : "未安装（可选）",
+      message: required ? "未安装（当前配置需要它）" : "未安装（可选）",
       details: [
         ...diagnostics,
         "安装方式（复制到终端执行，coderelay 不会代跑）：",
@@ -314,10 +293,7 @@ function cliCheck(
       name,
       status: "warn",
       message: `已安装但不在当前 PATH · ${availability.version} · ${where}`,
-      details: [
-        `把 ${dir} 加入 PATH 并重新打开终端，就能在终端直接调用 ${id}。`,
-        ...diagnostics,
-      ],
+      details: [`把 ${dir} 加入 PATH 并重新打开终端，就能在终端直接调用 ${id}。`, ...diagnostics],
     };
   }
 
@@ -329,18 +305,14 @@ function cliCheck(
   };
 }
 
-function validateRules(
-  config: Config,
-  checks: DoctorCheck[],
-): void {
+function validateRules(config: Config, checks: DoctorCheck[]): void {
   config.routing.rules.forEach((rule, index) => {
     const label = `rule ${index + 1} (${rule.name})`;
     const requestedAgent = rule.use.agent;
 
     if (
       requestedAgent &&
-      (!isAgentId(requestedAgent) ||
-        config.agents[requestedAgent]?.enabled === false)
+      (!isAgentId(requestedAgent) || config.agents[requestedAgent]?.enabled === false)
     ) {
       checks.push({
         name: label,
@@ -513,10 +485,7 @@ export function buildDoctorReport(
         status: "error",
         message: "model id must not be empty",
       });
-    } else if (
-      reference.agent &&
-      reference.agent !== config.defaultAgent
-    ) {
+    } else if (reference.agent && reference.agent !== config.defaultAgent) {
       checks.push({
         name: "default model",
         status: "error",

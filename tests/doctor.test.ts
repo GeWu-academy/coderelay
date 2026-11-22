@@ -12,9 +12,7 @@ import type { CliId, DetectedCli } from "../src/models/cli";
 function checkNamed(report: DoctorReport, name: string): DoctorCheck {
   const found = report.checks.find((check) => check.name === name);
   if (!found) {
-    throw new Error(
-      `no check named ${name}; got ${report.checks.map((c) => c.name).join(", ")}`,
-    );
+    throw new Error(`no check named ${name}; got ${report.checks.map((c) => c.name).join(", ")}`);
   }
   return found;
 }
@@ -60,9 +58,7 @@ describe("environment and PATH checks", () => {
       env: { PATH: "C:\\Windows", PSModulePath: "C:\\Modules" },
     });
 
-    expect(checkNamed(report, "environment").message).toBe(
-      "Windows · PowerShell · 原生 Windows",
-    );
+    expect(checkNamed(report, "environment").message).toBe("Windows · PowerShell · 原生 Windows");
   });
 
   test("a PATH without any known install directory lists what it looked at", () => {

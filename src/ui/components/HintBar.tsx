@@ -3,13 +3,7 @@ import { Box, Text } from "ink";
 import { theme } from "../theme";
 
 export type HintContext =
-  | "scanning"
-  | "activating"
-  | "mode"
-  | "picker"
-  | "chat"
-  | "running"
-  | "detail";
+  "scanning" | "activating" | "mode" | "picker" | "chat" | "running" | "detail";
 
 export interface HintBarProps {
   readonly context: HintContext;
@@ -20,9 +14,7 @@ interface Hint {
   readonly label: string;
 }
 
-const HINTS: Readonly<
-  Record<Exclude<HintContext, "scanning">, readonly Hint[]>
-> = {
+const HINTS: Readonly<Record<Exclude<HintContext, "scanning">, readonly Hint[]>> = {
   activating: [
     { key: "↑↓", label: "移动" },
     { key: "space", label: "切换" },
@@ -60,22 +52,14 @@ const HINTS: Readonly<
  */
 export function HintBar({ context }: HintBarProps) {
   if (context === "scanning") {
-    return (
-      <Text color={theme.muted}>
-        扫描完成后自动进入选择，稍等一下。
-      </Text>
-    );
+    return <Text color={theme.muted}>扫描完成后自动进入选择，稍等一下。</Text>;
   }
 
   return (
     <Box flexDirection="row">
       {HINTS[context].map((hint, index) => (
         <Text key={hint.key}>
-          {index > 0 ? (
-            <Text color={theme.muted}>
-              {"  ·  "}
-            </Text>
-          ) : null}
+          {index > 0 ? <Text color={theme.muted}>{"  ·  "}</Text> : null}
           <Text bold color={theme.accent}>
             {hint.key}
           </Text>

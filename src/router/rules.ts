@@ -63,9 +63,7 @@ export function matchesFileGlob(pattern: string, filePath: string): boolean {
 
 function matchesAnyKeyword(prompt: string, keywords: readonly string[]): boolean {
   const normalizedPrompt = prompt.toLocaleLowerCase();
-  return keywords.some((keyword) =>
-    normalizedPrompt.includes(keyword.toLocaleLowerCase()),
-  );
+  return keywords.some((keyword) => normalizedPrompt.includes(keyword.toLocaleLowerCase()));
 }
 
 function matchesAnyPattern(prompt: string, patterns: readonly string[]): boolean {
@@ -81,35 +79,22 @@ function matchesLanguage(
   }
 
   const normalized = requestLanguage.toLocaleLowerCase();
-  return languages.some(
-    (language) => language.toLocaleLowerCase() === normalized,
-  );
+  return languages.some((language) => language.toLocaleLowerCase() === normalized);
 }
 
-function matchesFile(
-  request: RouteRequest,
-  patterns: readonly string[],
-): boolean {
+function matchesFile(request: RouteRequest, patterns: readonly string[]): boolean {
   const files = request.files ?? [];
-  return files.some((file) =>
-    patterns.some((pattern) => matchesFileGlob(pattern, file)),
-  );
+  return files.some((file) => patterns.some((pattern) => matchesFileGlob(pattern, file)));
 }
 
 /** Test all conditions in a rule; conditions are combined with AND. */
-export function matchesRule(
-  request: RouteRequest,
-  rule: RouteRule,
-): boolean {
+export function matchesRule(request: RouteRequest, rule: RouteRule): boolean {
   const when = rule.when;
   if (!when) {
     return true;
   }
 
-  if (
-    when.keywords &&
-    !matchesAnyKeyword(request.prompt, when.keywords)
-  ) {
+  if (when.keywords && !matchesAnyKeyword(request.prompt, when.keywords)) {
     return false;
   }
 
@@ -125,27 +110,18 @@ export function matchesRule(
     return false;
   }
 
-  if (
-    when.minPromptLength !== undefined &&
-    request.prompt.length < when.minPromptLength
-  ) {
+  if (when.minPromptLength !== undefined && request.prompt.length < when.minPromptLength) {
     return false;
   }
 
-  if (
-    when.maxPromptLength !== undefined &&
-    request.prompt.length > when.maxPromptLength
-  ) {
+  if (when.maxPromptLength !== undefined && request.prompt.length > when.maxPromptLength) {
     return false;
   }
 
   return true;
 }
 
-export function ruleMatchesCandidate(
-  rule: RouteRule,
-  candidate: RouteCandidate,
-): boolean {
+export function ruleMatchesCandidate(rule: RouteRule, candidate: RouteCandidate): boolean {
   if (rule.use.agent && rule.use.agent !== candidate.agent) {
     return false;
   }
@@ -163,10 +139,7 @@ function describeRule(rule: RouteRule): string {
 }
 
 /** Return matching rules ordered by descending priority. */
-export function matchRules(
-  request: RouteRequest,
-  rules: readonly RouteRule[],
-): RuleMatch[] {
+export function matchRules(request: RouteRequest, rules: readonly RouteRule[]): RuleMatch[] {
   return rules
     .map((rule, index) => ({ rule, index }))
     .filter(({ rule }) => matchesRule(request, rule))
@@ -182,7 +155,5 @@ export function matchRulesForCandidate(
   candidate: RouteCandidate,
   rules: readonly RouteRule[],
 ): RuleMatch[] {
-  return matchRules(request, rules).filter(({ rule }) =>
-    ruleMatchesCandidate(rule, candidate),
-  );
+  return matchRules(request, rules).filter(({ rule }) => ruleMatchesCandidate(rule, candidate));
 }

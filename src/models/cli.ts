@@ -12,11 +12,7 @@ export type CliId = (typeof CLI_IDS)[number];
 export type HostAgent = Extract<CliId, "claude" | "pi">;
 
 /** Version flags are attempted in this order for every CLI. */
-export const DEFAULT_VERSION_ARGS: readonly (readonly string[])[] = [
-  ["--version"],
-  ["-v"],
-  ["-V"],
-];
+export const DEFAULT_VERSION_ARGS: readonly (readonly string[])[] = [["--version"], ["-v"], ["-V"]];
 
 /** Static metadata shared by scanners and adapters. */
 export interface CliDefinition {
@@ -142,10 +138,7 @@ export interface CliAdapter {
   /** 非交互任务参数（含模型选择与原生恢复）。 */
   readonly buildPromptArgs?: (options: PromptBuildOptions) => readonly string[];
   /** 将原始 stdout/stderr 片段解析为统一事件。 */
-  readonly parseOutputChunk?: (
-    chunk: string,
-    source: "stdout" | "stderr",
-  ) => readonly AgentEvent[];
+  readonly parseOutputChunk?: (chunk: string, source: "stdout" | "stderr") => readonly AgentEvent[];
   readonly defaultModel?: () => string | undefined;
 }
 

@@ -109,8 +109,7 @@ function WaitingSnake({
 }
 
 function TurnBlock({ turn }: { readonly turn: SessionTurn }) {
-  const failed =
-    turn.signal !== null || (turn.exitCode !== null && turn.exitCode !== 0);
+  const failed = turn.signal !== null || (turn.exitCode !== null && turn.exitCode !== 0);
   const outputText = turn.output.trim() ? turn.output : "";
   const lines = outputText
     ? outputText.replace(/\s+$/, "").split("\n").slice(-TURN_OUTPUT_LINES)
@@ -129,11 +128,7 @@ function TurnBlock({ turn }: { readonly turn: SessionTurn }) {
         </Text>
       </Box>
       {lines.map((line, index) => (
-        <Text
-          key={index}
-          color={CLI_RESPONSE_COLOR}
-          wrap="truncate-end"
-        >
+        <Text key={index} color={CLI_RESPONSE_COLOR} wrap="truncate-end">
           {line === "" ? " " : line}
         </Text>
       ))}
@@ -141,7 +136,11 @@ function TurnBlock({ turn }: { readonly turn: SessionTurn }) {
         <Text color={failed ? theme.alert : theme.muted}>
           {`${failed ? "×" : "✓"} ${cliDisplayName(turn.cliId)}${turn.modelId ? `:${turn.modelId}` : ""} · exit ${turn.exitCode ?? "—"} · ${(turn.durationMs / 1_000).toFixed(1)}s`}
           {turn.signal ? ` · ${turn.signal}` : ""}
-          {turn.contextSource === "native" ? " · 原生会话" : turn.contextSource === "transcript" ? " · transcript 上下文" : ""}
+          {turn.contextSource === "native"
+            ? " · 原生会话"
+            : turn.contextSource === "transcript"
+              ? " · transcript 上下文"
+              : ""}
         </Text>
       </Box>
     </Box>
@@ -194,9 +193,7 @@ export function ChatView({
   return (
     <Box flexDirection="column" paddingX={2}>
       {tail.length > 0 ? (
-        <Text color={theme.muted}>
-          {`会话 · ${turns.length} 轮`}
-        </Text>
+        <Text color={theme.muted}>{`会话 · ${turns.length} 轮`}</Text>
       ) : (
         <>
           <Text>
@@ -205,9 +202,7 @@ export function ChatView({
               {agentName}
             </Text>
           </Text>
-          <Text color={theme.muted}>
-            写清目标和完成标准，接力会更稳。输入 / 查看命令。
-          </Text>
+          <Text color={theme.muted}>写清目标和完成标准，接力会更稳。输入 / 查看命令。</Text>
         </>
       )}
 
@@ -270,16 +265,10 @@ export function ChatView({
           <Text color={theme.muted}>{`  ${command.description}`}</Text>
         </Text>
       ))}
-      {notice ? (
-        <Text color={theme.muted}>
-          {notice}
-        </Text>
-      ) : null}
+      {notice ? <Text color={theme.muted}>{notice}</Text> : null}
 
       <Box marginTop={1}>
-        <Text color={theme.muted}>
-          {"─".repeat(Math.max(8, columns - 4))}
-        </Text>
+        <Text color={theme.muted}>{"─".repeat(Math.max(8, columns - 4))}</Text>
       </Box>
 
       <Box flexDirection="row">

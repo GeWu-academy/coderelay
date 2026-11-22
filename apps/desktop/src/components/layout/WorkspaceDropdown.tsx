@@ -20,9 +20,7 @@ export function WorkspaceDropdown({
   onSelectWorkspace,
   onPickWorkspace,
 }: WorkspaceDropdownProps) {
-  const workspaces = Array.from(
-    new Set([currentWorkspace, ...recentWorkspaces].filter(Boolean)),
-  );
+  const workspaces = Array.from(new Set([currentWorkspace, ...recentWorkspaces].filter(Boolean)));
 
   return (
     <div className="relative min-w-0 flex-1">

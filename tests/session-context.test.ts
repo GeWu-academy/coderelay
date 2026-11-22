@@ -42,10 +42,7 @@ describe("buildPromptWithContext", () => {
 
   test("caps oversized turn outputs to their tail", () => {
     const longOutput = "x".repeat(4_000);
-    const prompt = buildPromptWithContext(
-      [turn({ output: longOutput })],
-      "继续",
-    );
+    const prompt = buildPromptWithContext([turn({ output: longOutput })], "继续");
 
     expect(prompt).toContain("…");
     expect(prompt).toContain("x".repeat(1_500));

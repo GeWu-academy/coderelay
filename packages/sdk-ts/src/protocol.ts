@@ -259,12 +259,7 @@ export type AgentEvent =
   | FailedEvent
   | AbortedEvent;
 
-export type AgentRunStatus =
-  | "completed"
-  | "failed"
-  | "timeout"
-  | "aborted"
-  | "spawn-error";
+export type AgentRunStatus = "completed" | "failed" | "timeout" | "aborted" | "spawn-error";
 
 export interface AgentRunResult {
   status: AgentRunStatus;

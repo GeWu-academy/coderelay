@@ -215,7 +215,15 @@ export function isCliId(value: unknown): value is CliId {
   return (CLI_IDS as readonly unknown[]).includes(value);
 }
 
-export const WORKSPACE_VIEWS = ["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"] as const;
+export const WORKSPACE_VIEWS = [
+  "workspace",
+  "files",
+  "scm",
+  "sessions",
+  "stats",
+  "config",
+  "apikeys",
+] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
 export const GIT_SYNC_ACTIONS = [
@@ -830,4 +838,3 @@ export interface WorkbenchState {
   jevBusy: boolean;
   configNotice: string | null;
 }
-

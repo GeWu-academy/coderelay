@@ -28,10 +28,7 @@ export const CONFIG_FILE_NAMES = [
 export class ConfigError extends Error {
   readonly path?: string;
 
-  constructor(
-    message: string,
-    options: { path?: string; cause?: unknown } = {},
-  ) {
+  constructor(message: string, options: { path?: string; cause?: unknown } = {}) {
     super(message, { cause: options.cause });
     this.name = "ConfigError";
     this.path = options.path;
@@ -85,9 +82,7 @@ export function crossPlatformJoin(base: string, ...parts: string[]): string {
 
 /** Get directory name respecting platform style. */
 export function crossPlatformDirname(p: string): string {
-  return isWindowsStylePath(p)
-    ? path.win32.dirname(p)
-    : path.posix.dirname(p);
+  return isWindowsStylePath(p) ? path.win32.dirname(p) : path.posix.dirname(p);
 }
 
 /**
@@ -164,9 +159,7 @@ export async function findConfigPath(
 }
 
 /** Load and validate the config, falling back to defaults when allowed. */
-export async function loadConfig(
-  options: LoadConfigOptions = {},
-): Promise<LoadedConfig> {
+export async function loadConfig(options: LoadConfigOptions = {}): Promise<LoadedConfig> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const path = options.path
     ? resolve(options.path)
@@ -199,10 +192,10 @@ export async function loadConfig(
 
   const result = ConfigSchema.safeParse(parsed);
   if (!result.success) {
-    throw new ConfigError(
-      `invalid config in ${path}:\n${z.prettifyError(result.error)}`,
-      { path, cause: result.error },
-    );
+    throw new ConfigError(`invalid config in ${path}:\n${z.prettifyError(result.error)}`, {
+      path,
+      cause: result.error,
+    });
   }
 
   return { config: result.data, path, cwd, usedDefaults: false };
@@ -231,9 +224,7 @@ export function globalConfigDir(
 ): string {
   const explicit = env.CODERELAY_HOME?.trim();
   if (explicit && !homeDir) {
-    return explicit.endsWith(CONFIG_DIR)
-      ? explicit
-      : crossPlatformJoin(explicit, CONFIG_DIR);
+    return explicit.endsWith(CONFIG_DIR) ? explicit : crossPlatformJoin(explicit, CONFIG_DIR);
   }
   const base = resolveGlobalBaseDir(homeDir, env, platform);
   return crossPlatformJoin(base, CONFIG_DIR);

@@ -1,9 +1,5 @@
 import type { RouteRule } from "../config/schema";
-import type {
-  AgentId,
-  ModelCost,
-  ModelStrength,
-} from "../models/types";
+import type { AgentId, ModelCost, ModelStrength } from "../models/types";
 
 export type RoutingStrategy = "rules" | "score" | "hybrid" | "jev";
 export type RoutingMode = "local" | "manual" | "jev";

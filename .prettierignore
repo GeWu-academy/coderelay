@@ -1,0 +1,23 @@
+# Dependencies & lockfiles
+node_modules
+bun.lock
+Cargo.lock
+
+# Build outputs
+dist
+out
+coverage
+target
+apps/desktop/dist
+apps/desktop/src-tauri
+
+# Generated & local files
+assets
+docs
+.claude
+.cursor
+.coderelay
+.tmp
+scripts/*
+!scripts/check-versions.ts
+*.md

@@ -29,10 +29,7 @@ import {
 import { probeVersion } from "./version-probe";
 
 export type FileAccess = (path: string, mode?: number) => Promise<void>;
-export type FileRead = (
-  path: string,
-  encoding: BufferEncoding,
-) => Promise<string>;
+export type FileRead = (path: string, encoding: BufferEncoding) => Promise<string>;
 export type DirRead = (path: string) => Promise<string[]>;
 
 export interface ScannerOptions {
@@ -75,9 +72,7 @@ const defaultExecFile: ExecFileRunner = async (file, args, options = {}) => {
   };
 };
 
-function resolveScannerOptions(
-  options: ScannerOptions = {},
-): ResolvedScannerOptions {
+function resolveScannerOptions(options: ScannerOptions = {}): ResolvedScannerOptions {
   const platform = options.platform ?? process.platform;
   return {
     execFile: options.execFile ?? defaultExecFile,
@@ -106,15 +101,8 @@ function dirNameOf(filePath: string, platform: NodeJS.Platform): string {
 }
 
 /** Is the directory holding `filePath` reachable from the current shell? */
-function isFileReachableFromShell(
-  filePath: string,
-  resolved: ResolvedScannerOptions,
-): boolean {
-  return isDirOnPath(
-    dirNameOf(filePath, resolved.platform),
-    resolved.platform,
-    resolved.env,
-  );
+function isFileReachableFromShell(filePath: string, resolved: ResolvedScannerOptions): boolean {
+  return isDirOnPath(dirNameOf(filePath, resolved.platform), resolved.platform, resolved.env);
 }
 
 /**
@@ -134,11 +122,7 @@ async function resolveAllOnPath(
   };
 
   try {
-    const { stdout } = await resolved.execFile(
-      lookupCommand,
-      [bin],
-      requestOptions,
-    );
+    const { stdout } = await resolved.execFile(lookupCommand, [bin], requestOptions);
     const found = lines(stdout);
     if (found.length > 0) {
       return found;
@@ -152,11 +136,7 @@ async function resolveAllOnPath(
   }
 
   try {
-    const { stdout } = await resolved.execFile(
-      "sh",
-      ["-lc", `command -v ${bin}`],
-      requestOptions,
-    );
+    const { stdout } = await resolved.execFile("sh", ["-lc", `command -v ${bin}`], requestOptions);
     return lines(stdout);
   } catch {
     return [];
@@ -221,9 +201,7 @@ export async function getWindowsClaudeFallback(
  * Read the CLI executable path from CODEX_CLI_PATH environment variable,
  * or standard app bundles on macOS.
  */
-export async function getCodexConfigFallback(
-  options: ScannerOptions = {},
-): Promise<string | null> {
+export async function getCodexConfigFallback(options: ScannerOptions = {}): Promise<string | null> {
   const resolved = resolveScannerOptions(options);
 
   const envCliPath = resolved.env.CODEX_CLI_PATH?.trim();
@@ -275,19 +253,11 @@ export async function getUnixClaudeVersionFallback(
     return null;
   }
 
-  const versionsDir = path.posix.join(
-    resolved.homeDir,
-    ".local",
-    "share",
-    "claude",
-    "versions",
-  );
+  const versionsDir = path.posix.join(resolved.homeDir, ".local", "share", "claude", "versions");
 
   try {
     const entries = await resolved.readdir(versionsDir);
-    const sorted = [...entries].sort((a, b) =>
-      b.localeCompare(a, undefined, { numeric: true }),
-    );
+    const sorted = [...entries].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
     for (const entry of sorted) {
       const candidate = path.posix.join(versionsDir, entry);
       try {
@@ -322,8 +292,7 @@ async function probePackageBinDirs(
       source: "npm",
       // npm keeps executables in <prefix>/bin on Unix, directly in <prefix>
       // on Windows (the .cmd shims live there too).
-      toDir: (stdout) =>
-        resolved.platform === "win32" ? stdout : `${stdout}/bin`,
+      toDir: (stdout) => (resolved.platform === "win32" ? stdout : `${stdout}/bin`),
     },
     {
       command: "bun",
@@ -378,10 +347,7 @@ interface LocalCandidate {
   readonly source: CliSource;
 }
 
-async function accessible(
-  candidate: string,
-  resolved: ResolvedScannerOptions,
-): Promise<boolean> {
+async function accessible(candidate: string, resolved: ResolvedScannerOptions): Promise<boolean> {
   try {
     await resolved.access(candidate, constants.X_OK);
     return true;
@@ -469,12 +435,7 @@ async function collectLocalCandidates(
 
   const inDirs = dedupePaths(
     directories.flatMap((entry) =>
-      candidatePathsInDir(
-        entry.dir,
-        definition.bin,
-        resolved.platform,
-        resolved.env,
-      ),
+      candidatePathsInDir(entry.dir, definition.bin, resolved.platform, resolved.env),
     ),
     resolved.platform,
   );
@@ -519,9 +480,7 @@ async function toLocalCandidates(
   );
 }
 
-function selectedFrom(
-  candidates: readonly CliCandidate[],
-): CliCandidate | null {
+function selectedFrom(candidates: readonly CliCandidate[]): CliCandidate | null {
   return candidates[0] ?? null;
 }
 
@@ -569,20 +528,10 @@ async function scanCli(
   packageDirs: readonly InstallDir[],
 ): Promise<DetectedCli> {
   const searchedDirs: string[] = [];
-  const local = await collectLocalCandidates(
-    definition,
-    resolved,
-    packageDirs,
-    searchedDirs,
-  );
+  const local = await collectLocalCandidates(definition, resolved, packageDirs, searchedDirs);
   const candidates = await toLocalCandidates(local, resolved);
   const selected = selectedFrom(candidates);
-  const diagnostics = buildDiagnostics(
-    definition,
-    resolved,
-    selected,
-    searchedDirs,
-  );
+  const diagnostics = buildDiagnostics(definition, resolved, selected, searchedDirs);
 
   if (!selected) {
     return {
@@ -612,9 +561,7 @@ async function scanCli(
 }
 
 /** Scan supported CLIs concurrently while preserving canonical result order. */
-export async function scanCodingClis(
-  options: ScannerOptions = {},
-): Promise<DetectedCli[]> {
+export async function scanCodingClis(options: ScannerOptions = {}): Promise<DetectedCli[]> {
   const resolved = resolveScannerOptions(options);
 
   // Resolved once per scan and shared by every CLI: package manager lookups
@@ -622,16 +569,12 @@ export async function scanCodingClis(
   const packageDirs = await probePackageBinDirs(resolved);
 
   return Promise.all(
-    CLI_DEFINITIONS.map((definition) =>
-      scanCli(definition, resolved, packageDirs),
-    ),
+    CLI_DEFINITIONS.map((definition) => scanCli(definition, resolved, packageDirs)),
   );
 }
 
 /** Detect one of the runtime host markers documented for Claude Code and Pi. */
-export function detectHostAgent(
-  env: NodeJS.ProcessEnv = process.env,
-): HostAgent | null {
+export function detectHostAgent(env: NodeJS.ProcessEnv = process.env): HostAgent | null {
   if (env.CLAUDECODE === "1" || env.CLAUDE_CODE_CHILD_SESSION === "1") {
     return "claude";
   }

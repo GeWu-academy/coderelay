@@ -74,10 +74,7 @@ interface RunState {
 }
 
 export type EventListener = (event: AgentEvent, envelope: EventEnvelope) => void;
-export type RunCompletedListener = (
-  result: AgentRunResult,
-  envelope: RunCompletedEnvelope,
-) => void;
+export type RunCompletedListener = (result: AgentRunResult, envelope: RunCompletedEnvelope) => void;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -407,7 +404,9 @@ export class CoderelayClient {
         const details = stderrTail.trim();
         this.disconnect(
           host,
-          new Error(`CodeRelay host exited (${code ?? proc.signalCode ?? "unknown"})${details ? `: ${details}` : ""}`),
+          new Error(
+            `CodeRelay host exited (${code ?? proc.signalCode ?? "unknown"})${details ? `: ${details}` : ""}`,
+          ),
         );
       });
       this.startPromise = Promise.resolve();
@@ -457,7 +456,9 @@ export class CoderelayClient {
         const details = stderrTail.trim();
         this.disconnect(
           host,
-          new Error(`CodeRelay host exited (${code ?? signal ?? "unknown"})${details ? `: ${details}` : ""}`),
+          new Error(
+            `CodeRelay host exited (${code ?? signal ?? "unknown"})${details ? `: ${details}` : ""}`,
+          ),
         );
       };
       const scheduleExitFallback = (delayMs: number) => {
@@ -551,9 +552,7 @@ export class CoderelayClient {
     return this.request<string[]>(METHODS.listRecentWorkspaces, { limit });
   }
 
-  listSessions(
-    options: { workspace?: string; limit?: number } = {},
-  ): Promise<SessionRecord[]> {
+  listSessions(options: { workspace?: string; limit?: number } = {}): Promise<SessionRecord[]> {
     return this.request<SessionRecord[]>(METHODS.listSessions, options);
   }
 
@@ -676,9 +675,7 @@ export class CoderelayClient {
     }
     this.pending.delete(parsed.requestId);
     clearTimeout(pending.timer);
-    if (
-      parsed.protocolVersion !== PROTOCOL_VERSION
-    ) {
+    if (parsed.protocolVersion !== PROTOCOL_VERSION) {
       pending.reject(
         new CoderelayProtocolError({
           code: "unsupportedVersion",

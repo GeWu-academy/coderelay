@@ -4,16 +4,11 @@ import { tokenColor, tokenizeCodeLines } from "./codeHighlight";
 
 describe("codeHighlight syntax tokenizer", () => {
   it("tokenizes TypeScript keywords, types, functions, strings, numbers, and comments", () => {
-    const lines = [
-      "// greeting helper",
-      'const count: number = computeTotal("items", 42);',
-    ];
+    const lines = ["// greeting helper", 'const count: number = computeTotal("items", 42);'];
     const tokenized = tokenizeCodeLines(lines, "ts");
 
     expect(tokenized).toHaveLength(2);
-    expect(tokenized[0]).toEqual([
-      { text: "// greeting helper", type: "comment" },
-    ]);
+    expect(tokenized[0]).toEqual([{ text: "// greeting helper", type: "comment" }]);
 
     const line2 = tokenized[1] ?? [];
     expect(line2.some((t) => t.text === "const" && t.type === "keyword")).toBe(true);
@@ -24,23 +19,16 @@ describe("codeHighlight syntax tokenizer", () => {
   });
 
   it("tracks multi-line block comments across lines", () => {
-    const lines = [
-      "/* start comment",
-      "   still inside comment */ const x = 1;",
-    ];
+    const lines = ["/* start comment", "   still inside comment */ const x = 1;"];
     const tokenized = tokenizeCodeLines(lines, "rs");
     const line2 = tokenized[1] ?? [];
 
-    expect(tokenized[0]).toEqual([
-      { text: "/* start comment", type: "comment" },
-    ]);
+    expect(tokenized[0]).toEqual([{ text: "/* start comment", type: "comment" }]);
     expect(line2[0]).toEqual({
       text: "   still inside comment */",
       type: "comment",
     });
-    expect(
-      line2.some((t) => t.text === "const" && t.type === "keyword"),
-    ).toBe(true);
+    expect(line2.some((t) => t.text === "const" && t.type === "keyword")).toBe(true);
   });
 
   it("supports hash comments in Python/YAML and property keys in JSON", () => {
@@ -50,9 +38,7 @@ describe("codeHighlight syntax tokenizer", () => {
 
     const json = tokenizeCodeLines(['  "timeoutMs": 3000'], "json");
     const jsonLine = json[0] ?? [];
-    expect(
-      jsonLine.some((t) => t.text === '"timeoutMs"' && t.type === "property"),
-    ).toBe(true);
+    expect(jsonLine.some((t) => t.text === '"timeoutMs"' && t.type === "property")).toBe(true);
     expect(jsonLine.some((t) => t.text === "3000" && t.type === "number")).toBe(true);
   });
 

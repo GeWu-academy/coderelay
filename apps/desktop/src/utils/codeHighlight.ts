@@ -1,15 +1,7 @@
 import type { CodeThemePalette } from "../types";
 
 export type CodeTokenType =
-  | "plain"
-  | "keyword"
-  | "string"
-  | "comment"
-  | "number"
-  | "type"
-  | "func"
-  | "operator"
-  | "property";
+  "plain" | "keyword" | "string" | "comment" | "number" | "type" | "func" | "operator" | "property";
 
 export interface CodeToken {
   readonly text: string;
@@ -187,12 +179,7 @@ const PRIMITIVE_TYPES = new Set([
 ]);
 
 function isWordStart(ch: string): boolean {
-  return (
-    (ch >= "a" && ch <= "z") ||
-    (ch >= "A" && ch <= "Z") ||
-    ch === "_" ||
-    ch === "$"
-  );
+  return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch === "_" || ch === "$";
 }
 
 function isWordChar(ch: string): boolean {
@@ -320,10 +307,7 @@ export function tokenizeCodeLines(
       // Numbers
       if (isDigit(ch) || (ch === "." && isDigit(next))) {
         let endIdx = i + 1;
-        while (
-          endIdx < line.length &&
-          /[0-9a-fA-FxXbBoO._]/.test(line.charAt(endIdx))
-        ) {
+        while (endIdx < line.length && /[0-9a-fA-FxXbBoO._]/.test(line.charAt(endIdx))) {
           endIdx += 1;
         }
         pushToken(tokens, line.slice(i, endIdx), "number");
@@ -355,11 +339,7 @@ export function tokenizeCodeLines(
           tokenType = "func";
         } else if (isYamlLike && afterChar === ":") {
           tokenType = "property";
-        } else if (
-          firstWordChar >= "A" &&
-          firstWordChar <= "Z" &&
-          /[a-z]/.test(word)
-        ) {
+        } else if (firstWordChar >= "A" && firstWordChar <= "Z" && /[a-z]/.test(word)) {
           tokenType = "type";
         }
 
@@ -393,10 +373,7 @@ export function tokenizeCodeLines(
 /**
  * Resolve the display color for a syntax token under the given palette.
  */
-export function tokenColor(
-  type: CodeTokenType,
-  palette: CodeThemePalette,
-): string {
+export function tokenColor(type: CodeTokenType, palette: CodeThemePalette): string {
   switch (type) {
     case "keyword":
       return palette.keyword;

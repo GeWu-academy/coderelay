@@ -3,11 +3,7 @@ import { mkdirSync } from "node:fs";
 
 import { Database } from "bun:sqlite";
 
-import {
-  crossPlatformDirname,
-  crossPlatformJoin,
-  globalConfigDir,
-} from "../config/loader";
+import { crossPlatformDirname, crossPlatformJoin, globalConfigDir } from "../config/loader";
 import { CLI_IDS, type CliId } from "../models/cli";
 import type {
   SessionRecord,
@@ -79,8 +75,7 @@ interface TurnRow {
 
 export const SCHEMA_VERSION = 2;
 
-const SESSION_COLUMNS =
-  "id, cli_id, title, created_at, updated_at, workspace";
+const SESSION_COLUMNS = "id, cli_id, title, created_at, updated_at, workspace";
 const TURN_COLUMNS =
   "id, session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at, model_id, protocol, reused_native, status, event_summary, context_source";
 
@@ -160,9 +155,7 @@ function asTurnStatus(value: string | null | undefined): TurnRunStatus | undefin
 }
 
 function asContextSource(value: string | null | undefined): TurnContextSource | undefined {
-  return value === "native" || value === "transcript" || value === "none"
-    ? value
-    : undefined;
+  return value === "native" || value === "transcript" || value === "none" ? value : undefined;
 }
 
 function rowToTurn(row: TurnRow): SessionTurn {
@@ -178,18 +171,17 @@ function rowToTurn(row: TurnRow): SessionTurn {
     createdAt: row.created_at,
     modelId: row.model_id ?? undefined,
     protocol: row.protocol === "structured" || row.protocol === "text" ? row.protocol : undefined,
-    reusedNative: row.reused_native === null || row.reused_native === undefined
-      ? undefined
-      : row.reused_native === 1,
+    reusedNative:
+      row.reused_native === null || row.reused_native === undefined
+        ? undefined
+        : row.reused_native === 1,
     status: asTurnStatus(row.status),
     eventSummary: row.event_summary ?? undefined,
     contextSource: asContextSource(row.context_source),
   };
 }
 
-const SESSION_MIGRATIONS: readonly string[] = [
-  "ALTER TABLE sessions ADD COLUMN workspace TEXT",
-];
+const SESSION_MIGRATIONS: readonly string[] = ["ALTER TABLE sessions ADD COLUMN workspace TEXT"];
 
 const TURN_MIGRATIONS: readonly string[] = [
   "ALTER TABLE turns ADD COLUMN model_id TEXT",
@@ -218,10 +210,7 @@ export function isDuplicateColumnError(err: unknown, column?: string): boolean {
   return new RegExp(`duplicate column name:\\s*["'\`\\[]?${column}\\b`, "i").test(message);
 }
 
-export function applyColumnMigration(
-  db: { exec: (sql: string) => void },
-  sql: string,
-): void {
+export function applyColumnMigration(db: { exec: (sql: string) => void }, sql: string): void {
   const column = extractColumnName(sql);
   try {
     db.exec(sql);
@@ -399,10 +388,7 @@ export function createSessionStore(dbPath: string): SessionStore {
   db.exec("PRAGMA journal_mode = WAL;");
   initializeSchema(db);
 
-  const insertSession = db.query<
-    unknown,
-    [string, string, string, number, number, string | null]
-  >(
+  const insertSession = db.query<unknown, [string, string, string, number, number, string | null]>(
     `INSERT INTO sessions (${SESSION_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?)`,
   );
   const selectSession = db.query<SessionRow, [string]>(
@@ -451,9 +437,7 @@ export function createSessionStore(dbPath: string): SessionStore {
   >(
     "INSERT INTO turns (session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at, model_id, protocol, reused_native, status, event_summary, context_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
-  const selectTurn = db.query<TurnRow, [number]>(
-    `SELECT ${TURN_COLUMNS} FROM turns WHERE id = ?`,
-  );
+  const selectTurn = db.query<TurnRow, [number]>(`SELECT ${TURN_COLUMNS} FROM turns WHERE id = ?`);
   const selectTurns = db.query<TurnRow, [string]>(
     `SELECT ${TURN_COLUMNS} FROM turns WHERE session_id = ? ORDER BY id ASC`,
   );
@@ -479,29 +463,27 @@ export function createSessionStore(dbPath: string): SessionStore {
       return selectSession.get(id);
     },
   );
-  const appendTurnTx = db.transaction(
-    (input: AppendTurnInput, now: number): TurnRow | null => {
-      const result = insertTurn.run(
-        input.sessionId,
-        input.cliId,
-        input.prompt,
-        input.output,
-        input.exitCode,
-        input.signal,
-        input.durationMs,
-        now,
-        input.modelId ?? null,
-        input.protocol ?? null,
-        input.reusedNative === undefined ? null : input.reusedNative ? 1 : 0,
-        input.status ?? null,
-        input.eventSummary ?? null,
-        input.contextSource ?? null,
-      );
-      touchSession.run(now, input.sessionId);
-      touchWorkspaceForSession.run(now, input.sessionId);
-      return selectTurn.get(Number(result.lastInsertRowid));
-    },
-  );
+  const appendTurnTx = db.transaction((input: AppendTurnInput, now: number): TurnRow | null => {
+    const result = insertTurn.run(
+      input.sessionId,
+      input.cliId,
+      input.prompt,
+      input.output,
+      input.exitCode,
+      input.signal,
+      input.durationMs,
+      now,
+      input.modelId ?? null,
+      input.protocol ?? null,
+      input.reusedNative === undefined ? null : input.reusedNative ? 1 : 0,
+      input.status ?? null,
+      input.eventSummary ?? null,
+      input.contextSource ?? null,
+    );
+    touchSession.run(now, input.sessionId);
+    touchWorkspaceForSession.run(now, input.sessionId);
+    return selectTurn.get(Number(result.lastInsertRowid));
+  });
 
   const selectPreference = db.query<{ value: string }, [string]>(
     "SELECT value FROM preferences WHERE key = ?",
@@ -510,9 +492,7 @@ export function createSessionStore(dbPath: string): SessionStore {
     `INSERT INTO preferences (key, value, updated_at) VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
   );
-  const deletePreference = db.query<unknown, [string]>(
-    "DELETE FROM preferences WHERE key = ?",
-  );
+  const deletePreference = db.query<unknown, [string]>("DELETE FROM preferences WHERE key = ?");
 
   return {
     createSession(cliId, title, workspace = process.cwd()) {
