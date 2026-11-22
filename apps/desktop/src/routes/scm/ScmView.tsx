@@ -614,7 +614,14 @@ export function ScmView({
                 title="Fetch (--prune)"
                 type="button"
               >
-                <RefreshIcon size={14} />
+                <RefreshIcon
+                  className={
+                    busyAction === "fetch"
+                      ? "origin-center animate-spin [animation-duration:750ms]"
+                      : ""
+                  }
+                  size={14}
+                />
               </button>
               <button
                 aria-label="Pull"
@@ -1017,11 +1024,13 @@ export function ScmView({
                 <button
                   aria-busy={isSyncing}
                   className={`relative mt-1.5 flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-[7px] px-3 py-1.5 text-xs font-medium transition-all ${
-                    isSyncing ? "cursor-wait opacity-90" : "disabled:opacity-40"
+                    isSyncing ? "cursor-wait" : "disabled:opacity-40"
                   } ${
                     highlightSync
                       ? "bg-ink text-canvas hover:opacity-90"
-                      : "border border-line bg-surface text-ink hover:bg-surface-subtle"
+                      : isSyncing
+                        ? "border border-line-strong bg-surface-subtle text-ink"
+                        : "border border-line bg-surface text-ink hover:bg-surface-subtle"
                   }`}
                   disabled={Boolean(busyAction) || status.detached}
                   onClick={() => handleSync("sync")}
@@ -1035,24 +1044,39 @@ export function ScmView({
                   type="button"
                 >
                   {isSyncing ? (
-                    <motion.span
-                      animate={{ x: ["-25%", "225%"] }}
-                      aria-hidden="true"
-                      className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 -skew-x-12 ${
-                        highlightSync
-                          ? "bg-gradient-to-r from-transparent via-canvas/25 to-transparent"
-                          : "bg-gradient-to-r from-transparent via-ink/15 to-transparent"
-                      }`}
-                      initial={{ x: "-25%" }}
-                      transition={{
-                        duration: 0.75,
-                        ease: "linear",
-                        repeat: Infinity,
-                      }}
-                    />
+                    <>
+                      <motion.span
+                        animate={{ x: ["-100%", "260%"] }}
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 -skew-x-12 ${
+                          highlightSync
+                            ? "bg-gradient-to-r from-transparent via-canvas/25 to-transparent"
+                            : "bg-gradient-to-r from-transparent via-ink/12 to-transparent"
+                        }`}
+                        initial={{ x: "-100%" }}
+                        transition={{
+                          duration: 1.1,
+                          ease: "easeInOut",
+                          repeat: Infinity,
+                        }}
+                      />
+                      <motion.span
+                        animate={{ x: ["-100%", "260%"] }}
+                        aria-hidden="true"
+                        className={`pointer-events-none absolute bottom-0 left-0 h-[2px] w-2/5 rounded-full ${
+                          highlightSync ? "bg-canvas/70" : "bg-ink/45"
+                        }`}
+                        initial={{ x: "-100%" }}
+                        transition={{
+                          duration: 1.1,
+                          ease: "easeInOut",
+                          repeat: Infinity,
+                        }}
+                      />
+                    </>
                   ) : null}
                   <RefreshIcon
-                    className={`relative z-10 ${isSyncing ? "animate-[spin_0.7s_linear_infinite]" : ""}`.trim()}
+                    className={`relative z-10 origin-center ${isSyncing ? "animate-spin [animation-duration:750ms]" : ""}`.trim()}
                     size={13}
                   />
                   <span className="relative z-10">{syncLabel}</span>

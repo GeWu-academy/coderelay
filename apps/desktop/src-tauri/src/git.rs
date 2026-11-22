@@ -952,8 +952,7 @@ fn push_branch_with_upstream(repo_root: &Path) -> Result<(String, String), Strin
     Ok((branch, out))
 }
 
-#[tauri::command]
-pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
+fn git_sync_blocking(request: GitSyncRequest) -> Result<GitActionResult, String> {
     let repo_root = require_git_repo_root(request.cwd)?;
     let action = request.action.trim();
     let (out, fallback_message) = match action {
@@ -1015,6 +1014,13 @@ pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
             out.trim().to_owned()
         },
     })
+}
+
+#[tauri::command]
+pub async fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
+    tauri::async_runtime::spawn_blocking(move || git_sync_blocking(request))
+        .await
+        .map_err(|err| format!("同步远程分支任务失败: {err}"))?
 }
 
 pub fn derive_clone_dir_name(url: &str) -> String {
