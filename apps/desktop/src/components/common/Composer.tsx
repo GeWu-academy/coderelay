@@ -7,12 +7,12 @@ import {
   type ReactNode,
 } from "react";
 
-import type { AgentEntry, AgentPermissions, ModelOption } from "../types";
+import type { AgentEntry, AgentPermissions, ModelOption } from "../../types";
 import {
   formatModeLabel,
   getAvailableModelsForCli,
   resolveRouteSelection,
-} from "../utils";
+} from "../../utils";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -21,7 +21,7 @@ import {
   ShieldIcon,
   StopIcon,
   TerminalIcon,
-} from "./icons";
+} from "../icons";
 
 export interface ComposerProps {
   compact?: boolean;

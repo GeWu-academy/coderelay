@@ -1,7 +1,8 @@
 import type { ComponentType } from "react";
 import { LayoutGroup } from "motion/react";
 
-import type { WorkspaceView } from "../types";
+import type { WorkspaceView } from "../../types";
+import { LiquidRouteIndicator } from "../common/LiquidRouteIndicator";
 import {
   FilesIcon,
   GitBranchIcon,
@@ -11,8 +12,7 @@ import {
   KeyIcon,
   SettingsIcon,
   StatsIcon,
-} from "./icons";
-import { LiquidRouteIndicator } from "./LiquidRouteIndicator";
+} from "../icons";
 
 export interface IconRailProps {
   currentView: WorkspaceView;

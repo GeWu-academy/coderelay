@@ -1,4 +1,4 @@
-import { useWorkbenchStore } from "../stores/workbenchStore";
+import { useWorkbenchStore } from "../../stores/workbenchStore";
 import { Composer } from "./Composer";
 
 export interface WorkbenchComposerProps {

@@ -5,10 +5,10 @@ import {
   isNewChatRouteActive,
   isSessionRouteActive,
   useNavigationStore,
-} from "../stores/navigationStore";
-import type { SessionRecord } from "../types";
-import { PanelLeftIcon, PlusIcon, RefreshIcon, TrashIcon } from "./icons";
-import { LiquidRouteIndicator } from "./LiquidRouteIndicator";
+} from "../../stores/navigationStore";
+import type { SessionRecord } from "../../types";
+import { LiquidRouteIndicator } from "../common/LiquidRouteIndicator";
+import { PanelLeftIcon, PlusIcon, RefreshIcon, TrashIcon } from "../icons";
 import { WorkspaceDropdown } from "./WorkspaceDropdown";
 
 export interface SidebarProps {

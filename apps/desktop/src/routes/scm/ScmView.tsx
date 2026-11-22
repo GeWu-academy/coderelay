@@ -2,15 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type {
-  GitActionResult,
-  GitBranchInfo,
-  GitDiffResult,
-  GitStatusEntry,
-  GitStatusResult,
-  GitSyncAction,
-} from "../types";
-import { messageOf, workspaceName } from "../utils";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -26,7 +17,16 @@ import {
   SparkleIcon,
   TrashIcon,
   UndoIcon,
-} from "./icons";
+} from "../../components/icons";
+import type {
+  GitActionResult,
+  GitBranchInfo,
+  GitDiffResult,
+  GitStatusEntry,
+  GitStatusResult,
+  GitSyncAction,
+} from "../../types";
+import { messageOf, workspaceName } from "../../utils";
 
 export interface ScmViewProps {
   workspaceInput: string;

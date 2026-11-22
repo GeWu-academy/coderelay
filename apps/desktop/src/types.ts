@@ -208,6 +208,13 @@ export interface RouteForm {
   permission: string;
 }
 
+export const CLI_IDS = ["codex", "claude", "pi", "omp"] as const;
+export type CliId = (typeof CLI_IDS)[number];
+
+export function isCliId(value: unknown): value is CliId {
+  return (CLI_IDS as readonly unknown[]).includes(value);
+}
+
 export const WORKSPACE_VIEWS = ["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 

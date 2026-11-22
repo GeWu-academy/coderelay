@@ -4,8 +4,8 @@ import { useState } from "react";
 import {
   countThinkingLines,
   summarizeThinkingLine,
-} from "../utils/thinking";
-import { ChevronDownIcon, ChevronRightIcon } from "./icons";
+} from "../../utils/thinking";
+import { ChevronDownIcon, ChevronRightIcon } from "../icons";
 
 export interface ThinkingBarProps {
   thinking: string;

@@ -1,6 +1,6 @@
-import type { RightPanelMode } from "../stores/navigationStore";
-import type { AgentEntry } from "../types";
-import { AgentsIcon, TerminalIcon } from "./icons";
+import type { RightPanelMode } from "../../stores/navigationStore";
+import type { AgentEntry } from "../../types";
+import { AgentsIcon, CliIcon, TerminalIcon } from "../icons";
 import { TerminalPanel } from "./TerminalPanel";
 
 export interface RightSidebarProps {
@@ -84,12 +84,17 @@ export function RightSidebar({
 
               return (
                 <button
-                  className={`relative flex w-full items-center rounded-lg px-2.5 py-2 text-left transition-colors duration-140 ${toneClass}`}
+                  className={`relative flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-140 ${toneClass}`}
                   key={agent.id}
                   onClick={() => onSelectAgent(agent)}
                   title={agent.version ?? agent.command}
                   type="button"
                 >
+                  <CliIcon
+                    className={agent.available ? "" : "opacity-70"}
+                    cliId={agent.id}
+                    size={15}
+                  />
                   <span className="flex min-w-0 flex-col">
                     <strong className="truncate text-xs font-medium">{agent.label}</strong>
                   </span>

@@ -1,19 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, type ReactNode } from "react";
 
-import { ApiKeyView } from "./components/ApiKeyView";
-import { ConfigView } from "./components/ConfigView";
-import { FilesView } from "./components/FilesView";
-import { IconRail } from "./components/IconRail";
-import { RightSidebar } from "./components/RightSidebar";
-import { ScmView } from "./components/ScmView";
-import { SessionsView } from "./components/SessionsView";
-import { Sidebar } from "./components/Sidebar";
-import { StatsView } from "./components/StatsView";
-import { Titlebar } from "./components/Titlebar";
-import { WorkbenchComposer } from "./components/WorkbenchComposer";
-import { WorkspaceView } from "./components/WorkspaceView";
+import {
+  IconRail,
+  RightSidebar,
+  Sidebar,
+  Titlebar,
+  WorkbenchComposer,
+} from "./components";
 import { WorkbenchLayout } from "./layouts/WorkbenchLayout";
+import {
+  ApiKeyView,
+  ConfigView,
+  FilesView,
+  ScmView,
+  SessionsView,
+  StatsView,
+  WorkspaceView,
+} from "./routes";
 import { isConversationRouteActive, useNavigationStore } from "./stores/navigationStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useWorkbenchStore } from "./stores/workbenchStore";
@@ -101,9 +105,6 @@ export function App() {
           <FilesView
             key="files"
             workspaceInput={workspaceInput}
-            recentWorkspaces={recentWorkspaces}
-            onSelectWorkspace={selectWorkspace}
-            onDeleteWorkspace={(ws) => void removeWorkspace(ws)}
             onPickWorkspace={() => void pickWorkspace()}
           />
         );
@@ -166,6 +167,11 @@ export function App() {
       onExpandSidebar={() => setSidebarCollapsed(false)}
       titlebar={
         <Titlebar
+          workspaceInput={workspaceInput}
+          recentWorkspaces={recentWorkspaces}
+          onSelectWorkspace={selectWorkspace}
+          onDeleteWorkspace={(ws) => void removeWorkspace(ws)}
+          onPickWorkspace={() => void pickWorkspace()}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={isConversationRoute ? toggleSidebar : undefined}
           rightSidebarOpen={rightSidebarOpen}

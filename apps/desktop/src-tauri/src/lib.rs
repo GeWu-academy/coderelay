@@ -751,9 +751,6 @@ fn delete_workspace(app: AppHandle, request: DeleteWorkspaceRequest) -> Result<b
     }
     let removed = with_session_store(&app.state::<DesktopState>(), |store| {
         store
-            .delete_workspace_sessions(Some(trimmed))
-            .map_err(|error| error.to_string())?;
-        store
             .remove_recent_workspace(trimmed)
             .map_err(|error| error.to_string())
     })?;

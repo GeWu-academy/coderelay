@@ -1,6 +1,6 @@
 {
   "name": "@alkaidstart/coderelay-sdk",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "TypeScript client for the CodeRelay local agent control plane",
   "type": "module",
   "main": "./dist/index.js",

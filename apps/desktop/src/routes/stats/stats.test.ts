@@ -11,7 +11,7 @@ import {
   formatDisplayDate,
   getHeatmapLevel,
 } from "./stats";
-import type { AgentEntry, ModelOption, SessionRecord, SessionTurn } from "./types";
+import type { AgentEntry, ModelOption, SessionRecord, SessionTurn } from "../../types";
 
 const mockAgents: AgentEntry[] = [
   {
