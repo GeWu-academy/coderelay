@@ -337,4 +337,121 @@ describe("session store", () => {
       db.close();
     }
   });
+
+  test("fresh database exposes only normalized v2 tables and indexes", () => {
+    const path = tempDbPath();
+    const store = createSessionStore(path);
+    store.close();
+
+    const db = new Database(path);
+    try {
+      const version = db.query<{ user_version: number }, []>("PRAGMA user_version").get();
+      expect(version?.user_version).toBe(SCHEMA_VERSION);
+
+      const tables = db
+        .query<{ name: string }, []>(
+          "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name",
+        )
+        .all()
+        .map((row) => row.name);
+      expect(tables).toEqual(["preferences", "sessions", "turns", "workspaces"]);
+
+      const indexes = db
+        .query<{ name: string }, []>(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .all()
+        .map((row) => row.name);
+      expect(indexes).toEqual([
+        "idx_sessions_updated",
+        "idx_sessions_workspace_updated",
+        "idx_turns_session",
+        "idx_workspaces_updated",
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  test("migrates v1 database with orphan tables to v2 without data loss", () => {
+    const path = tempDbPath();
+    const legacy = new Database(path);
+    legacy.exec(`
+      CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        cli_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        workspace TEXT
+      );
+      CREATE TABLE turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL REFERENCES sessions(id),
+        cli_id TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        output TEXT NOT NULL DEFAULT '',
+        exit_code INTEGER,
+        signal TEXT,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        model_id TEXT,
+        protocol TEXT,
+        reused_native INTEGER,
+        status TEXT,
+        event_summary TEXT,
+        context_source TEXT
+      );
+      CREATE TABLE preferences (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE recent_workspaces (
+        workspace TEXT PRIMARY KEY,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE schema_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO schema_meta VALUES ('schema_version', '1');
+      INSERT INTO preferences VALUES ('favorite_agent', 'claude', 100);
+      INSERT INTO recent_workspaces VALUES ('/ws/empty-opened', 500);
+      INSERT INTO sessions VALUES ('s1', 'claude', 'Migrated session', 100, 400, '/ws/from-session');
+      INSERT INTO turns (
+        session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at,
+        model_id, protocol, reused_native, status, event_summary, context_source
+      ) VALUES (
+        's1', 'claude', 'p1', 'o1', 0, NULL, 250, 400,
+        'claude-sonnet-4', 'structured', 0, 'completed', 'done', 'transcript'
+      );
+    `);
+    legacy.close();
+
+    const store = createSessionStore(path);
+    expect(store.getFavoriteAgent()).toBe("claude");
+    expect(store.getRecentWorkspaces(10)).toEqual(["/ws/empty-opened", "/ws/from-session"]);
+    const turns = store.listTurns("s1");
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.modelId).toBe("claude-sonnet-4");
+    expect(turns[0]?.protocol).toBe("structured");
+    expect(turns[0]?.reusedNative).toBe(false);
+    expect(turns[0]?.status).toBe("completed");
+    expect(turns[0]?.eventSummary).toBe("done");
+    expect(turns[0]?.contextSource).toBe("transcript");
+    store.close();
+
+    const db = new Database(path);
+    try {
+      const orphans = db
+        .query<{ count: number }, []>(
+          "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('schema_meta', 'recent_workspaces')",
+        )
+        .get();
+      expect(orphans?.count).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
 });
