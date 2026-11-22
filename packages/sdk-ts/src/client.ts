@@ -314,25 +314,29 @@ export class CoderelayClient {
         }
       });
       let stderrTail = "";
-      const stderrDone = new Response(proc.stderr)
-        .text()
-        .then((text) => {
-          stderrTail = text.slice(-8_000);
-        })
-        .catch(() => {});
+      const stderrDone = readTextStream(proc.stderr, (chunk) => {
+        stderrTail = (stderrTail + chunk).slice(-8_000);
+      }).catch(() => {});
       void proc.exited.then(async (code) => {
         try {
           void Promise.resolve(proc.stdin.end?.()).catch(() => {});
         } catch {
           // ignore
         }
-        await Promise.race([
-          Promise.allSettled([stdoutDone, stderrDone]),
-          new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, 1_000);
-            timer.unref?.();
-          }),
-        ]);
+        let drainTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            Promise.allSettled([stdoutDone, stderrDone]),
+            new Promise<void>((resolve) => {
+              drainTimer = setTimeout(resolve, 1_000);
+              drainTimer.unref?.();
+            }),
+          ]);
+        } finally {
+          if (drainTimer) {
+            clearTimeout(drainTimer);
+          }
+        }
         if (stdoutBuffer.length > 0 && this.child === host) {
           this.handleLine(stdoutBuffer.replace(/\r$/, ""));
           stdoutBuffer = "";
