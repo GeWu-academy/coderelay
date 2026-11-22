@@ -20,10 +20,7 @@ export interface ActivationOption {
   readonly decided: boolean;
 }
 
-function detectedFor(
-  detected: readonly DetectedCli[],
-  id: CliId,
-): DetectedCli | undefined {
+function detectedFor(detected: readonly DetectedCli[], id: CliId): DetectedCli | undefined {
   return detected.find((item) => item.id === id);
 }
 

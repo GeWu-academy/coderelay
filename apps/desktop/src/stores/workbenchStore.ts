@@ -26,6 +26,7 @@ import {
   messageOf,
   resolveRouteSelection,
   sanitizePermission,
+  saveLastWorkspace,
   savePermission,
 } from "../utils";
 import { useNavigationStore } from "./navigationStore";
@@ -59,7 +60,7 @@ export interface WorkbenchStoreState {
   selectAgent: (agent: AgentEntry) => void;
   refreshRecentWorkspaces: () => Promise<void>;
   refreshSessions: () => Promise<SessionRecord[]>;
-  loadDiscovery: (cwd?: string) => Promise<void>;
+  loadDiscovery: (cwd?: string, options?: { fallbackOnFailure?: boolean }) => Promise<void>;
   openSession: (sessionId: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   deleteWorkspaceSessions: (workspace: string | null) => Promise<void>;
@@ -91,7 +92,10 @@ function syncPermissionForForm(workspace: string, form: RouteForm): RouteForm {
 
 function switchWorkspaceOptimistically(
   ws: string,
-  set: (partial: Partial<WorkbenchStoreState> | ((s: WorkbenchStoreState) => Partial<WorkbenchStoreState>)) => void,
+  set: (
+    partial:
+      Partial<WorkbenchStoreState> | ((s: WorkbenchStoreState) => Partial<WorkbenchStoreState>),
+  ) => void,
   loadDiscovery: (cwd?: string) => Promise<void>,
 ): void {
   const target = ws.trim();
@@ -100,6 +104,7 @@ function switchWorkspaceOptimistically(
     return;
   }
   currentWorkspace = target;
+  saveLastWorkspace(target);
   set((current) => ({
     workspaceInput: target,
     form: syncPermissionForForm(target, current.form),
@@ -127,11 +132,9 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
   workspaceInput: "",
   form: INITIAL_FORM,
 
-  setPrompt: (prompt) =>
-    set((current) => ({ form: { ...current.form, prompt } })),
+  setPrompt: (prompt) => set((current) => ({ form: { ...current.form, prompt } })),
 
-  setMode: (mode) =>
-    set((current) => ({ form: { ...current.form, mode } })),
+  setMode: (mode) => set((current) => ({ form: { ...current.form, mode } })),
 
   setAgentModel: (agentId, modelId) =>
     set((current) => ({
@@ -183,7 +186,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
     return sessions;
   },
 
-  loadDiscovery: async (cwd) => {
+  loadDiscovery: async (cwd, options) => {
     const requestId = ++discoveryRequestId;
     set({ loading: true, error: null });
     try {
@@ -209,6 +212,9 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
         return;
       }
       currentWorkspace = discovery.cwd;
+      if (discovery.cwd.trim()) {
+        saveLastWorkspace(discovery.cwd);
+      }
       set((current) => {
         const resolved = resolveRouteSelection(
           current.form,
@@ -228,10 +234,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
           runtime,
           discovery,
           sessions,
-          recentWorkspaces: mergeRecentWorkspaces(
-            discovery.cwd,
-            discovery.recentWorkspaces,
-          ),
+          recentWorkspaces: mergeRecentWorkspaces(discovery.cwd, discovery.recentWorkspaces),
           sessionDetail: null,
           loading: false,
           error: null,
@@ -239,6 +242,11 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
       });
     } catch (error) {
       if (requestId !== discoveryRequestId) {
+        return;
+      }
+      if (options?.fallbackOnFailure && cwd?.trim()) {
+        saveLastWorkspace("");
+        await get().loadDiscovery(undefined);
         return;
       }
       set({
@@ -252,10 +260,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
     try {
       const detail = await invoke<SessionDetail>("get_session", { sessionId });
       const navigation = useNavigationStore.getState();
-      if (
-        navigation.view !== "workspace" ||
-        navigation.activeSessionId !== sessionId
-      ) {
+      if (navigation.view !== "workspace" || navigation.activeSessionId !== sessionId) {
         return;
       }
       navigation.setActiveSessionId(sessionId);
@@ -265,10 +270,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
       });
     } catch (error) {
       const navigation = useNavigationStore.getState();
-      if (
-        navigation.view !== "workspace" ||
-        navigation.activeSessionId !== sessionId
-      ) {
+      if (navigation.view !== "workspace" || navigation.activeSessionId !== sessionId) {
         return;
       }
       set({ error: messageOf(error) });
@@ -310,6 +312,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
     const wasCurrent = currentWorkspace === trimmed;
     if (wasCurrent) {
       currentWorkspace = "";
+      saveLastWorkspace("");
       set((current) => ({
         workspaceInput: "",
         form: syncPermissionForForm("", current.form),
@@ -440,8 +443,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
           permission:
             sanitizePermission(
               form.permission,
-              discovery?.permissions.find((item) => item.cliId === form.agent)
-                ?.options ?? [],
+              discovery?.permissions.find((item) => item.cliId === form.agent)?.options ?? [],
             ) || null,
           timeoutMs: null,
           sessionId: activeSessionId,

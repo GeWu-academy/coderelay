@@ -52,19 +52,11 @@ export function StageBar({ stage, focus, focusNote }: StageBarProps) {
   const stacked = Boolean(focus) && columns < stackBelow;
 
   return (
-    <Box
-      flexDirection={stacked ? "column" : "row"}
-      paddingX={2}
-      marginTop={1}
-    >
+    <Box flexDirection={stacked ? "column" : "row"} paddingX={2} marginTop={1}>
       <Box flexDirection="row">
         {STEPS.map((step, index) => (
           <Box key={step.id} flexDirection="row">
-            {index > 0 ? (
-              <Text color={theme.muted}>
-                {" › "}
-              </Text>
-            ) : null}
+            {index > 0 ? <Text color={theme.muted}>{" › "}</Text> : null}
             {index === currentIndex ? (
               <Text bold color={theme.text}>
                 {`▸ ${step.label}`}
@@ -75,17 +67,13 @@ export function StageBar({ stage, focus, focusNote }: StageBarProps) {
                 <Text color={theme.muted}>{step.label}</Text>
               </Text>
             ) : (
-              <Text color={theme.muted}>
-                {step.label}
-              </Text>
+              <Text color={theme.muted}>{step.label}</Text>
             )}
           </Box>
         ))}
         {showLoop ? (
           <Text>
-            <Text color={theme.muted}>
-              {" → "}
-            </Text>
+            <Text color={theme.muted}>{" → "}</Text>
             <Text color={theme.muted}>选择</Text>
           </Text>
         ) : null}
@@ -100,9 +88,7 @@ export function StageBar({ stage, focus, focusNote }: StageBarProps) {
           <Text bold color={theme.text}>
             {focus}
           </Text>
-          {focusNote ? (
-            <Text color={theme.alert}>{`（${focusNote}）`}</Text>
-          ) : null}
+          {focusNote ? <Text color={theme.alert}>{`（${focusNote}）`}</Text> : null}
         </Text>
       ) : null}
     </Box>

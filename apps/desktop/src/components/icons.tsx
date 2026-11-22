@@ -12,6 +12,7 @@ import {
   ClockCounterClockwise,
   Code,
   Copy,
+  DotsThree,
   File,
   Files,
   Folder,
@@ -74,10 +75,7 @@ export const StatsIcon = createIcon(ChartLineUp, 18);
 export const FolderIcon = createIcon(Folder, 16);
 export const SettingsIcon = createIcon(GearSix, 18);
 export const RefreshIcon = createIcon(ArrowsClockwise, 15);
-export function AgentsIcon({
-  size = 16,
-  className = "",
-}: IconProps = {}) {
+export function AgentsIcon({ size = 16, className = "" }: IconProps = {}) {
   return (
     <svg
       aria-hidden="true"
@@ -123,6 +121,7 @@ export const MinusIcon = createIcon(Minus, 14);
 export const ArrowDownIcon = createIcon(ArrowDown, 15);
 export const UndoIcon = createIcon(ArrowCounterClockwise, 14);
 export const SparkleIcon = createIcon(Sparkle, 14);
+export const MoreHorizontalIcon = createIcon(DotsThree, 16, "bold");
 
 export function CodexCliIcon({ size = 16, className = "" }: IconProps = {}) {
   return (

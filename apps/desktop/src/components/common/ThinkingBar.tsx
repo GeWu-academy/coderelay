@@ -1,10 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
-import {
-  countThinkingLines,
-  summarizeThinkingLine,
-} from "../../utils/thinking";
+import { countThinkingLines, summarizeThinkingLine } from "../../utils/thinking";
 import { ChevronDownIcon, ChevronRightIcon } from "../icons";
 
 export interface ThinkingBarProps {
@@ -59,9 +56,7 @@ export function ThinkingBar({
           <span className="flex-1" />
         )}
         {lineCount > 0 ? (
-          <span className="shrink-0 font-code text-[10px] text-muted">
-            {lineCount}L
-          </span>
+          <span className="shrink-0 font-code text-[10px] text-muted">{lineCount}L</span>
         ) : null}
         <span className="shrink-0 text-muted">
           {expanded ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}

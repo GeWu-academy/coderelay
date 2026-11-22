@@ -15,7 +15,6 @@ import path, { dirname, join, resolve } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
 
-import { toWslPath, type WslPathOptions } from "../runtime/wsl";
 import { ConfigSchema, defaultConfig, type Config } from "./schema";
 
 export const CONFIG_DIR = ".coderelay";
@@ -29,10 +28,7 @@ export const CONFIG_FILE_NAMES = [
 export class ConfigError extends Error {
   readonly path?: string;
 
-  constructor(
-    message: string,
-    options: { path?: string; cause?: unknown } = {},
-  ) {
+  constructor(message: string, options: { path?: string; cause?: unknown } = {}) {
     super(message, { cause: options.cause });
     this.name = "ConfigError";
     this.path = options.path;
@@ -86,18 +82,16 @@ export function crossPlatformJoin(base: string, ...parts: string[]): string {
 
 /** Get directory name respecting platform style. */
 export function crossPlatformDirname(p: string): string {
-  return isWindowsStylePath(p)
-    ? path.win32.dirname(p)
-    : path.posix.dirname(p);
+  return isWindowsStylePath(p) ? path.win32.dirname(p) : path.posix.dirname(p);
 }
 
 /**
- * Resolve the user's home/base directory across macOS, Windows, and WSL.
+ * Resolve the user's home/base directory across macOS, Windows, and Linux.
  * Order of precedence:
  *   1. Explicit homeDir argument
  *   2. CODERELAY_HOME environment variable
  *   3. Windows: USERPROFILE > HOMEDRIVE+HOMEPATH > os.homedir()
- *   4. macOS / Linux / WSL: HOME > os.homedir()
+ *   4. macOS / Linux: HOME > os.homedir()
  */
 export function resolveGlobalBaseDir(
   homeDir?: string,
@@ -127,26 +121,6 @@ export function resolveGlobalBaseDir(
     return home;
   }
   return homedir();
-}
-
-/** Inside WSL, find the mounted Windows user home directory (e.g. /mnt/c/Users/<user>). */
-export function findWslWindowsHome(
-  env: NodeJS.ProcessEnv = process.env,
-  options?: WslPathOptions,
-): string | null {
-  const resolvedOptions: WslPathOptions =
-    typeof options === "string"
-      ? { env, mountRoot: options }
-      : { env, ...options };
-  const userProfile = env.USERPROFILE?.trim();
-  if (userProfile) {
-    return toWslPath(userProfile, resolvedOptions);
-  }
-  const username = env.USER || env.LOGNAME;
-  if (username) {
-    return toWslPath(`C:\\Users\\${username}`, resolvedOptions);
-  }
-  return null;
 }
 
 /** Walk up from `startDir` looking for a config file, falling back to global config (~/.coderelay/config.yaml). */
@@ -181,27 +155,11 @@ export async function findConfigPath(
     }
   }
 
-  // If in WSL and no config found yet, check Windows home profile if available
-  if (platform === "linux" && (env.WSL_DISTRO_NAME || env.WSL_INTEROP)) {
-    const wslWinHome = findWslWindowsHome(env);
-    if (wslWinHome) {
-      const winGlobalDir = crossPlatformJoin(wslWinHome, CONFIG_DIR);
-      for (const name of ["config.yaml", "config.yml"]) {
-        const candidate = crossPlatformJoin(winGlobalDir, name);
-        if (await Bun.file(candidate).exists()) {
-          return candidate;
-        }
-      }
-    }
-  }
-
   return null;
 }
 
 /** Load and validate the config, falling back to defaults when allowed. */
-export async function loadConfig(
-  options: LoadConfigOptions = {},
-): Promise<LoadedConfig> {
+export async function loadConfig(options: LoadConfigOptions = {}): Promise<LoadedConfig> {
   const cwd = resolve(options.cwd ?? process.cwd());
   const path = options.path
     ? resolve(options.path)
@@ -234,10 +192,10 @@ export async function loadConfig(
 
   const result = ConfigSchema.safeParse(parsed);
   if (!result.success) {
-    throw new ConfigError(
-      `invalid config in ${path}:\n${z.prettifyError(result.error)}`,
-      { path, cause: result.error },
-    );
+    throw new ConfigError(`invalid config in ${path}:\n${z.prettifyError(result.error)}`, {
+      path,
+      cause: result.error,
+    });
   }
 
   return { config: result.data, path, cwd, usedDefaults: false };
@@ -266,9 +224,7 @@ export function globalConfigDir(
 ): string {
   const explicit = env.CODERELAY_HOME?.trim();
   if (explicit && !homeDir) {
-    return explicit.endsWith(CONFIG_DIR)
-      ? explicit
-      : crossPlatformJoin(explicit, CONFIG_DIR);
+    return explicit.endsWith(CONFIG_DIR) ? explicit : crossPlatformJoin(explicit, CONFIG_DIR);
   }
   const base = resolveGlobalBaseDir(homeDir, env, platform);
   return crossPlatformJoin(base, CONFIG_DIR);

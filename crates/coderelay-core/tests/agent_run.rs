@@ -232,30 +232,16 @@ async fn abort_kills_the_descendant_process_group() {
 }
 
 #[test]
-fn shell_resolution_matches_windows_and_wsl_rules() {
+fn shell_resolution_matches_platform_rules() {
     let local = LaunchTarget {
         path: "C:\\fixture\\claude.cmd".to_owned(),
         runtime: CliRuntime::Local,
-        distro: None,
-        mount_root: None,
-    };
-    let wsl = LaunchTarget {
-        path: "/usr/bin/claude".to_owned(),
-        runtime: CliRuntime::Wsl,
-        distro: Some("Ubuntu".to_owned()),
-        mount_root: Some("/mnt".to_owned()),
     };
 
     assert!(coderelay_core::runtime::resolve_agent_shell(
         None,
         Some(&local),
         "C:\\fixture\\claude.cmd",
-        Platform::Win32,
-    ));
-    assert!(!coderelay_core::runtime::resolve_agent_shell(
-        None,
-        Some(&wsl),
-        "wsl.exe",
         Platform::Win32,
     ));
     assert!(!coderelay_core::runtime::resolve_agent_shell(

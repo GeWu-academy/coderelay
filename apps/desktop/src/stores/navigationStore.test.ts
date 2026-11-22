@@ -14,12 +14,7 @@ import {
   RIGHT_PANEL_MODES,
   useNavigationStore,
 } from "./navigationStore";
-import {
-  CONVERSATION_VIEWS,
-  isConversationView,
-  isWorkspaceView,
-  WORKSPACE_VIEWS,
-} from "../types";
+import { CONVERSATION_VIEWS, isConversationView, isWorkspaceView, WORKSPACE_VIEWS } from "../types";
 
 describe("useNavigationStore & sidebar activation state", () => {
   beforeEach(() => {
@@ -35,7 +30,15 @@ describe("useNavigationStore & sidebar activation state", () => {
   });
 
   it("maintains SSOT with WORKSPACE_VIEWS and validates views correctly", () => {
-    expect(WORKSPACE_VIEWS).toEqual(["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"]);
+    expect(WORKSPACE_VIEWS).toEqual([
+      "workspace",
+      "files",
+      "scm",
+      "sessions",
+      "stats",
+      "config",
+      "apikeys",
+    ]);
 
     // Test valid views (non-empty real values)
     expect(isWorkspaceView("workspace")).toBe(true);
@@ -113,24 +116,42 @@ describe("useNavigationStore & sidebar activation state", () => {
     // The specific session should be active
     expect(isSessionRouteActive(state.view, state.activeSessionId, testSessionId)).toBe(true);
     // Other sessions should NOT be active
-    expect(isSessionRouteActive(state.view, state.activeSessionId, "sess-unrelated-999")).toBe(false);
-    expect(getActiveSidebarRoute(state.view, state.activeSessionId)).toBe(`session:${testSessionId}`);
+    expect(isSessionRouteActive(state.view, state.activeSessionId, "sess-unrelated-999")).toBe(
+      false,
+    );
+    expect(getActiveSidebarRoute(state.view, state.activeSessionId)).toBe(
+      `session:${testSessionId}`,
+    );
   });
 
   it("fixes the bug: session does NOT remain active when navigating to config, sessions, or apikeys", () => {
-    const { navigateToSession, navigateToConfig, navigateToSessions, navigateToStats, navigateToApiKeys } = useNavigationStore.getState();
+    const {
+      navigateToSession,
+      navigateToConfig,
+      navigateToSessions,
+      navigateToStats,
+      navigateToApiKeys,
+    } = useNavigationStore.getState();
     const testSessionId = "sess-debug-task-55";
 
     // 1. Open a session first
     navigateToSession(testSessionId);
-    expect(isSessionRouteActive(useNavigationStore.getState().view, useNavigationStore.getState().activeSessionId, testSessionId)).toBe(true);
+    expect(
+      isSessionRouteActive(
+        useNavigationStore.getState().view,
+        useNavigationStore.getState().activeSessionId,
+        testSessionId,
+      ),
+    ).toBe(true);
 
     // 2. Switch to config view
     navigateToConfig();
     const configState = useNavigationStore.getState();
     expect(configState.view).toBe("config");
     // BUG FIX: even if activeSessionId was set previously, session item in sidebar must NOT show as active!
-    expect(isSessionRouteActive(configState.view, configState.activeSessionId, testSessionId)).toBe(false);
+    expect(isSessionRouteActive(configState.view, configState.activeSessionId, testSessionId)).toBe(
+      false,
+    );
     expect(isNewChatRouteActive(configState.view, configState.activeSessionId)).toBe(false);
     expect(isConfigRouteActive(configState.view)).toBe(true);
     expect(isApiKeysRouteActive(configState.view)).toBe(false);
@@ -140,7 +161,9 @@ describe("useNavigationStore & sidebar activation state", () => {
     navigateToStats();
     const statsState = useNavigationStore.getState();
     expect(statsState.view).toBe("stats");
-    expect(isSessionRouteActive(statsState.view, statsState.activeSessionId, testSessionId)).toBe(false);
+    expect(isSessionRouteActive(statsState.view, statsState.activeSessionId, testSessionId)).toBe(
+      false,
+    );
     expect(isNewChatRouteActive(statsState.view, statsState.activeSessionId)).toBe(false);
     expect(isStatsRouteActive(statsState.view)).toBe(true);
     expect(getActiveSidebarRoute(statsState.view, statsState.activeSessionId)).toBe("stats");
@@ -149,17 +172,23 @@ describe("useNavigationStore & sidebar activation state", () => {
     navigateToSessions();
     const sessionsState = useNavigationStore.getState();
     expect(sessionsState.view).toBe("sessions");
-    expect(isSessionRouteActive(sessionsState.view, sessionsState.activeSessionId, testSessionId)).toBe(false);
+    expect(
+      isSessionRouteActive(sessionsState.view, sessionsState.activeSessionId, testSessionId),
+    ).toBe(false);
     expect(isNewChatRouteActive(sessionsState.view, sessionsState.activeSessionId)).toBe(false);
     expect(isSessionsRouteActive(sessionsState.view)).toBe(true);
     expect(isApiKeysRouteActive(sessionsState.view)).toBe(false);
-    expect(getActiveSidebarRoute(sessionsState.view, sessionsState.activeSessionId)).toBe("sessions");
+    expect(getActiveSidebarRoute(sessionsState.view, sessionsState.activeSessionId)).toBe(
+      "sessions",
+    );
 
     // 4. Switch to apikeys view
     navigateToApiKeys();
     const apiKeysState = useNavigationStore.getState();
     expect(apiKeysState.view).toBe("apikeys");
-    expect(isSessionRouteActive(apiKeysState.view, apiKeysState.activeSessionId, testSessionId)).toBe(false);
+    expect(
+      isSessionRouteActive(apiKeysState.view, apiKeysState.activeSessionId, testSessionId),
+    ).toBe(false);
     expect(isNewChatRouteActive(apiKeysState.view, apiKeysState.activeSessionId)).toBe(false);
     expect(isConfigRouteActive(apiKeysState.view)).toBe(false);
     expect(isSessionsRouteActive(apiKeysState.view)).toBe(false);
@@ -177,7 +206,9 @@ describe("useNavigationStore & sidebar activation state", () => {
     expect(state.view).toBe("workspace");
     expect(state.activeSessionId).toBeNull();
     expect(isNewChatRouteActive(state.view, state.activeSessionId)).toBe(true);
-    expect(isSessionRouteActive(state.view, state.activeSessionId, "sess-existing-888")).toBe(false);
+    expect(isSessionRouteActive(state.view, state.activeSessionId, "sess-existing-888")).toBe(
+      false,
+    );
   });
 
   it("toggles sidebar, right sidebar, project expanded, and workspace dropdown", () => {

@@ -89,19 +89,13 @@ describe("activation page", () => {
   });
 
   test("the manager page uses its own title", async () => {
-    const view = await renderActivation(
-      [option({ cliId: "codex", decided: true })],
-      "manage",
-    );
+    const view = await renderActivation([option({ cliId: "codex", decided: true })], "manage");
     expect(view.frame()).toContain("管理 CLI 激活状态");
     view.cleanup();
   });
 
   test("space toggles the focused row and Enter saves the changed set", async () => {
-    const view = await renderActivation([
-      option({ cliId: "codex" }),
-      option({ cliId: "claude" }),
-    ]);
+    const view = await renderActivation([option({ cliId: "codex" }), option({ cliId: "claude" })]);
     // 光标初始落在首个可切换行；下移一格后切换，改的应当是 claude。
     await view.press("j");
     await view.press(" ");
@@ -161,10 +155,7 @@ describe("activation page", () => {
   });
 
   test("esc cancels without writing anything", async () => {
-    const view = await renderActivation([
-      option({ cliId: "codex" }),
-      option({ cliId: "claude" }),
-    ]);
+    const view = await renderActivation([option({ cliId: "codex" }), option({ cliId: "claude" })]);
     await view.press(" ");
     await view.press("\x1b");
     expect(view.cancels.count).toBe(1);

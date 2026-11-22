@@ -49,8 +49,6 @@ pub struct AgentListEntry {
     pub version: Option<String>,
     pub models: Vec<String>,
     pub runtime: CliRuntime,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub distro: Option<String>,
     pub source: CliSource,
     pub candidates: Vec<CliCandidate>,
     pub diagnostics: Vec<CliDiagnostic>,
@@ -86,7 +84,6 @@ pub struct DoctorReport {
 fn runtime_label(runtime: CliRuntime) -> &'static str {
     match runtime {
         CliRuntime::Local => "local",
-        CliRuntime::Wsl => "wsl",
     }
 }
 
@@ -152,7 +149,6 @@ pub fn build_agent_entries(context: &crate::context::CliContext) -> Vec<AgentLis
                     .map(|config| config.models.iter().map(|model| model.id.clone()).collect())
                     .unwrap_or_default(),
                 runtime: detected.runtime,
-                distro: detected.distro.clone(),
                 source: detected.source,
                 candidates: detected.candidates.clone(),
                 diagnostics: detected.diagnostics.clone(),
@@ -181,15 +177,7 @@ fn format_agent_entries(entries: &[AgentListEntry]) -> String {
                         "not found"
                     })
                 ),
-                format!(
-                    "  runtime: {}{}",
-                    runtime_label(entry.runtime),
-                    entry
-                        .distro
-                        .as_deref()
-                        .map(|distro| format!(" ({distro})"))
-                        .unwrap_or_default()
-                ),
+                format!("  runtime: {}", runtime_label(entry.runtime)),
                 format!("  command: {}", entry.command),
                 format!("  source: {}", source_label(entry.source)),
             ];
@@ -619,9 +607,6 @@ async fn run_inner(args: RunArgs) -> anyhow::Result<i32> {
     }
 
     let prepared = context.prepare_agent(agent, model, prompt, None)?;
-    if prepared.target.runtime == CliRuntime::Wsl && prepared.cwd.is_none() {
-        eprintln!("coderelay: 无法把工作目录转换为 WSL 路径，将在 WSL 当前目录执行");
-    }
 
     let mut options = AgentRunOptions::new(prepared.command);
     options.cwd = prepared.cwd;

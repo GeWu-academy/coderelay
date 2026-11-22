@@ -6,8 +6,8 @@ use coderelay_core::agents::{ModelProbeRoots, create_model_probes, probe_model_c
 use coderelay_core::config::{LoadConfigOptions, LoadedConfig, load_config};
 use coderelay_core::host::{FileSystem, Platform, SystemHost};
 use coderelay_core::scanner::{
-    CliCandidate, CliRuntime, CliSource, DetectedCli, ScannerOptions, build_wsl_args,
-    cli_definitions, cli_version, resolve_on_path, scan_coding_clis, to_wsl_path,
+    CliCandidate, CliRuntime, CliSource, DetectedCli, ScannerOptions, cli_definitions, cli_version,
+    resolve_on_path, scan_coding_clis,
 };
 use coderelay_core::{
     AgentId, LaunchTarget, ModelCatalog, RouteCandidate, RouteOptions, RouteRequest, RoutingMode,
@@ -103,8 +103,6 @@ fn apply_command_overrides(
             path: path.clone(),
             runtime: CliRuntime::Local,
             source: CliSource::Fallback,
-            distro: None,
-            mount_root: None,
             version: version.clone(),
         };
         if let Some(existing) = detected.iter_mut().find(|item| item.id == definition.id) {
@@ -113,8 +111,6 @@ fn apply_command_overrides(
             existing.available = true;
             existing.runtime = CliRuntime::Local;
             existing.source = CliSource::Fallback;
-            existing.distro = None;
-            existing.mount_root = None;
             if !existing
                 .candidates
                 .iter()
@@ -131,8 +127,6 @@ fn apply_command_overrides(
                 available: true,
                 runtime: CliRuntime::Local,
                 source: CliSource::Fallback,
-                distro: None,
-                mount_root: None,
                 candidates: vec![candidate],
                 diagnostics: Vec::new(),
             });
@@ -202,8 +196,6 @@ impl CliContext {
                 .map(|path| LaunchTarget {
                     path,
                     runtime: CliRuntime::Local,
-                    distro: None,
-                    mount_root: None,
                 })
                 .ok_or_else(|| {
                     anyhow::anyhow!("configured command for {agent} was not found: {command}")
@@ -222,8 +214,6 @@ impl CliContext {
             .map(|path| LaunchTarget {
                 path,
                 runtime: CliRuntime::Local,
-                distro: None,
-                mount_root: None,
             })
             .ok_or_else(|| anyhow::anyhow!("agent is not available: {agent}"))
     }
@@ -315,24 +305,10 @@ impl CliContext {
                 native_session_id: None,
             },
         );
-        let command = if target.runtime == CliRuntime::Wsl {
-            let mut command = vec!["wsl.exe".to_owned()];
-            let mut wsl_args =
-                build_wsl_args(target.distro.as_deref(), std::slice::from_ref(&target.path));
-            wsl_args.extend(prompt_args);
-            command.extend(wsl_args);
-            command
-        } else {
-            std::iter::once(target.path.clone())
-                .chain(prompt_args)
-                .collect()
-        };
-        let cwd = if target.runtime == CliRuntime::Wsl {
-            let cwd = self.cwd.to_string_lossy();
-            to_wsl_path(&cwd, target.mount_root.as_deref()).map(PathBuf::from)
-        } else {
-            Some(self.cwd.clone())
-        };
+        let command = std::iter::once(target.path.clone())
+            .chain(prompt_args)
+            .collect();
+        let cwd = Some(self.cwd.clone());
         let structured = self
             .catalog
             .probes

@@ -1,8 +1,21 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
-import { CliIcon, HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "../../components/icons";
-import type { AgentEntry, ModelOption, SessionDetail, SessionRecord, SessionTurn } from "../../types";
+import {
+  CliIcon,
+  HistoryIcon,
+  RefreshIcon,
+  RouteIcon,
+  StatsIcon,
+  TerminalIcon,
+} from "../../components/icons";
+import type {
+  AgentEntry,
+  ModelOption,
+  SessionDetail,
+  SessionRecord,
+  SessionTurn,
+} from "../../types";
 import { formatTimestamp, workspaceName } from "../../utils";
 import {
   computeOverview,
@@ -126,94 +139,95 @@ export function StatsView({
           </div>
         </div>
 
-        {/* Top KPI Cards */}
-        <div className="grid grid-cols-4 gap-3.5 max-[800px]:grid-cols-2 max-[500px]:grid-cols-1">
-          <div className="rounded-xl border border-line bg-surface p-4 transition-all hover:border-line-strong">
-            <div className="flex items-center justify-between text-muted">
+        {/* Top KPI Summary Strip */}
+        <div className="grid grid-cols-4 gap-x-8 gap-y-5 py-1 max-[800px]:grid-cols-2 max-[500px]:grid-cols-1">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-muted">
+              <HistoryIcon size={14} />
               <span className="text-[12px] font-medium">累计对话与交互</span>
-              <HistoryIcon />
             </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="font-code text-2xl font-bold tracking-tight text-ink">
+            <div className="mt-2.5 flex items-baseline gap-1.5 tabular-nums">
+              <span className="font-display text-[28px] font-semibold leading-none tracking-[-0.03em] text-ink">
                 {summary.totalSessions}
               </span>
               <span className="text-xs text-muted">个会话</span>
-              <span className="font-code text-sm font-semibold text-muted-strong">
+              <span className="font-display text-sm font-medium text-muted-strong">
                 / {summary.totalTurns} 轮
               </span>
             </div>
-            <div className="mt-1 text-[11px] text-muted">包含多轮交互与单步执行</div>
+            <div className="mt-1.5 text-[11px] text-muted">包含多轮交互与单步执行</div>
           </div>
 
-          <div className="rounded-xl border border-line bg-surface p-4 transition-all hover:border-line-strong">
-            <div className="flex items-center justify-between text-muted">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-muted">
+              <TerminalIcon size={14} />
               <span className="text-[12px] font-medium">主力 CLI Agent</span>
-              <TerminalIcon size={16} />
             </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="font-code text-2xl font-bold tracking-tight text-ink uppercase">
+            <div className="mt-2.5 flex items-baseline gap-2 tabular-nums">
+              <span className="font-display text-[28px] font-semibold leading-none tracking-[-0.03em] text-ink uppercase">
                 {summary.mostUsedCli?.cliId ?? "无"}
               </span>
               {summary.mostUsedCli ? (
-                <span className="rounded bg-surface-subtle px-1.5 py-0.5 font-code text-[11px] text-muted-strong">
+                <span className="font-display text-xs font-medium text-muted-strong">
                   {Math.round(summary.mostUsedCli.turnShare * 100)}% 占比
                 </span>
               ) : null}
             </div>
-            <div className="mt-1 text-[11px] text-muted">
+            <div className="mt-1.5 text-[11px] text-muted">
               {summary.mostUsedCli
                 ? `${summary.mostUsedCli.turnCount} 轮对话 (${summary.mostUsedCli.sessionCount} 会话)`
                 : "暂无数据"}
             </div>
           </div>
 
-          <div className="rounded-xl border border-line bg-surface p-4 transition-all hover:border-line-strong">
-            <div className="flex items-center justify-between text-muted">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-muted">
+              <RouteIcon size={14} />
               <span className="text-[12px] font-medium">高频选择模型</span>
-              <RouteIcon size={16} />
             </div>
             <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="truncate font-code text-lg font-bold tracking-tight text-ink">
+              <span
+                className="truncate font-display text-[20px] font-semibold leading-[28px] tracking-[-0.02em] text-ink"
+                title={summary.mostUsedModel?.label ?? "自适应推荐"}
+              >
                 {summary.mostUsedModel?.label ?? "自适应推荐"}
               </span>
             </div>
-            <div className="mt-1 text-[11px] text-muted">
+            <div className="mt-1.5 text-[11px] text-muted">
               {summary.mostUsedModel
                 ? `共调用 ${summary.mostUsedModel.count} 次 (${Math.round(summary.mostUsedModel.share * 100)}%)`
                 : "尚未选择模型"}
             </div>
           </div>
 
-          <div className="rounded-xl border border-line bg-surface p-4 transition-all hover:border-line-strong">
-            <div className="flex items-center justify-between text-muted">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-muted">
+              <StatsIcon size={14} />
               <span className="text-[12px] font-medium">连续活跃天数</span>
-              <StatsIcon size={16} />
             </div>
-            <div className="mt-2.5 flex items-baseline gap-2">
-              <span className="font-code text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+            <div className="mt-2.5 flex items-baseline gap-1.5 tabular-nums">
+              <span className="font-display text-[28px] font-semibold leading-none tracking-[-0.03em] text-emerald-600 dark:text-emerald-400">
                 {summary.currentStreak}
               </span>
               <span className="text-xs text-muted">天连续</span>
               <span className="text-xs text-muted">/ 累计 {summary.totalActiveDays} 天</span>
             </div>
-            <div className="mt-1 text-[11px] text-muted">
-              最长记录 {summary.longestStreak} 天
-            </div>
+            <div className="mt-1.5 text-[11px] text-muted">最长记录 {summary.longestStreak} 天</div>
           </div>
         </div>
 
         {/* Section 1: CLI Usage & Conversations (Requirement 1) */}
-        <div className="rounded-2xl border border-line bg-surface p-5">
-          <div className="flex items-center justify-between pb-4">
+        <div className="rounded-2xl border border-line bg-surface px-6 py-5">
+          <div className="flex items-baseline justify-between gap-4 pb-3">
             <div>
-              <h3 className="m-0 text-[15px] font-semibold tracking-[-0.015em] text-ink">
+              <h3 className="m-0 font-display text-[15px] font-semibold tracking-[-0.015em] text-ink">
                 CLI 使用频率与对话排行
               </h3>
               <p className="mt-1 mb-0 text-[12px] text-muted">
                 统计各命令行 Agent 承接的会话量、交互轮次与活跃占比
               </p>
             </div>
-            <span className="rounded-full bg-surface-subtle px-2.5 py-1 font-code text-[11px] text-muted-strong">
+            <span className="shrink-0 font-display text-[12px] text-muted tabular-nums">
               已接入 {cliStats.length} 个 CLI
             </span>
           </div>
@@ -221,75 +235,93 @@ export function StatsView({
           {cliStats.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted">暂无 CLI 调用记录</div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="divide-y divide-line">
               {cliStats.map((item, index) => {
                 const isTop = index === 0 && item.turnCount > 0;
+                const sharePercent = Math.round(item.turnShare * 100);
                 return (
                   <div
                     key={item.cliId}
-                    className="flex flex-col gap-2 rounded-xl border border-line bg-surface-subtle/50 p-3.5 transition-all hover:border-line-strong hover:bg-surface-subtle"
+                    className="group -mx-3 flex flex-col gap-2.5 rounded-xl px-3 py-3.5 transition-colors hover:bg-surface-subtle/50"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center">
                           <CliIcon cliId={item.cliId} size={18} />
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-ink">{item.label}</span>
-                          <span className="rounded bg-surface px-1.5 py-0.5 font-code text-[10px] text-muted uppercase border border-line">
+                        <div className="flex min-w-0 items-baseline gap-2">
+                          <span className="truncate font-display text-[14px] font-semibold tracking-[-0.01em] text-ink">
+                            {item.label}
+                          </span>
+                          <span className="font-display text-[11px] font-medium tracking-[0.04em] text-muted uppercase">
                             {item.cliId}
                           </span>
                           {isTop ? (
-                            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                               最高频使用
                             </span>
                           ) : null}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs font-medium">
-                        <span className="text-ink">
-                          <strong className="font-code text-[13px]">{item.sessionCount}</strong>{" "}
-                          <span className="text-muted">次会话</span>
+                      <div className="flex shrink-0 items-baseline gap-5 text-[12px] tabular-nums">
+                        <span className="text-muted">
+                          <strong className="font-display text-[13px] font-semibold text-ink">
+                            {item.sessionCount}
+                          </strong>{" "}
+                          次会话
                         </span>
-                        <span className="text-ink">
-                          <strong className="font-code text-[13px]">{item.turnCount}</strong>{" "}
-                          <span className="text-muted">轮对话</span>
+                        <span className="text-muted">
+                          <strong className="font-display text-[13px] font-semibold text-ink">
+                            {item.turnCount}
+                          </strong>{" "}
+                          轮对话
                         </span>
-                        <span className="font-code text-[13px] text-muted-strong">
-                          {Math.round(item.turnShare * 100)}%
+                        <span className="w-10 text-right font-display text-[13px] font-semibold text-ink">
+                          {sharePercent}%
                         </span>
                       </div>
                     </div>
 
-                    {/* Usage Share Progress Bar */}
-                    <div className="relative h-2 w-full overflow-hidden rounded-full bg-surface">
-                      <div
-                        className="h-full rounded-full bg-ink transition-all duration-300"
-                        style={{ width: `${Math.max(item.turnShare * 100, 2)}%` }}
-                      />
-                    </div>
-
-                    {/* Associated Models & Last Active */}
-                    <div className="flex items-center justify-between text-[11px] text-muted">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span>调用的模型:</span>
-                        {item.models.length > 0 ? (
-                          item.models.map((m) => (
-                            <span
-                              key={m.modelId}
-                              className="rounded bg-surface px-1.5 py-0.5 font-code text-[10px] text-ink-soft border border-line"
-                            >
-                              {m.modelId} ({m.count})
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-muted">默认配置</span>
-                        )}
+                    {/* Usage Share Hairline Bar */}
+                    <div className="pl-10">
+                      <div className="h-[3px] w-full overflow-hidden rounded-full bg-surface-subtle">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isTop ? "bg-ink/85" : "bg-muted-strong/45"
+                          }`}
+                          style={{ width: `${Math.max(item.turnShare * 100, 2)}%` }}
+                        />
                       </div>
-                      {item.lastActiveAt ? (
-                        <span>最近更新: {formatTimestamp(item.lastActiveAt)}</span>
-                      ) : null}
+
+                      {/* Associated Models & Last Active */}
+                      <div className="mt-2 flex items-center justify-between gap-4 text-[11.5px] text-muted">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>调用模型</span>
+                          {item.models.length > 0 ? (
+                            item.models.map((m, modelIndex) => (
+                              <span
+                                key={m.modelId}
+                                className="inline-flex items-center gap-1 font-display text-[11.5px] text-muted-strong"
+                              >
+                                {modelIndex > 0 ? (
+                                  <span className="mr-1 text-line-strong">·</span>
+                                ) : null}
+                                <span>{m.modelId}</span>
+                                <span className="text-muted tabular-nums">({m.count})</span>
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-muted">默认配置</span>
+                          )}
+                        </div>
+                        {item.lastActiveAt ? (
+                          <span className="shrink-0 text-[11px] text-muted tabular-nums">
+                            最近更新 {formatTimestamp(item.lastActiveAt)}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 );
@@ -463,8 +495,8 @@ export function StatsView({
                 <div className="flex items-center gap-2">
                   {hoveredHeatmapDay ? (
                     <span className="font-code text-xs text-ink">
-                      {hoveredHeatmapDay.date}:{" "}
-                      <strong>{hoveredHeatmapDay.count}</strong> 次对话更新
+                      {hoveredHeatmapDay.date}: <strong>{hoveredHeatmapDay.count}</strong>{" "}
+                      次对话更新
                     </span>
                   ) : (
                     <span>鼠标悬停方格查看每日详情</span>
@@ -653,14 +685,7 @@ function MinimalistLineChart({
         >
           <defs>
             {seriesList.map((s, idx) => (
-              <linearGradient
-                key={`grad-${s.key}`}
-                id={`grad-${idx}`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
+              <linearGradient key={`grad-${s.key}`} id={`grad-${idx}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={s.fill} stopOpacity="0.18" />
                 <stop offset="100%" stopColor={s.fill} stopOpacity="0.0" />
               </linearGradient>
@@ -809,16 +834,12 @@ function MinimalistLineChart({
       {/* Hover Tooltip Popup */}
       {hoveredDataPoint && (
         <div className="mt-2 flex items-center justify-between rounded-lg border border-line bg-surface px-3 py-1.5 text-xs shadow-xs">
-          <span className="font-code font-medium text-ink">
-            日期: {hoveredDataPoint.dateKey}
-          </span>
+          <span className="font-code font-medium text-ink">日期: {hoveredDataPoint.dateKey}</span>
           <div className="flex items-center gap-3">
             {seriesList.map((s) => (
               <span key={s.key} className="text-muted">
                 {s.label}:{" "}
-                <strong className="font-code text-ink">
-                  {s.values[hoveredIndex ?? 0] ?? 0}
-                </strong>
+                <strong className="font-code text-ink">{s.values[hoveredIndex ?? 0] ?? 0}</strong>
               </span>
             ))}
           </div>

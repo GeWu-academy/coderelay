@@ -1,5 +1,9 @@
+use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use coderelay_core::{
     AgentProtocol, AgentRunOptions, AgentRunStatus, RouteRequest, start_agent_run,
@@ -14,6 +18,51 @@ use crate::{
 
 const MAX_DIFF_PREVIEW_BYTES: usize = 512 * 1024;
 const MAX_AI_DIFF_CHARS: usize = 10_000;
+const MAX_GIT_OUTPUT_ENTRIES: usize = 200;
+const MAX_GIT_OUTPUT_TEXT_BYTES: usize = 8 * 1024;
+
+static GIT_OUTPUT_LOG: OnceLock<Mutex<VecDeque<GitOutputEntry>>> = OnceLock::new();
+static NEXT_GIT_OUTPUT_ID: AtomicU64 = AtomicU64::new(1);
+
+fn git_output_store() -> &'static Mutex<VecDeque<GitOutputEntry>> {
+    GIT_OUTPUT_LOG.get_or_init(|| Mutex::new(VecDeque::with_capacity(MAX_GIT_OUTPUT_ENTRIES)))
+}
+
+fn truncate_utf8_bytes(input: &str, max_bytes: usize) -> String {
+    if input.len() <= max_bytes {
+        return input.to_owned();
+    }
+    let mut end = max_bytes;
+    while !input.is_char_boundary(end) && end > 0 {
+        end -= 1;
+    }
+    format!("{}...(truncated)", &input[..end])
+}
+
+fn now_timestamp_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn record_git_output(cwd: &Path, args: &[&str], out: &GitCommandOutput) {
+    let entry = GitOutputEntry {
+        id: NEXT_GIT_OUTPUT_ID.fetch_add(1, Ordering::Relaxed),
+        timestamp_ms: now_timestamp_ms(),
+        cwd: cwd.to_string_lossy().into_owned(),
+        command: format!("git {}", args.join(" ")),
+        exit_code: out.status_code,
+        stdout: truncate_utf8_bytes(out.stdout.trim_end(), MAX_GIT_OUTPUT_TEXT_BYTES),
+        stderr: truncate_utf8_bytes(out.stderr.trim_end(), MAX_GIT_OUTPUT_TEXT_BYTES),
+    };
+    if let Ok(mut guard) = git_output_store().lock() {
+        if guard.len() >= MAX_GIT_OUTPUT_ENTRIES {
+            guard.pop_front();
+        }
+        guard.push_back(entry);
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +120,51 @@ pub struct GitActionResult {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitOutputEntry {
+    pub id: u64,
+    pub timestamp_ms: u64,
+    pub cwd: String,
+    pub command: String,
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCloneResult {
+    pub ok: bool,
+    pub message: String,
+    pub cloned_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRemoteInfo {
+    pub name: String,
+    pub fetch_url: String,
+    pub push_url: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStashEntry {
+    pub reference: String,
+    pub message: String,
+    pub timestamp: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitTagInfo {
+    pub name: String,
+    pub oid: String,
+    pub creator_date: Option<i64>,
+    pub message: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitWorkspaceRequest {
@@ -108,6 +202,7 @@ pub struct GitCommitRequest {
     pub cwd: Option<String>,
     pub message: String,
     pub amend: Option<bool>,
+    pub all: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,6 +220,75 @@ pub struct GitDeleteBranchRequest {
     pub cwd: Option<String>,
     pub branch: String,
     pub force: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRenameBranchRequest {
+    pub cwd: Option<String>,
+    pub old_name: Option<String>,
+    pub new_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitBranchTargetRequest {
+    pub cwd: Option<String>,
+    pub branch: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCloneRequest {
+    pub cwd: Option<String>,
+    pub url: String,
+    pub parent_dir: Option<String>,
+    pub directory_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitAddRemoteRequest {
+    pub cwd: Option<String>,
+    pub name: String,
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitRemoveRemoteRequest {
+    pub cwd: Option<String>,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStashPushRequest {
+    pub cwd: Option<String>,
+    pub message: Option<String>,
+    pub include_untracked: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitStashRefRequest {
+    pub cwd: Option<String>,
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCreateTagRequest {
+    pub cwd: Option<String>,
+    pub name: String,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDeleteTagRequest {
+    pub cwd: Option<String>,
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,11 +322,13 @@ fn run_git_raw(cwd: &Path, args: &[&str]) -> Result<GitCommandOutput, String> {
         .output()
         .map_err(|error| format!("failed to execute git: {error}"))?;
 
-    Ok(GitCommandOutput {
+    let result = GitCommandOutput {
         status_code: output.status.code().unwrap_or(-1),
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    })
+    };
+    record_git_output(cwd, args, &result);
+    Ok(result)
 }
 
 fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
@@ -619,21 +785,90 @@ pub fn git_discard(request: GitDiscardRequest) -> Result<(), String> {
     Ok(())
 }
 
+fn summarize_commit_output(out: &str) -> String {
+    let mut lines = out.lines().map(str::trim).filter(|line| !line.is_empty());
+
+    let Some(header) = lines.next() else {
+        return "提交成功".to_owned();
+    };
+
+    let stat = lines.next().filter(|line| {
+        !line.starts_with("create mode ")
+            && !line.starts_with("delete mode ")
+            && !line.starts_with("mode change ")
+            && !line.starts_with("rename ")
+            && !line.starts_with("copy ")
+    });
+
+    match stat {
+        Some(summary) => format!("{header} · {summary}"),
+        None => header.to_owned(),
+    }
+}
+
 #[tauri::command]
 pub fn git_commit(request: GitCommitRequest) -> Result<GitActionResult, String> {
     let repo_root = require_git_repo_root(request.cwd)?;
     let message = request.message.trim();
-    if message.is_empty() {
+    let amend = request.amend == Some(true);
+    let all = request.all == Some(true);
+
+    if message.is_empty() && !amend {
         return Err("提交信息不能为空".to_owned());
     }
-    let out = if request.amend == Some(true) {
-        run_git(&repo_root, &["commit", "--amend", "-m", message])?
+    let mut args = vec!["commit"];
+    if all {
+        args.push("-a");
+    }
+    if amend {
+        args.push("--amend");
+        if message.is_empty() {
+            args.push("--no-edit");
+        } else {
+            args.push("-m");
+            args.push(message);
+        }
     } else {
-        run_git(&repo_root, &["commit", "-m", message])?
-    };
+        args.push("-m");
+        args.push(message);
+    }
+    let out = run_git(&repo_root, &args)?;
     Ok(GitActionResult {
         ok: true,
-        message: out.trim().to_owned(),
+        message: summarize_commit_output(&out),
+    })
+}
+
+#[tauri::command]
+pub fn git_undo_last_commit(request: GitWorkspaceRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = run_git(&repo_root, &["reset", "--soft", "HEAD~1"])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            "已撤销上次提交，更改保留在暂存区".to_owned()
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_discard_all(request: GitWorkspaceRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    if has_head_commit(&repo_root) {
+        if run_git(&repo_root, &["restore", "--worktree", "."]).is_err() {
+            run_git(&repo_root, &["checkout", "--", "."])?;
+        }
+    }
+    let clean_out = run_git(&repo_root, &["clean", "-fd"])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if clean_out.trim().is_empty() {
+            "已放弃工作区所有更改".to_owned()
+        } else {
+            format!("已放弃工作区所有更改 · {}", clean_out.trim())
+        },
     })
 }
 
@@ -702,24 +937,74 @@ pub fn git_delete_branch(request: GitDeleteBranchRequest) -> Result<GitActionRes
     })
 }
 
-#[tauri::command]
-pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
+fn has_upstream(repo_root: &Path) -> bool {
+    run_git_raw(repo_root, &["rev-parse", "--abbrev-ref", "@{u}"])
+        .is_ok_and(|res| res.status_code == 0)
+}
+
+fn push_branch_with_upstream(repo_root: &Path) -> Result<(String, String), String> {
+    let branch = run_git(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    let branch = branch.trim().to_owned();
+    if branch.is_empty() || branch == "HEAD" {
+        return Err("当前处于游离 HEAD 状态，无法自动推送".to_owned());
+    }
+    let out = run_git(repo_root, &["push", "-u", "origin", &branch])?;
+    Ok((branch, out))
+}
+
+fn git_sync_blocking(request: GitSyncRequest) -> Result<GitActionResult, String> {
     let repo_root = require_git_repo_root(request.cwd)?;
     let action = request.action.trim();
-    let out = match action {
-        "fetch" => run_git(&repo_root, &["fetch", "--prune"])?,
-        "pull" => run_git(&repo_root, &["pull"])?,
+    let (out, fallback_message) = match action {
+        "fetch" => (
+            run_git(&repo_root, &["fetch", "--prune"])?,
+            "抓取完成".to_owned(),
+        ),
+        "fetch_all" => (
+            run_git(&repo_root, &["fetch", "--all", "--prune"])?,
+            "已抓取全部远程".to_owned(),
+        ),
+        "pull" => (run_git(&repo_root, &["pull"])?, "拉取完成".to_owned()),
+        "pull_rebase" => (
+            run_git(&repo_root, &["pull", "--rebase"])?,
+            "变基拉取完成".to_owned(),
+        ),
         "push" => {
-            let upstream = run_git_raw(&repo_root, &["rev-parse", "--abbrev-ref", "@{u}"]);
-            if upstream.is_ok_and(|res| res.status_code == 0) {
-                run_git(&repo_root, &["push"])?
+            if has_upstream(&repo_root) {
+                (run_git(&repo_root, &["push"])?, "推送完成".to_owned())
             } else {
-                let branch = run_git(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-                let branch = branch.trim();
-                if branch.is_empty() || branch == "HEAD" {
-                    return Err("当前处于游离 HEAD 状态，无法自动推送".to_owned());
-                }
-                run_git(&repo_root, &["push", "-u", "origin", branch])?
+                let (branch, out) = push_branch_with_upstream(&repo_root)?;
+                (out, format!("已发布分支 {branch} 到远程"))
+            }
+        }
+        "push_force" => {
+            if has_upstream(&repo_root) {
+                (
+                    run_git(&repo_root, &["push", "--force-with-lease"])?,
+                    "强制推送完成".to_owned(),
+                )
+            } else {
+                let (branch, out) = push_branch_with_upstream(&repo_root)?;
+                (out, format!("已发布分支 {branch} 到远程"))
+            }
+        }
+        "push_tags" => (
+            run_git(&repo_root, &["push", "--tags"])?,
+            "已推送所有标记".to_owned(),
+        ),
+        "sync" => {
+            if has_upstream(&repo_root) {
+                let pull_out = run_git(&repo_root, &["pull"])?;
+                let push_out = run_git(&repo_root, &["push"])?;
+                let combined = [pull_out.trim(), push_out.trim()]
+                    .into_iter()
+                    .filter(|s| !s.is_empty() && *s != "Already up to date.")
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                (combined, "已与远程分支同步".to_owned())
+            } else {
+                let (branch, out) = push_branch_with_upstream(&repo_root)?;
+                (out, format!("已发布分支 {branch} 到远程"))
             }
         }
         other => return Err(format!("不支持的同步操作: {other}")),
@@ -727,11 +1012,459 @@ pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
     Ok(GitActionResult {
         ok: true,
         message: if out.trim().is_empty() {
-            format!("{action} 完成")
+            fallback_message
         } else {
             out.trim().to_owned()
         },
     })
+}
+
+#[tauri::command]
+pub async fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
+    tauri::async_runtime::spawn_blocking(move || git_sync_blocking(request))
+        .await
+        .map_err(|err| format!("同步远程分支任务失败: {err}"))?
+}
+
+pub fn derive_clone_dir_name(url: &str) -> String {
+    let trimmed = url.trim().trim_end_matches('/');
+    let after_slash = trimmed.rsplit(['/', ':']).next().unwrap_or("");
+    let stripped = after_slash
+        .strip_suffix(".git")
+        .unwrap_or(after_slash)
+        .trim();
+    if stripped.is_empty() {
+        "repository".to_owned()
+    } else {
+        stripped.to_owned()
+    }
+}
+
+#[tauri::command]
+pub fn git_clone(request: GitCloneRequest) -> Result<GitCloneResult, String> {
+    let url = request.url.trim();
+    if url.is_empty() {
+        return Err("仓库 URL 不能为空".to_owned());
+    }
+    let parent_dir = match request
+        .parent_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let ws = resolve_workspace_root(request.cwd)?;
+            ws.parent().map(Path::to_path_buf).unwrap_or(ws)
+        }
+    };
+    if !parent_dir.is_dir() {
+        return Err(format!("目标父目录不存在: {}", parent_dir.display()));
+    }
+
+    let folder_name = match request
+        .directory_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(name) => {
+            if name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+                return Err(format!("非法目录名称: {name}"));
+            }
+            name.to_owned()
+        }
+        None => derive_clone_dir_name(url),
+    };
+    let target_path = parent_dir.join(&folder_name);
+    if target_path.exists() {
+        return Err(format!("目标目录已存在: {}", target_path.display()));
+    }
+
+    let out = run_git(&parent_dir, &["clone", "--", url, &folder_name])?;
+    let cloned_path = target_path.to_string_lossy().into_owned();
+    Ok(GitCloneResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            format!("已克隆仓库到 {cloned_path}")
+        } else {
+            out.trim().to_owned()
+        },
+        cloned_path,
+    })
+}
+
+#[tauri::command]
+pub fn git_rename_branch(request: GitRenameBranchRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let new_name = request.new_name.trim();
+    if new_name.is_empty() {
+        return Err("新分支名称不能为空".to_owned());
+    }
+    let out = match request
+        .old_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(old) => run_git(&repo_root, &["branch", "-m", old, new_name])?,
+        None => run_git(&repo_root, &["branch", "-m", new_name])?,
+    };
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            format!("分支已重命名为 {new_name}")
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_merge_branch(request: GitBranchTargetRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let branch = request.branch.trim();
+    if branch.is_empty() {
+        return Err("目标分支名称不能为空".to_owned());
+    }
+    let out = run_git(&repo_root, &["merge", branch])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            format!("已合并分支 {branch}")
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_rebase_branch(request: GitBranchTargetRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let branch = request.branch.trim();
+    if branch.is_empty() {
+        return Err("目标分支名称不能为空".to_owned());
+    }
+    let out = run_git(&repo_root, &["rebase", branch])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            format!("已变基到分支 {branch}")
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+pub fn parse_git_remotes(output: &str) -> Vec<GitRemoteInfo> {
+    let mut map: BTreeMap<String, (String, String)> = BTreeMap::new();
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Some((name, rest)) = trimmed.split_once('\t') else {
+            continue;
+        };
+        let name = name.trim();
+        let rest = rest.trim();
+        if name.is_empty() || rest.is_empty() {
+            continue;
+        }
+        let (url, kind) = match rest.rsplit_once(' ') {
+            Some((u, k)) => (u.trim(), k.trim()),
+            None => (rest, ""),
+        };
+        let entry = map
+            .entry(name.to_owned())
+            .or_insert_with(|| (String::new(), String::new()));
+        if kind == "(push)" {
+            entry.1 = url.to_owned();
+        } else {
+            entry.0 = url.to_owned();
+            if entry.1.is_empty() {
+                entry.1 = url.to_owned();
+            }
+        }
+    }
+    map.into_iter()
+        .map(|(name, (fetch_url, push_url))| GitRemoteInfo {
+            name,
+            fetch_url,
+            push_url,
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub fn git_remotes(request: GitWorkspaceRequest) -> Result<Vec<GitRemoteInfo>, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = run_git(&repo_root, &["remote", "-v"])?;
+    Ok(parse_git_remotes(&out))
+}
+
+#[tauri::command]
+pub fn git_add_remote(request: GitAddRemoteRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let name = request.name.trim();
+    let url = request.url.trim();
+    if name.is_empty() {
+        return Err("远程名称不能为空".to_owned());
+    }
+    if url.is_empty() {
+        return Err("远程 URL 不能为空".to_owned());
+    }
+    run_git(&repo_root, &["remote", "add", name, url])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: format!("已添加远程 {name} ({url})"),
+    })
+}
+
+#[tauri::command]
+pub fn git_remove_remote(request: GitRemoveRemoteRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let name = request.name.trim();
+    if name.is_empty() {
+        return Err("远程名称不能为空".to_owned());
+    }
+    run_git(&repo_root, &["remote", "remove", name])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: format!("已移除远程 {name}"),
+    })
+}
+
+pub fn parse_git_stashes(output: &str) -> Vec<GitStashEntry> {
+    let mut entries = Vec::new();
+    for line in output.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('\t').collect();
+        let reference = parts.first().copied().unwrap_or("").trim();
+        if reference.is_empty() {
+            continue;
+        }
+        let message = parts.get(1).copied().unwrap_or("").trim().to_owned();
+        let timestamp = parts
+            .get(2)
+            .copied()
+            .and_then(|s| s.trim().parse::<i64>().ok());
+        entries.push(GitStashEntry {
+            reference: reference.to_owned(),
+            message,
+            timestamp,
+        });
+    }
+    entries
+}
+
+#[tauri::command]
+pub fn git_stashes(request: GitWorkspaceRequest) -> Result<Vec<GitStashEntry>, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = run_git(&repo_root, &["stash", "list", "--format=%gd%x09%gs%x09%ct"])?;
+    Ok(parse_git_stashes(&out))
+}
+
+#[tauri::command]
+pub fn git_stash_push(request: GitStashPushRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let mut args = vec!["stash", "push"];
+    if request.include_untracked == Some(true) {
+        args.push("-u");
+    }
+    let trimmed_msg = request.message.as_deref().map(str::trim).unwrap_or("");
+    if !trimmed_msg.is_empty() {
+        args.push("-m");
+        args.push(trimmed_msg);
+    }
+    let out = run_git(&repo_root, &args)?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            "已存储当前更改".to_owned()
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_stash_apply(request: GitStashRefRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = match request
+        .reference
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(r) => run_git(&repo_root, &["stash", "apply", r])?,
+        None => run_git(&repo_root, &["stash", "apply"])?,
+    };
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            "已应用存储".to_owned()
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_stash_pop(request: GitStashRefRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = match request
+        .reference
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(r) => run_git(&repo_root, &["stash", "pop", r])?,
+        None => run_git(&repo_root, &["stash", "pop"])?,
+    };
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            "已弹出存储".to_owned()
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_stash_drop(request: GitStashRefRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = match request
+        .reference
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(r) => run_git(&repo_root, &["stash", "drop", r])?,
+        None => run_git(&repo_root, &["stash", "drop"])?,
+    };
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            "已删除存储".to_owned()
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_stash_clear(request: GitWorkspaceRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    run_git(&repo_root, &["stash", "clear"])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: "已清空所有存储".to_owned(),
+    })
+}
+
+pub fn parse_git_tags(output: &str) -> Vec<GitTagInfo> {
+    let mut tags = Vec::new();
+    for line in output.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('\t').collect();
+        let name = parts.first().copied().unwrap_or("").trim();
+        if name.is_empty() {
+            continue;
+        }
+        let oid = parts.get(1).copied().unwrap_or("").trim().to_owned();
+        let creator_date = parts
+            .get(2)
+            .copied()
+            .and_then(|s| s.trim().parse::<i64>().ok());
+        let message = parts
+            .get(3)
+            .copied()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned);
+        tags.push(GitTagInfo {
+            name: name.to_owned(),
+            oid,
+            creator_date,
+            message,
+        });
+    }
+    tags
+}
+
+#[tauri::command]
+pub fn git_tags(request: GitWorkspaceRequest) -> Result<Vec<GitTagInfo>, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let out = run_git(
+        &repo_root,
+        &[
+            "for-each-ref",
+            "--sort=-creatordate",
+            "--format=%(refname:short)\t%(objectname:short)\t%(creatordate:unix)\t%(contents:subject)",
+            "refs/tags",
+        ],
+    )?;
+    Ok(parse_git_tags(&out))
+}
+
+#[tauri::command]
+pub fn git_create_tag(request: GitCreateTagRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let name = request.name.trim();
+    if name.is_empty() {
+        return Err("标记名称不能为空".to_owned());
+    }
+    let msg = request.message.as_deref().map(str::trim).unwrap_or("");
+    if msg.is_empty() {
+        run_git(&repo_root, &["tag", name])?;
+    } else {
+        run_git(&repo_root, &["tag", "-a", name, "-m", msg])?;
+    }
+    Ok(GitActionResult {
+        ok: true,
+        message: format!("已创建标记 {name}"),
+    })
+}
+
+#[tauri::command]
+pub fn git_delete_tag(request: GitDeleteTagRequest) -> Result<GitActionResult, String> {
+    let repo_root = require_git_repo_root(request.cwd)?;
+    let name = request.name.trim();
+    if name.is_empty() {
+        return Err("标记名称不能为空".to_owned());
+    }
+    let out = run_git(&repo_root, &["tag", "-d", name])?;
+    Ok(GitActionResult {
+        ok: true,
+        message: if out.trim().is_empty() {
+            format!("已删除标记 {name}")
+        } else {
+            out.trim().to_owned()
+        },
+    })
+}
+
+#[tauri::command]
+pub fn git_output_log() -> Result<Vec<GitOutputEntry>, String> {
+    let guard = git_output_store()
+        .lock()
+        .map_err(|_| "failed to lock git output log".to_owned())?;
+    Ok(guard.iter().cloned().collect())
+}
+
+#[tauri::command]
+pub fn git_clear_output_log() -> Result<(), String> {
+    let mut guard = git_output_store()
+        .lock()
+        .map_err(|_| "failed to lock git output log".to_owned())?;
+    guard.clear();
+    Ok(())
 }
 
 #[tauri::command]
@@ -904,5 +1637,85 @@ diff --git a/src/a.ts b/src/a.ts
 +const c = 4;
 ";
         assert_eq!(count_diff_stats(diff), (2, 1));
+    }
+
+    #[test]
+    fn summarizes_verbose_commit_output() {
+        let verbose = "\
+[main a8f2d29] feat: 初始化项目目录
+ 19 files changed, 2068 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 README.md
+ create mode 100644 package.json
+";
+        assert_eq!(
+            summarize_commit_output(verbose),
+            "[main a8f2d29] feat: 初始化项目目录 · 19 files changed, 2068 insertions(+)"
+        );
+        assert_eq!(
+            summarize_commit_output("[main a8f2d29] chore: empty\n create mode 100644 a.txt\n"),
+            "[main a8f2d29] chore: empty"
+        );
+        assert_eq!(summarize_commit_output("   \n  "), "提交成功");
+    }
+
+    #[test]
+    fn derives_clone_dir_name_from_https_and_ssh_urls() {
+        assert_eq!(
+            derive_clone_dir_name("https://github.com/google/coderelay.git"),
+            "coderelay"
+        );
+        assert_eq!(
+            derive_clone_dir_name("git@github.com:google/coderelay.git/"),
+            "coderelay"
+        );
+        assert_eq!(derive_clone_dir_name("   "), "repository");
+    }
+
+    #[test]
+    fn parses_git_remotes_output() {
+        let sample = "\
+origin\thttps://github.com/acme/app.git (fetch)
+origin\tgit@github.com:acme/app.git (push)
+upstream\thttps://github.com/upstream/app.git (fetch)
+upstream\thttps://github.com/upstream/app.git (push)
+";
+        let remotes = parse_git_remotes(sample);
+        assert_eq!(remotes.len(), 2);
+        assert_eq!(remotes[0].name, "origin");
+        assert_eq!(remotes[0].fetch_url, "https://github.com/acme/app.git");
+        assert_eq!(remotes[0].push_url, "git@github.com:acme/app.git");
+        assert_eq!(remotes[1].name, "upstream");
+        assert_eq!(remotes[1].fetch_url, "https://github.com/upstream/app.git");
+    }
+
+    #[test]
+    fn parses_git_stashes_output() {
+        let sample = "\
+stash@{0}\tOn main: WIP scm menu\t1763700000
+stash@{1}\tWIP on feat/git: 1a2b3c4 initial\t1763690000
+";
+        let stashes = parse_git_stashes(sample);
+        assert_eq!(stashes.len(), 2);
+        assert_eq!(stashes[0].reference, "stash@{0}");
+        assert_eq!(stashes[0].message, "On main: WIP scm menu");
+        assert_eq!(stashes[0].timestamp, Some(1763700000));
+        assert_eq!(stashes[1].reference, "stash@{1}");
+    }
+
+    #[test]
+    fn parses_git_tags_output() {
+        let sample = "\
+v1.2.0\tabc1234\t1763700000\tRelease v1.2.0
+v1.1.0\tdef5678\t1763600000\t
+";
+        let tags = parse_git_tags(sample);
+        assert_eq!(tags.len(), 2);
+        assert_eq!(tags[0].name, "v1.2.0");
+        assert_eq!(tags[0].oid, "abc1234");
+        assert_eq!(tags[0].creator_date, Some(1763700000));
+        assert_eq!(tags[0].message.as_deref(), Some("Release v1.2.0"));
+        assert_eq!(tags[1].name, "v1.1.0");
+        assert_eq!(tags[1].message, None);
     }
 }

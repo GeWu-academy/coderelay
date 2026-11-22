@@ -34,8 +34,7 @@ export function WorkspaceView({
   const combinedThinking = mergeThinkingContent(thinking, inlineSplit.thinking);
   const visibleOutput = inlineSplit.output;
   const isThinkingActive =
-    running &&
-    (inlineSplit.isThinkingOpen || (Boolean(combinedThinking) && !visibleOutput));
+    running && (inlineSplit.isThinkingOpen || (Boolean(combinedThinking) && !visibleOutput));
 
   useEffect(() => {
     if (showThread) {
@@ -113,9 +112,7 @@ export function WorkspaceView({
                     {formatDuration(result.durationMs)}
                   </span>
                 ) : null}
-                {result?.code !== undefined &&
-                result.code !== null &&
-                result.code !== 0 ? (
+                {result?.code !== undefined && result.code !== null && result.code !== 0 ? (
                   <span className="ml-auto rounded-full border border-line bg-danger-soft px-[7px] py-0.5 font-code text-[10px] text-danger">
                     {result.code}
                   </span>
@@ -140,10 +137,7 @@ export function WorkspaceView({
                 ) : null}
               </AnimatePresence>
 
-              <ThinkingBar
-                thinking={combinedThinking}
-                isThinking={isThinkingActive}
-              />
+              <ThinkingBar thinking={combinedThinking} isThinking={isThinkingActive} />
 
               <div className="min-h-[44px] text-sm leading-[1.85] break-words whitespace-pre-wrap text-ink">
                 {visibleOutput}

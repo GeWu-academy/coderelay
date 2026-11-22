@@ -7,7 +7,13 @@ import {
 import { isAgentId } from "../agents/registry";
 import { loadConfig } from "../config/loader";
 import type { Config, RoutingMode } from "../config/schema";
-import { CLI_IDS, cliLaunchTarget, type CliId, type DetectedCli, type LaunchTarget } from "../models/cli";
+import {
+  CLI_IDS,
+  cliLaunchTarget,
+  type CliId,
+  type DetectedCli,
+  type LaunchTarget,
+} from "../models/cli";
 import type { AgentEvent } from "../models/agent-events";
 import type { ModelStrength } from "../models/types";
 import { jevDecisionToRouteDecision, routeWithJev } from "../router/jev";
@@ -42,9 +48,7 @@ export interface RunCommandDependencies {
   readonly scan?: (options?: ScannerOptions) => Promise<DetectedCli[]>;
   /** 遗留注入点：统一生命周期落地后不再使用，保留兼容外部调用。 */
   readonly run?: (options: ProcessOptions) => Promise<ProcessResult>;
-  readonly stream?: (
-    options: Parameters<typeof runAgentStream>[0],
-  ) => AgentRunHandle;
+  readonly stream?: (options: Parameters<typeof runAgentStream>[0]) => AgentRunHandle;
   readonly resolve?: (command: string) => string | null;
   readonly adapters?: CliAdapterOptions;
   /** Diagnostic output, including routing and process errors. Defaults to stderr. */
@@ -53,10 +57,7 @@ export interface RunCommandDependencies {
   readonly writeOut?: (text: string) => void;
 }
 
-function findDetected(
-  detected: readonly DetectedCli[],
-  id: CliId,
-): DetectedCli | undefined {
+function findDetected(detected: readonly DetectedCli[], id: CliId): DetectedCli | undefined {
   return detected.find((item) => item.id === id);
 }
 
@@ -91,14 +92,12 @@ function resolveTarget(
   if (configuredCommand) {
     const resolved = resolve(configuredCommand);
     if (!resolved) {
-      throw new Error(
-        `configured command for ${agent} was not found: ${configuredCommand}`,
-      );
+      throw new Error(`configured command for ${agent} was not found: ${configuredCommand}`);
     }
     return { path: resolved, runtime: "local" };
   }
 
-  // 扫描结果携带真实运行上下文（本地 / WSL），启动必须沿用同一条路径，
+  // 扫描结果携带真实运行上下文，启动必须沿用同一条路径，
   // 不在启动时重新按 bin 名称查找，避免 PATH 变化导致启动失败。
   const detectedCli = findDetected(detected, agent);
   const scanned = detectedCli ? cliLaunchTarget(detectedCli) : null;
@@ -127,10 +126,8 @@ export async function runRunCommand(
   options: RunCommandOptions,
   dependencies: RunCommandDependencies = {},
 ): Promise<number> {
-  const write =
-    dependencies.write ?? ((text: string) => process.stderr.write(text));
-  const writeOut =
-    dependencies.writeOut ?? ((text: string) => process.stdout.write(text));
+  const write = dependencies.write ?? ((text: string) => process.stderr.write(text));
+  const writeOut = dependencies.writeOut ?? ((text: string) => process.stdout.write(text));
   const scan = dependencies.scan ?? scanCodingClis;
   const resolve = dependencies.resolve ?? resolveCommand;
   const startStream = dependencies.stream ?? runAgentStream;
@@ -175,9 +172,7 @@ export async function runRunCommand(
       agent = explicit.cliId;
       model = explicit.modelId;
     } else if (routingMode === "manual") {
-      throw new Error(
-        "routing.mode=manual 时，非交互 run 必须显式提供 --agent 或 --model",
-      );
+      throw new Error("routing.mode=manual 时，非交互 run 必须显式提供 --agent 或 --model");
     } else if (routingMode === "jev") {
       const candidates = toRouteCandidates(catalog, config);
       if (candidates.length === 0) {
@@ -242,18 +237,19 @@ export async function runRunCommand(
     const executable = resolveTarget(agent, config, detected, adapter.bin, resolve);
     const agentConfig = config.agents[agent];
     const args = adapter.buildPromptArgs
-      ? [...adapter.buildPromptArgs({ prompt: options.prompt, model, extraArgs: agentConfig?.extraArgs })]
+      ? [
+          ...adapter.buildPromptArgs({
+            prompt: options.prompt,
+            model,
+            extraArgs: agentConfig?.extraArgs,
+          }),
+        ]
       : [...adapter.promptArgs(options.prompt)];
     void CLI_IDS;
 
     write(`coderelay: routing to ${targetDescription(agent, model)}\n`);
 
     const launchCwd = resolveLaunchCwd(options.cwd, executable);
-    if (executable.runtime === "wsl" && options.cwd && !launchCwd) {
-      write(
-        `coderelay: 无法把工作目录转换为 WSL 路径（${options.cwd}），将在 WSL 当前目录执行\n`,
-      );
-    }
 
     // 统一流式生命周期：assistant 文本写 stdout，诊断写 stderr。
     const onEvent = (event: AgentEvent): void => {

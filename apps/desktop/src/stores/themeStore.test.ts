@@ -3,25 +3,32 @@ import {
   CODE_THEME_IDS,
   CODE_THEME_PRESETS,
   DEFAULT_CODE_THEME_ID,
+  DEFAULT_FOLDER_STYLE_ID,
   DEFAULT_THEME_PRESET_ID,
+  FOLDER_STYLE_IDS,
+  FOLDER_STYLE_PRESETS,
   THEME_PRESETS,
   THEME_PRESET_IDS,
   isCodeThemeId,
+  isFolderStyleId,
   isThemePresetId,
 } from "../types";
 import {
   applyThemeToDocument,
   CODE_THEME_STORAGE_KEY,
   DEFAULT_BG_OPACITY,
+  FOLDER_STYLE_STORAGE_KEY,
   getCodeThemePalette,
   getInitialCodeTheme,
   getInitialCustomBackground,
   getInitialCustomBackgroundOpacity,
+  getInitialFolderStyle,
   getInitialThemePreset,
   getThemeColorSchemeMode,
   persistCodeTheme,
   persistCustomBackground,
   persistCustomBackgroundOpacity,
+  persistFolderStyle,
   persistThemePreset,
   resolveEffectiveCodeTheme,
   resolveEffectiveTheme,
@@ -384,5 +391,74 @@ describe("Code theme SSOT, resolution & persistence", () => {
     // Reset
     useThemeStore.getState().setPreset("light");
     useThemeStore.getState().setCodeTheme("auto");
+  });
+});
+
+describe("Folder style SSOT & persistence", () => {
+  const mockStorage = new MockStorage();
+  let origWindow: Window & typeof globalThis;
+
+  beforeEach(() => {
+    origWindow = globalThis.window;
+    mockStorage.clear();
+    Object.defineProperty(globalThis, "window", {
+      value: {
+        localStorage: mockStorage,
+        matchMedia: () => ({ matches: false }),
+      },
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    globalThis.window = origWindow;
+    mockStorage.clear();
+  });
+
+  it("maintains SSOT with FOLDER_STYLE_IDS and validates isFolderStyleId", () => {
+    expect(DEFAULT_FOLDER_STYLE_ID).toBe("clean");
+    expect(FOLDER_STYLE_PRESETS.map((p) => p.id)).toEqual([...FOLDER_STYLE_IDS]);
+
+    for (const id of FOLDER_STYLE_IDS) {
+      expect(isFolderStyleId(id)).toBe(true);
+    }
+
+    // Boundary & invalid values
+    expect(isFolderStyleId("")).toBe(false);
+    expect(isFolderStyleId("CLEAN")).toBe(false);
+    expect(isFolderStyleId("rainbow")).toBe(false);
+    expect(isFolderStyleId(null)).toBe(false);
+    expect(isFolderStyleId(undefined)).toBe(false);
+    expect(isFolderStyleId(123)).toBe(false);
+
+    for (const preset of FOLDER_STYLE_PRESETS) {
+      expect(preset.name.trim().length).toBeGreaterThan(0);
+      expect(preset.subtitle.trim().length).toBeGreaterThan(0);
+      expect(preset.description.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("persists folder style in localStorage and updates store via setFolderStyle", () => {
+    expect(getInitialFolderStyle()).toBe("clean");
+
+    persistFolderStyle("semantic-color");
+    expect(mockStorage.getItem(FOLDER_STYLE_STORAGE_KEY)).toBe("semantic-color");
+    expect(getInitialFolderStyle()).toBe("semantic-color");
+
+    mockStorage.setItem(FOLDER_STYLE_STORAGE_KEY, "invalid-folder-style");
+    expect(getInitialFolderStyle()).toBe("clean");
+
+    useThemeStore.getState().setFolderStyle("semantic-mono");
+    expect(useThemeStore.getState().folderStyle).toBe("semantic-mono");
+    expect(mockStorage.getItem(FOLDER_STYLE_STORAGE_KEY)).toBe("semantic-mono");
+
+    useThemeStore.getState().setFolderStyle("tinted-folder");
+    expect(useThemeStore.getState().folderStyle).toBe("tinted-folder");
+    expect(mockStorage.getItem(FOLDER_STYLE_STORAGE_KEY)).toBe("tinted-folder");
+
+    // Reset back to default clean style
+    useThemeStore.getState().setFolderStyle("clean");
+    expect(useThemeStore.getState().folderStyle).toBe("clean");
   });
 });

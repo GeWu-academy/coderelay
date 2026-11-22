@@ -43,8 +43,6 @@ function scannerOptionsFor(host: FakeHost): ScannerOptions {
         });
       }
     },
-    // Native-matrix tests never want a WSL probe unless they ask for one.
-    probeWsl: false,
   };
 }
 
@@ -74,10 +72,8 @@ describe("Windows native resolution", () => {
       env: { PATH: "C:\\Program Files\\Codex;C:\\Other" },
       files: ["C:\\Program Files\\Codex\\codex.exe", "C:\\Other\\codex.exe"],
       outputs: {
-        "where codex":
-          "\r\nC:\\Program Files\\Codex\\codex.exe\r\nC:\\Other\\codex.exe\r\n",
-        "C:\\Program Files\\Codex\\codex.exe --version":
-          "codex-cli 0.139.0\r\n",
+        "where codex": "\r\nC:\\Program Files\\Codex\\codex.exe\r\nC:\\Other\\codex.exe\r\n",
+        "C:\\Program Files\\Codex\\codex.exe --version": "codex-cli 0.139.0\r\n",
         "C:\\Other\\codex.exe --version": "codex-cli 0.130.0\r\n",
       },
     });
@@ -107,8 +103,7 @@ describe("Windows native resolution", () => {
       },
       files: ["C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd"],
       outputs: {
-        "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd --version":
-          "2.0.1 (Claude Code)\r\n",
+        "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd --version": "2.0.1 (Claude Code)\r\n",
       },
     });
 
@@ -135,8 +130,7 @@ describe("Windows native resolution", () => {
       },
       files: ["C:\\Users\\tester\\AppData\\Roaming\\npm\\omp.cmd"],
       outputs: {
-        "C:\\Users\\tester\\AppData\\Roaming\\npm\\omp.cmd --version":
-          "omp 0.9.0\r\n",
+        "C:\\Users\\tester\\AppData\\Roaming\\npm\\omp.cmd --version": "omp 0.9.0\r\n",
       },
     });
 
@@ -155,9 +149,7 @@ describe("Windows native resolution", () => {
         PATH: "C:\\Windows",
         LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local",
       },
-      files: [
-        "C:\\Users\\tester\\AppData\\Local\\Microsoft\\WinGet\\Links\\claude.exe",
-      ],
+      files: ["C:\\Users\\tester\\AppData\\Local\\Microsoft\\WinGet\\Links\\claude.exe"],
       outputs: {
         "C:\\Users\\tester\\AppData\\Local\\Microsoft\\WinGet\\Links\\claude.exe --version":
           "2.0.1\r\n",
@@ -217,10 +209,7 @@ describe("macOS resolution", () => {
       platform: "darwin",
       homeDir: "/Users/tester",
       env: { PATH: "/usr/bin" },
-      files: [
-        "/Users/tester/.local/bin/codex",
-        "/Users/tester/.bun/bin/codex",
-      ],
+      files: ["/Users/tester/.local/bin/codex", "/Users/tester/.bun/bin/codex"],
       outputs: {
         "/Users/tester/.local/bin/codex --version": "codex-cli 0.139.0\n",
         "/Users/tester/.bun/bin/codex --version": "codex-cli 0.120.0\n",
@@ -315,9 +304,7 @@ describe("version probing", () => {
 
     const omp = nth(detected, 3);
     expect(omp).toMatchObject({ available: true, version: null });
-    expect(omp.diagnostics?.map((entry) => entry.message).join("\n")).toContain(
-      "版本探测失败",
-    );
+    expect(omp.diagnostics?.map((entry) => entry.message).join("\n")).toContain("版本探测失败");
   });
 
   test("a version reported on stderr is accepted", async () => {
@@ -325,7 +312,6 @@ describe("version probing", () => {
       platform: "linux",
       homeDir: "/home/tester",
       env: { PATH: "/opt/bin" },
-      probeWsl: false,
       execFile: async (file, args) => {
         const command = [file, ...args].join(" ");
         if (command === "which pi") {
@@ -363,9 +349,10 @@ describe("version probing", () => {
       },
     });
 
-    expect(
-      cliCandidates(nth(detected, 0)).map((candidate) => candidate.version),
-    ).toEqual(["codex-cli 0.139.0", "codex-cli 0.130.0"]);
+    expect(cliCandidates(nth(detected, 0)).map((candidate) => candidate.version)).toEqual([
+      "codex-cli 0.139.0",
+      "codex-cli 0.130.0",
+    ]);
   });
 
   test("a broken candidate does not abort the scan of the others", async () => {

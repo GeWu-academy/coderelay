@@ -1,10 +1,6 @@
 #!/usr/bin/env bun
 
-import {
-  Command,
-  InvalidArgumentError,
-  type OptionValues,
-} from "commander";
+import { Command, InvalidArgumentError, type OptionValues } from "commander";
 
 import { runAgentsCommand } from "./commands/agents";
 import { runDoctorCommand } from "./commands/doctor";
@@ -40,14 +36,9 @@ function isModelStrength(value: string): value is ModelStrength {
   return (MODEL_STRENGTHS as readonly string[]).includes(value);
 }
 
-function collectModelStrength(
-  value: string,
-  previous: ModelStrength[],
-): ModelStrength[] {
+function collectModelStrength(value: string, previous: ModelStrength[]): ModelStrength[] {
   if (!isModelStrength(value)) {
-    throw new InvalidArgumentError(
-      `expected one of: ${MODEL_STRENGTHS.join(", ")}`,
-    );
+    throw new InvalidArgumentError(`expected one of: ${MODEL_STRENGTHS.join(", ")}`);
   }
   return [...previous, value];
 }
@@ -106,11 +97,7 @@ export function createProgram(): Command {
       collectModelStrength,
       [],
     )
-    .option(
-      "-M, --mode <mode>",
-      "routing decision mode: local, manual, jev",
-      parseRoutingMode,
-    )
+    .option("-M, --mode <mode>", "routing decision mode: local, manual, jev", parseRoutingMode)
     .option(
       "--timeout <ms>",
       "terminate the selected agent after this timeout",

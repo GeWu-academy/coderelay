@@ -7,9 +7,7 @@ import { CLI_IDS, type CliId } from "../models/cli";
 export type AgentRegistry = Readonly<Record<CliId, AgentAdapter>>;
 
 /** Build a fresh agent registry, primarily for tests and embedded hosts. */
-export function createAgentRegistry(
-  options: CliAdapterOptions = {},
-): AgentRegistry {
+export function createAgentRegistry(options: CliAdapterOptions = {}): AgentRegistry {
   const clis = createCliAdapters(options);
 
   return Object.freeze({
@@ -23,10 +21,7 @@ export function createAgentRegistry(
 /** Default registry derived from the current user's home and environment. */
 export const AGENT_REGISTRY: AgentRegistry = createAgentRegistry();
 
-export function getAgentAdapter(
-  id: string,
-  options?: CliAdapterOptions,
-): AgentAdapter | null {
+export function getAgentAdapter(id: string, options?: CliAdapterOptions): AgentAdapter | null {
   if (!isAgentId(id)) {
     return null;
   }

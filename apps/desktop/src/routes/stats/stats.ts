@@ -138,10 +138,7 @@ export function aggregateCliStats(
     totalTurns += count;
   }
 
-  const allClis = new Set<string>([
-    ...cliSessionCounts.keys(),
-    ...cliTurnCounts.keys(),
-  ]);
+  const allClis = new Set<string>([...cliSessionCounts.keys(), ...cliTurnCounts.keys()]);
 
   const stats: CliUsageStat[] = [];
   for (const cliId of allClis) {
@@ -342,7 +339,7 @@ export function buildContributionHeatmap(
 
     // If day is past referenceDate, we can treat it as null/future or 0 count
     const isFuture = curr.getTime() > end.getTime();
-    const count = isFuture ? 0 : dateCounts.get(dateKey) ?? 0;
+    const count = isFuture ? 0 : (dateCounts.get(dateKey) ?? 0);
     if (!isFuture) {
       totalUpdates += count;
     }

@@ -88,12 +88,7 @@ export type AgentEvent =
   | AbortedEvent;
 
 /** 运行结束状态：完成 / 失败 / 超时 / 取消 / 启动失败。 */
-export type AgentRunStatus =
-  | "completed"
-  | "failed"
-  | "timeout"
-  | "aborted"
-  | "spawn-error";
+export type AgentRunStatus = "completed" | "failed" | "timeout" | "aborted" | "spawn-error";
 
 export interface AgentRunResult {
   readonly status: AgentRunStatus;
@@ -153,7 +148,8 @@ export function parseStructuredLine(line: string): AgentEvent | null {
     return text ? { kind: "thinking", text } : null;
   }
   if (type === "assistant_text" || type === "text" || type === "message") {
-    const text = asString(parsed["text"]) ?? asString(parsed["content"]) ?? asString(parsed["delta"]);
+    const text =
+      asString(parsed["text"]) ?? asString(parsed["content"]) ?? asString(parsed["delta"]);
     return text ? { kind: "assistant_text", text } : null;
   }
   if (type === "status") {

@@ -1,13 +1,10 @@
 /**
- * Version probing shared by local and WSL candidates.
+ * Version probing for discovered CLI candidates.
  *
  * Every probe is isolated: a CLI that ignores or rejects a version flag, times
  * out, or exits non-zero simply yields `null` and never fails the scan.
  */
-import type {
-  ExecFileRequestOptions,
-  ExecFileRunner,
-} from "../models/cli";
+import type { ExecFileRequestOptions, ExecFileRunner } from "../models/cli";
 
 export interface VersionProbeOptions {
   readonly execFile: ExecFileRunner;
@@ -42,16 +39,12 @@ export async function probeVersion(
 
   for (const args of options.versionArgs) {
     try {
-      const { stdout, stderr } = await options.execFile(
-        file,
-        [...baseArgs, ...args],
-        {
-          cwd: options.cwd,
-          env: options.env,
-          timeout: options.timeoutMs,
-          windowsHide: true,
-        } satisfies ExecFileRequestOptions,
-      );
+      const { stdout, stderr } = await options.execFile(file, [...baseArgs, ...args], {
+        cwd: options.cwd,
+        env: options.env,
+        timeout: options.timeoutMs,
+        windowsHide: true,
+      } satisfies ExecFileRequestOptions);
       const version = firstNonEmptyLine(stdout.trim() ? stdout : stderr);
       if (version) {
         return version;

@@ -31,8 +31,8 @@ const LABELLED: DetectedCli[] = [
     path: "/home/me/.local/bin/claude",
     version: "2.0.1",
     available: true,
-    runtime: "wsl",
-    distro: "Ubuntu",
+    runtime: "local",
+    source: "npm",
   },
   {
     id: "pi",
@@ -74,11 +74,11 @@ describe("CLI rail labels", () => {
     expect(frame).toContain("· installer");
   });
 
-  test("a WSL CLI names the distribution instead of the host OS", () => {
+  test("an npm CLI shows its npm install channel", () => {
     const frame = detailLineFor(1);
 
-    expect(frame).toContain("WSL: Ubuntu");
-    expect(frame).not.toContain("· installer");
+    expect(frame).toContain("v2.0.1");
+    expect(frame).toContain("· npm");
   });
 
   test("a CLI without a version says so rather than showing a blank", () => {
@@ -101,9 +101,7 @@ describe("CLI rail labels", () => {
 });
 
 async function renderApp(clis: readonly DetectedCli[]) {
-  const instance = render(
-    <App clis={clis} onLaunch={() => undefined} onExit={() => undefined} />,
-  );
+  const instance = render(<App clis={clis} onLaunch={() => undefined} onExit={() => undefined} />);
   await nextTick();
   return instance;
 }
@@ -127,18 +125,6 @@ describe("missing-CLI detail screen", () => {
     expect(frame).toContain("已检查 PATH 与常见安装目录");
     expect(frame).toContain("coderelay 不会代跑");
     expect(frame).toContain("装好后重新打开终端");
-    instance.cleanup();
-  });
-
-  test("a WSL CLI is labelled by its distribution on the rail", async () => {
-    const instance = await renderApp(LABELLED);
-
-    instance.stdin.write("\r");
-    await nextTick();
-    instance.stdin.write(ARROW_RIGHT);
-    await nextTick();
-
-    expect(instance.lastFrame()).toContain("WSL: Ubuntu");
     instance.cleanup();
   });
 });

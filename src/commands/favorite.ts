@@ -1,10 +1,6 @@
 import { isAgentId } from "../agents/registry";
 import { CLI_IDS, type CliId } from "../models/cli";
-import {
-  createSessionStore,
-  defaultSessionDbPath,
-  type SessionStore,
-} from "../session/store";
+import { createSessionStore, defaultSessionDbPath, type SessionStore } from "../session/store";
 
 export const AGENT_LABELS: Readonly<Record<CliId, string>> = {
   codex: "Codex",
@@ -32,9 +28,7 @@ export async function runFavoriteCommand(
   dependencies: FavoriteCommandDependencies = {},
 ): Promise<number> {
   const write = dependencies.write ?? ((text: string) => process.stdout.write(text));
-  const store =
-    dependencies.store ??
-    createSessionStore(defaultSessionDbPath(options.homeDir));
+  const store = dependencies.store ?? createSessionStore(defaultSessionDbPath(options.homeDir));
 
   try {
     const rawAgent = options.agent?.trim().toLowerCase();
@@ -58,9 +52,7 @@ export async function runFavoriteCommand(
     }
 
     if (!isAgentId(rawAgent)) {
-      write(
-        `× 无效的 agent: "${rawAgent}"。支持的 agent: ${CLI_IDS.join(", ")}\n`,
-      );
+      write(`× 无效的 agent: "${rawAgent}"。支持的 agent: ${CLI_IDS.join(", ")}\n`);
       return 1;
     }
 

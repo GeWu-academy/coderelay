@@ -104,15 +104,8 @@ export function RightSidebar({
           </div>
         </div>
 
-        <div
-          className={`min-h-0 flex-1 flex-col ${
-            mode === "terminal" ? "flex" : "hidden"
-          }`}
-        >
-          <TerminalPanel
-            active={open && mode === "terminal"}
-            workspaceCwd={workspaceCwd}
-          />
+        <div className={`min-h-0 flex-1 flex-col ${mode === "terminal" ? "flex" : "hidden"}`}>
+          <TerminalPanel active={open && mode === "terminal"} workspaceCwd={workspaceCwd} />
         </div>
       </div>
     </aside>

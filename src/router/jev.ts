@@ -9,11 +9,7 @@ export const TYPESAFE_DEFAULT_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
 export const TYPESAFE_DEFAULT_MODEL = "jev-latest";
 export const TYPESAFE_ENV_KEY = "TYPESAFE_API_KEY";
 
-const CANDIDATE_ENV_FILES = [
-  ".env.local",
-  "env.local",
-  ".env",
-] as const;
+const CANDIDATE_ENV_FILES = [".env.local", "env.local", ".env"] as const;
 
 export class JevError extends Error {
   readonly code:
@@ -90,10 +86,7 @@ export interface JevClientOptions {
   readonly endpoint?: string;
   readonly model?: string;
   readonly timeoutMs?: number;
-  readonly fetchFn?: (
-    input: string | URL | Request,
-    init?: RequestInit,
-  ) => Promise<Response>;
+  readonly fetchFn?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
   readonly cwd?: string;
 }
 
@@ -206,14 +199,17 @@ export function buildJevRequest(
       request.language ? `Language: ${request.language}` : undefined,
       request.files?.length ? `Files: ${request.files.join(", ")}` : undefined,
       request.contextSize !== undefined ? `Context size: ${request.contextSize} tokens` : undefined,
-      request.requiredStrengths?.length ? `Required strengths: ${request.requiredStrengths.join(", ")}` : undefined,
-    ].filter((part): part is string => part !== undefined).join("\n"),
+      request.requiredStrengths?.length
+        ? `Required strengths: ${request.requiredStrengths.join(", ")}`
+        : undefined,
+    ]
+      .filter((part): part is string => part !== undefined)
+      .join("\n"),
     model,
     questions: {
       decision: {
         type: "choice",
-        instructions:
-          "Select the single most suitable coding agent or model for this coding task.",
+        instructions: "Select the single most suitable coding agent or model for this coding task.",
         criteria,
       },
     },
@@ -324,9 +320,7 @@ export async function routeWithJev(
   }
 
   const chosenKey = answer.choice;
-  const candidate = candidates.find(
-    (item) => formatCandidateKey(item) === chosenKey,
-  );
+  const candidate = candidates.find((item) => formatCandidateKey(item) === chosenKey);
 
   if (!candidate) {
     throw new JevError(
@@ -355,9 +349,7 @@ export async function routeWithJev(
 }
 
 /** Convert a JevDecision to the project's standard RouteDecision. */
-export function jevDecisionToRouteDecision(
-  decision: JevDecision,
-): RouteDecision {
+export function jevDecisionToRouteDecision(decision: JevDecision): RouteDecision {
   const percent = Math.round(decision.confidence * 100);
   return {
     agent: decision.agent,

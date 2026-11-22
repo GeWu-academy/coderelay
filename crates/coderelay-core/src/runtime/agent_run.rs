@@ -95,22 +95,14 @@ impl AgentRunHandle {
 /// Determine whether a command needs a Windows shell wrapper.
 pub fn resolve_agent_shell(
     shell_override: Option<bool>,
-    target: Option<&LaunchTarget>,
-    bin: &str,
+    _target: Option<&LaunchTarget>,
+    _bin: &str,
     platform: Platform,
 ) -> bool {
     if let Some(shell) = shell_override {
         return shell;
     }
-    if platform != Platform::Win32
-        || target.is_some_and(|target| target.runtime == crate::scanner::CliRuntime::Wsl)
-    {
-        return false;
-    }
-    let normalized = bin.to_lowercase();
-    normalized != "wsl.exe"
-        && !normalized.ends_with("\\wsl.exe")
-        && !normalized.ends_with("/wsl.exe")
+    platform == Platform::Win32
 }
 
 fn quote_posix_arg(value: &str) -> String {

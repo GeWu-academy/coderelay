@@ -2,17 +2,21 @@ import { create } from "zustand";
 import {
   CODE_THEME_PRESETS,
   DEFAULT_CODE_THEME_ID,
+  DEFAULT_FOLDER_STYLE_ID,
   DEFAULT_THEME_PRESET_ID,
   isCodeThemeId,
+  isFolderStyleId,
   isThemePresetId,
   type CodeThemeId,
   type CodeThemePalette,
+  type FolderStyleId,
   type ResolvedCodeThemeId,
   type ThemePresetId,
 } from "../types";
 
 export const THEME_STORAGE_KEY = "coderelay_theme_preset";
 export const CODE_THEME_STORAGE_KEY = "coderelay_code_theme";
+export const FOLDER_STYLE_STORAGE_KEY = "coderelay_folder_style";
 export const THEME_BG_STORAGE_KEY = "coderelay_custom_background";
 export const THEME_BG_OPACITY_STORAGE_KEY = "coderelay_custom_bg_opacity";
 export const DEFAULT_BG_OPACITY = 0.25;
@@ -26,24 +30,21 @@ export interface ThemeState {
   colorScheme: ColorSchemeMode;
   codeTheme: CodeThemeId;
   effectiveCodeTheme: ResolvedCodeThemeId;
+  folderStyle: FolderStyleId;
   customBackground: string | null;
   customBackgroundOpacity: number;
   setPreset: (preset: ThemePresetId) => void;
   setCodeTheme: (codeTheme: CodeThemeId) => void;
+  setFolderStyle: (folderStyle: FolderStyleId) => void;
   setCustomBackground: (backgroundUrl: string | null) => void;
   setCustomBackgroundOpacity: (opacity: number) => void;
 }
 
 export function getSystemColorScheme(): ColorSchemeMode {
-  if (
-    typeof window === "undefined" ||
-    typeof window.matchMedia !== "function"
-  ) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return "light";
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 export function resolveEffectiveTheme(
@@ -202,9 +203,7 @@ const FALLBACK_CODE_PALETTE: CodeThemePalette = {
   property: "#0550ae",
 };
 
-export function getCodeThemePalette(
-  resolvedCodeTheme: ResolvedCodeThemeId,
-): CodeThemePalette {
+export function getCodeThemePalette(resolvedCodeTheme: ResolvedCodeThemeId): CodeThemePalette {
   const found = CODE_THEME_PRESETS.find((item) => item.id === resolvedCodeTheme);
   return found?.palette ?? CODE_THEME_PRESETS[1]?.palette ?? FALLBACK_CODE_PALETTE;
 }
@@ -235,6 +234,32 @@ export function persistCodeTheme(codeTheme: CodeThemeId): void {
   }
 }
 
+export function getInitialFolderStyle(): FolderStyleId {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return DEFAULT_FOLDER_STYLE_ID;
+  }
+  try {
+    const stored = window.localStorage.getItem(FOLDER_STYLE_STORAGE_KEY);
+    if (stored && isFolderStyleId(stored)) {
+      return stored;
+    }
+    return DEFAULT_FOLDER_STYLE_ID;
+  } catch {
+    return DEFAULT_FOLDER_STYLE_ID;
+  }
+}
+
+export function persistFolderStyle(folderStyle: FolderStyleId): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(FOLDER_STYLE_STORAGE_KEY, folderStyle);
+  } catch {
+    // ignore quota/security errors
+  }
+}
+
 const initialPreset = getInitialThemePreset();
 const initialBg = getInitialCustomBackground();
 const initialBgOpacity = getInitialCustomBackgroundOpacity();
@@ -244,6 +269,7 @@ const initialEffectiveCodeTheme = resolveEffectiveCodeTheme(
   initialCodeTheme,
   initialResolved.colorScheme,
 );
+const initialFolderStyle = getInitialFolderStyle();
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   preset: initialPreset,
@@ -251,6 +277,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   colorScheme: initialResolved.colorScheme,
   codeTheme: initialCodeTheme,
   effectiveCodeTheme: initialEffectiveCodeTheme,
+  folderStyle: initialFolderStyle,
   customBackground: initialBg,
   customBackgroundOpacity: initialBgOpacity,
 
@@ -261,20 +288,19 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       undefined,
       get().customBackground,
     );
-    const effectiveCodeTheme = resolveEffectiveCodeTheme(
-      get().codeTheme,
-      colorScheme,
-    );
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(get().codeTheme, colorScheme);
     set({ preset, effectiveTheme, colorScheme, effectiveCodeTheme });
   },
 
   setCodeTheme: (codeTheme: CodeThemeId) => {
     persistCodeTheme(codeTheme);
-    const effectiveCodeTheme = resolveEffectiveCodeTheme(
-      codeTheme,
-      get().colorScheme,
-    );
+    const effectiveCodeTheme = resolveEffectiveCodeTheme(codeTheme, get().colorScheme);
     set({ codeTheme, effectiveCodeTheme });
+  },
+
+  setFolderStyle: (folderStyle: FolderStyleId) => {
+    persistFolderStyle(folderStyle);
+    set({ folderStyle });
   },
 
   setCustomBackground: (backgroundUrl: string | null) => {
@@ -302,10 +328,7 @@ if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
     const currentPreset = useThemeStore.getState().preset;
     if (currentPreset === "system") {
       const systemMode = event.matches ? "dark" : "light";
-      const { effectiveTheme, colorScheme } = applyThemeToDocument(
-        "system",
-        systemMode,
-      );
+      const { effectiveTheme, colorScheme } = applyThemeToDocument("system", systemMode);
       const effectiveCodeTheme = resolveEffectiveCodeTheme(
         useThemeStore.getState().codeTheme,
         colorScheme,

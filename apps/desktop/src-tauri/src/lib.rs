@@ -25,8 +25,12 @@ use tauri::{AppHandle, Emitter, Manager, State};
 mod git;
 mod terminal;
 use git::{
-    git_branches, git_checkout, git_commit, git_delete_branch, git_diff, git_discard,
-    git_generate_commit_message, git_init, git_stage, git_status, git_sync, git_unstage,
+    git_add_remote, git_branches, git_checkout, git_clear_output_log, git_clone, git_commit,
+    git_create_tag, git_delete_branch, git_delete_tag, git_diff, git_discard, git_discard_all,
+    git_generate_commit_message, git_init, git_merge_branch, git_output_log, git_rebase_branch,
+    git_remotes, git_remove_remote, git_rename_branch, git_stage, git_stash_apply, git_stash_clear,
+    git_stash_drop, git_stash_pop, git_stash_push, git_stashes, git_status, git_sync, git_tags,
+    git_undo_last_commit, git_unstage,
 };
 use terminal::{
     TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write,
@@ -1062,12 +1066,32 @@ pub fn run() {
             git_stage,
             git_unstage,
             git_discard,
+            git_discard_all,
             git_commit,
+            git_undo_last_commit,
             git_branches,
             git_checkout,
             git_delete_branch,
+            git_rename_branch,
+            git_merge_branch,
+            git_rebase_branch,
             git_sync,
             git_init,
+            git_clone,
+            git_remotes,
+            git_add_remote,
+            git_remove_remote,
+            git_stashes,
+            git_stash_push,
+            git_stash_apply,
+            git_stash_pop,
+            git_stash_drop,
+            git_stash_clear,
+            git_tags,
+            git_create_tag,
+            git_delete_tag,
+            git_output_log,
+            git_clear_output_log,
             git_generate_commit_message
         ])
         .build(tauri::generate_context!())

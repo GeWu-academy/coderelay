@@ -52,8 +52,6 @@ export interface CliCandidate {
   path: string;
   runtime: string;
   source: string;
-  distro?: string;
-  mountRoot?: string;
   version: string | null;
 }
 
@@ -70,8 +68,6 @@ export interface DetectedCli {
   available: boolean;
   runtime: string;
   source: string;
-  distro?: string;
-  mountRoot?: string;
   candidates: CliCandidate[];
   diagnostics: CliDiagnostic[];
 }
@@ -263,12 +259,7 @@ export type AgentEvent =
   | FailedEvent
   | AbortedEvent;
 
-export type AgentRunStatus =
-  | "completed"
-  | "failed"
-  | "timeout"
-  | "aborted"
-  | "spawn-error";
+export type AgentRunStatus = "completed" | "failed" | "timeout" | "aborted" | "spawn-error";
 
 export interface AgentRunResult {
   status: AgentRunStatus;

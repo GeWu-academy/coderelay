@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::agent::AgentId;
 use crate::host::{CommandRunner, ExecRequest};
-use crate::scanner::{CliRuntime, DetectedCli, build_wsl_args};
+use crate::scanner::DetectedCli;
 
 pub use claude::ClaudePermissions;
 pub use codex::CodexPermissions;
@@ -124,18 +124,7 @@ pub fn scan_agent_permissions(
         .map(|arg| (*arg).to_owned())
         .collect();
 
-    let (file, args) = if target.runtime == CliRuntime::Wsl {
-        let mut command = vec![target.path];
-        command.extend(help_args);
-        (
-            "wsl.exe".to_owned(),
-            build_wsl_args(target.distro.as_deref(), &command),
-        )
-    } else {
-        (target.path, help_args)
-    };
-
-    let request = ExecRequest::new(file, args)
+    let request = ExecRequest::new(target.path, help_args)
         .with_timeout(timeout)
         .with_env(environment.clone());
 
@@ -223,10 +212,8 @@ mod tests {
             path: path.to_owned(),
             version: Some("1.0.0".to_owned()),
             available,
-            runtime: CliRuntime::Local,
+            runtime: crate::scanner::CliRuntime::Local,
             source: CliSource::Path,
-            distro: None,
-            mount_root: None,
             candidates: Vec::new(),
             diagnostics: Vec::new(),
         }

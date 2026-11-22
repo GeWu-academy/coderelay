@@ -10,10 +10,7 @@ const MAX_TOTAL_CONTEXT_CHARS = 8_000;
  * 其他 CLI 留下的上下文——这是跨 CLI 同步的实现方式：SQLite 是
  * 唯一事实来源，prompt 层做统一回放，不依赖各 CLI 的原生会话。
  */
-export function buildPromptWithContext(
-  turns: readonly SessionTurn[],
-  prompt: string,
-): string {
+export function buildPromptWithContext(turns: readonly SessionTurn[], prompt: string): string {
   if (turns.length === 0) {
     return prompt;
   }
@@ -26,9 +23,10 @@ export function buildPromptWithContext(
       continue;
     }
 
-    const output = turn.output.length > MAX_TURN_OUTPUT_CHARS
-      ? `…${turn.output.slice(-MAX_TURN_OUTPUT_CHARS)}`
-      : turn.output;
+    const output =
+      turn.output.length > MAX_TURN_OUTPUT_CHARS
+        ? `…${turn.output.slice(-MAX_TURN_OUTPUT_CHARS)}`
+        : turn.output;
     const ordinal = index + 1;
     const block = [
       `[#${ordinal}] 用户:`,

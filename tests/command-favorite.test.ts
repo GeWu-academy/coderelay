@@ -84,7 +84,6 @@ describe("favorite command", () => {
     store.close();
   });
 
-
   test("does not expose the unused cwd option", () => {
     const favorite = createProgram().commands.find((command) => command.name() === "favorite");
 

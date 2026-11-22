@@ -8,8 +8,8 @@
  */
 import type { CliId, CliSource } from "./cli";
 
-/** Platform an install command targets. `wsl` covers any Linux distribution. */
-export type InstallPlatform = "darwin" | "linux" | "win32" | "wsl";
+/** Platform an install command targets. */
+export type InstallPlatform = "darwin" | "linux" | "win32";
 
 export interface InstallGuideEntry {
   readonly platform: InstallPlatform;
@@ -51,12 +51,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
         verify: "codex --version",
       },
       {
-        platform: "wsl",
-        source: "installer",
-        command: "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
-        verify: "codex --version",
-      },
-      {
         platform: "darwin",
         source: "npm",
         command: "npm install -g @openai/codex",
@@ -73,13 +67,7 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
         source: "npm",
         command: "npm install -g @openai/codex",
         verify: "codex --version",
-        note: "OpenAI 未发布 Windows 原生安装脚本，原生环境请用 npm，或按下方命令在 WSL 内安装。",
-      },
-      {
-        platform: "wsl",
-        source: "npm",
-        command: "npm install -g @openai/codex",
-        verify: "codex --version",
+        note: "OpenAI 未发布 Windows 原生安装脚本，Windows 环境请使用 npm 安装。",
       },
       {
         platform: "darwin",
@@ -103,12 +91,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
       },
       {
         platform: "linux",
-        source: "installer",
-        command: "curl -fsSL https://claude.ai/install.sh | bash",
-        verify: "claude --version",
-      },
-      {
-        platform: "wsl",
         source: "installer",
         command: "curl -fsSL https://claude.ai/install.sh | bash",
         verify: "claude --version",
@@ -159,12 +141,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
         command: "npm install -g @anthropic-ai/claude-code",
         verify: "claude --version",
       },
-      {
-        platform: "wsl",
-        source: "npm",
-        command: "npm install -g @anthropic-ai/claude-code",
-        verify: "claude --version",
-      },
     ],
   },
   pi: {
@@ -180,12 +156,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
       },
       {
         platform: "linux",
-        source: "installer",
-        command: "curl -fsSL https://pi.dev/install.sh | sh",
-        verify: "pi --version",
-      },
-      {
-        platform: "wsl",
         source: "installer",
         command: "curl -fsSL https://pi.dev/install.sh | sh",
         verify: "pi --version",
@@ -211,13 +181,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
         verify: "pi --version",
         note: `历史包名仍可用：${PI_LEGACY_NPM_PACKAGE}`,
       },
-      {
-        platform: "wsl",
-        source: "npm",
-        command: `npm install -g --ignore-scripts ${PI_NPM_PACKAGE}`,
-        verify: "pi --version",
-        note: `历史包名仍可用：${PI_LEGACY_NPM_PACKAGE}`,
-      },
     ],
   },
   omp: {
@@ -233,12 +196,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
       },
       {
         platform: "linux",
-        source: "installer",
-        command: "curl -fsSL https://omp.sh/install | sh",
-        verify: "omp --version",
-      },
-      {
-        platform: "wsl",
         source: "installer",
         command: "curl -fsSL https://omp.sh/install | sh",
         verify: "omp --version",
@@ -273,13 +230,6 @@ export const INSTALL_GUIDES: Readonly<Record<CliId, InstallGuide>> = {
       },
       {
         platform: "win32",
-        source: "bun",
-        command: `bun install -g ${OMP_NPM_PACKAGE}`,
-        prerequisites: "Bun >= 1.3.14",
-        verify: "omp --version",
-      },
-      {
-        platform: "wsl",
         source: "bun",
         command: `bun install -g ${OMP_NPM_PACKAGE}`,
         prerequisites: "Bun >= 1.3.14",
@@ -324,31 +274,16 @@ export function installGuide(cliId: CliId): InstallGuide {
 }
 
 /**
- * Install entries for one CLI on one platform. `win32` includes the WSL
- * entries because a Windows user without a native CLI can install inside WSL.
+ * Install entries for one CLI on one platform.
  */
 export function installEntriesFor(
   cliId: CliId,
   platform: InstallPlatform,
 ): readonly InstallGuideEntry[] {
-  const entries = INSTALL_GUIDES[cliId].entries.filter((entry) =>
-    entry.platform === platform,
-  );
-  if (platform !== "win32") {
-    return entries;
-  }
-
-  return [
-    ...entries,
-    ...INSTALL_GUIDES[cliId].entries.filter(
-      (entry) => entry.platform === "wsl" && entry.source === "installer",
-    ),
-  ];
+  return INSTALL_GUIDES[cliId].entries.filter((entry) => entry.platform === platform);
 }
 
-export function installPlatformFor(
-  platform: NodeJS.Platform,
-): InstallPlatform {
+export function installPlatformFor(platform: NodeJS.Platform): InstallPlatform {
   if (platform === "darwin" || platform === "win32") {
     return platform;
   }

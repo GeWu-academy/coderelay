@@ -1,18 +1,8 @@
 import { AnimatePresence, motion } from "motion/react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import type { AgentEntry, AgentPermissions, ModelOption } from "../../types";
-import {
-  formatModeLabel,
-  getAvailableModelsForCli,
-  resolveRouteSelection,
-} from "../../utils";
+import { formatModeLabel, getAvailableModelsForCli, resolveRouteSelection } from "../../utils";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -110,16 +100,12 @@ function CustomSelectPill({
         } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
       >
         {leadingIcon ? (
-          <span className="flex shrink-0 items-center justify-center">
-            {leadingIcon}
-          </span>
+          <span className="flex shrink-0 items-center justify-center">{leadingIcon}</span>
         ) : null}
         <span className={`truncate ${maxLabelWidth}`}>{label}</span>
         <span
           className={`transition-transform duration-150 ${
-            open
-              ? "rotate-180 text-ink"
-              : "text-muted/45 group-hover:text-muted-strong"
+            open ? "rotate-180 text-ink" : "text-muted/45 group-hover:text-muted-strong"
           }`}
         >
           <ChevronDownIcon size={9} />
@@ -135,9 +121,7 @@ function CustomSelectPill({
             exit={{ opacity: 0, scale: 0.96, y: placement === "top" ? 4 : -4 }}
             transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
             className={`absolute z-50 flex max-h-[300px] flex-col overflow-hidden rounded-[12px] border border-line-strong/80 bg-surface/98 p-1 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12),0_4px_12px_-2px_rgba(0,0,0,0.05),0_0_0_0.5px_rgba(0,0,0,0.03)] backdrop-blur-xl ${
-              placement === "top"
-                ? "bottom-[calc(100%+6px)]"
-                : "top-[calc(100%+6px)]"
+              placement === "top" ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]"
             } ${align === "left" ? "left-0" : "right-0"} ${minDropdownWidth}`}
           >
             {menuTitle ? (
@@ -163,16 +147,12 @@ function CustomSelectPill({
                   >
                     <span
                       className={`truncate ${
-                        opt.dangerous
-                          ? "text-amber-600 dark:text-amber-300"
-                          : ""
+                        opt.dangerous ? "text-amber-600 dark:text-amber-300" : ""
                       }`}
                     >
                       {opt.label}
                     </span>
-                    {isSelected ? (
-                      <CheckIcon size={12} className="shrink-0 text-ink/80" />
-                    ) : null}
+                    {isSelected ? <CheckIcon size={12} className="shrink-0 text-ink/80" /> : null}
                   </button>
                 );
               })}
@@ -219,7 +199,11 @@ export function Composer({
     }
     function handlePointerDown(event: MouseEvent) {
       const target = event.target;
-      if (target instanceof Node && containerRef.current && !containerRef.current.contains(target)) {
+      if (
+        target instanceof Node &&
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
         setActiveMenu(null);
       }
     }
@@ -287,11 +271,9 @@ export function Composer({
     setActiveMenu(null);
   }
 
-  const permissionChoices =
-    permissions.find((item) => item.cliId === activeAgent)?.options ?? [];
+  const permissionChoices = permissions.find((item) => item.cliId === activeAgent)?.options ?? [];
   const currentPermission =
-    permissionChoices.find((item) => item.id === permission) ??
-    permissionChoices[0];
+    permissionChoices.find((item) => item.id === permission) ?? permissionChoices[0];
   const permissionOptions: DropdownOption[] = permissionChoices.map((item) => ({
     value: item.id,
     label: item.label,
@@ -362,9 +344,7 @@ export function Composer({
             options={modeOptions}
             onSelect={handleModeSelect}
             open={activeMenu === "mode"}
-            onToggle={() =>
-              setActiveMenu((curr) => (curr === "mode" ? null : "mode"))
-            }
+            onToggle={() => setActiveMenu((curr) => (curr === "mode" ? null : "mode"))}
             disabled={running}
             title={`模式: ${activeMode}`}
             menuTitle="路由模式"
@@ -374,10 +354,7 @@ export function Composer({
             minDropdownWidth="min-w-[132px]"
           />
 
-          <span
-            aria-hidden="true"
-            className="mx-0.5 h-3 w-px bg-line-strong/60"
-          />
+          <span aria-hidden="true" className="mx-0.5 h-3 w-px bg-line-strong/60" />
 
           <button
             aria-label="Route preview"
@@ -399,9 +376,7 @@ export function Composer({
             options={cliOptions}
             onSelect={handleCliChange}
             open={activeMenu === "cli"}
-            onToggle={() =>
-              setActiveMenu((curr) => (curr === "cli" ? null : "cli"))
-            }
+            onToggle={() => setActiveMenu((curr) => (curr === "cli" ? null : "cli"))}
             disabled={running}
             title={`CLI: ${currentAgentLabel}`}
             menuTitle="执行 CLI"
@@ -416,10 +391,7 @@ export function Composer({
             minDropdownWidth="min-w-[144px]"
           />
 
-          <span
-            aria-hidden="true"
-            className="select-none text-[11px] text-muted/40"
-          >
+          <span aria-hidden="true" className="select-none text-[11px] text-muted/40">
             /
           </span>
 
@@ -429,9 +401,7 @@ export function Composer({
             options={modelOptions}
             onSelect={handleModelChange}
             open={activeMenu === "model"}
-            onToggle={() =>
-              setActiveMenu((curr) => (curr === "model" ? null : "model"))
-            }
+            onToggle={() => setActiveMenu((curr) => (curr === "model" ? null : "model"))}
             disabled={running}
             title={`模型: ${currentModelLabel}`}
             menuTitle="模型"
@@ -442,10 +412,7 @@ export function Composer({
 
           {currentPermission && permissionChoices.length > 1 ? (
             <>
-              <span
-                aria-hidden="true"
-                className="mx-1 h-3 w-px bg-line-strong/60"
-              />
+              <span aria-hidden="true" className="mx-1 h-3 w-px bg-line-strong/60" />
               <CustomSelectPill
                 label={currentPermission.label}
                 value={currentPermission.id}
@@ -453,9 +420,7 @@ export function Composer({
                 onSelect={handlePermissionChange}
                 open={activeMenu === "permission"}
                 onToggle={() =>
-                  setActiveMenu((curr) =>
-                    curr === "permission" ? null : "permission",
-                  )
+                  setActiveMenu((curr) => (curr === "permission" ? null : "permission"))
                 }
                 disabled={running}
                 title={`权限: ${currentPermission.label}（${currentPermission.description}）`}

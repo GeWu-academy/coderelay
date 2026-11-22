@@ -96,7 +96,8 @@ export function ApiKeyView({
   const jevBusy = controlledBusy ?? internalBusy;
   const jevSettings = controlledSettings !== undefined ? controlledSettings : internalSettings;
   const jevApiKeyInput = controlledInput ?? internalInput;
-  const notice = controlledNotice !== undefined ? controlledNotice : (internalError ?? internalNotice);
+  const notice =
+    controlledNotice !== undefined ? controlledNotice : (internalError ?? internalNotice);
   const handleInputChange = onJevApiKeyInputChange ?? setInternalInput;
   const handleSave = onSaveJevApiKey ?? (() => void handleInternalSave());
   const handleClear = onClearJevApiKey ?? (() => void handleInternalClear());

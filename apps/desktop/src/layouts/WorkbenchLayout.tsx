@@ -99,22 +99,22 @@ export function WorkbenchLayout({
           ) : null}
 
           <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas" data-view={view}>
-          <AnimatePresence mode="wait">{main}</AnimatePresence>
+            <AnimatePresence mode="wait">{main}</AnimatePresence>
 
-          <AnimatePresence>
-            {showBottomDock && bottomDock ? (
-              <motion.div
-                key="composer-dock"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 16 }}
-                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
-                className="relative z-5 shrink-0 bg-[linear-gradient(180deg,transparent_0%,var(--color-canvas)_28%)] px-8 pt-2.5 pb-[18px]"
-              >
-                {bottomDock}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+            <AnimatePresence>
+              {showBottomDock && bottomDock ? (
+                <motion.div
+                  key="composer-dock"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 16 }}
+                  transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+                  className="relative z-5 shrink-0 bg-[linear-gradient(180deg,transparent_0%,var(--color-canvas)_28%)] px-8 pt-2.5 pb-[18px]"
+                >
+                  {bottomDock}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </main>
         </div>
 

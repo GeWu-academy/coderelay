@@ -11,10 +11,7 @@ import {
   type CliId,
   type PromptBuildOptions,
 } from "../models/cli";
-import {
-  parseStructuredLine,
-  type AgentEvent,
-} from "../models/agent-events";
+import { parseStructuredLine, type AgentEvent } from "../models/agent-events";
 import {
   validateProbedModels,
   type CliCapabilities,
@@ -156,8 +153,12 @@ async function probeCodexModels(configDir: string): Promise<ProbeResult> {
         if (typeof slug !== "string" || !slug) continue;
         rawModels.push({
           id: slug,
-          label: typeof entry["display_name"] === "string" ? (entry["display_name"] as string) : undefined,
-          description: typeof entry["description"] === "string" ? (entry["description"] as string) : undefined,
+          label:
+            typeof entry["display_name"] === "string"
+              ? (entry["display_name"] as string)
+              : undefined,
+          description:
+            typeof entry["description"] === "string" ? (entry["description"] as string) : undefined,
         });
       }
 
@@ -347,10 +348,7 @@ function addOmpModel(
   models.set(trimmedId, model);
 }
 
-function collectOmpRoleModels(
-  raw: unknown,
-  models: Map<string, ProbedModel>,
-): string | undefined {
+function collectOmpRoleModels(raw: unknown, models: Map<string, ProbedModel>): string | undefined {
   if (!isRecord(raw) || !isRecord(raw["modelRoles"])) return undefined;
   let defaultId: string | undefined;
   for (const [role, value] of Object.entries(raw["modelRoles"])) {
@@ -363,10 +361,7 @@ function collectOmpRoleModels(
   return defaultId;
 }
 
-function collectOmpProviderModels(
-  raw: unknown,
-  models: Map<string, ProbedModel>,
-): void {
+function collectOmpProviderModels(raw: unknown, models: Map<string, ProbedModel>): void {
   if (!isRecord(raw) || !isRecord(raw["providers"])) return;
   for (const [providerKey, provider] of Object.entries(raw["providers"])) {
     const providerId = providerKey.trim();
@@ -377,9 +372,7 @@ function collectOmpProviderModels(
       for (const entry of configuredModels) {
         if (!isRecord(entry) || typeof entry["id"] !== "string") continue;
         const rawId = entry["id"].trim();
-        const modelId = rawId.startsWith(`${providerId}/`)
-          ? rawId
-          : `${providerId}/${rawId}`;
+        const modelId = rawId.startsWith(`${providerId}/`) ? rawId : `${providerId}/${rawId}`;
         const label = typeof entry["name"] === "string" ? entry["name"] : undefined;
         addOmpModel(models, modelId, label);
       }
@@ -403,7 +396,7 @@ function parseOmpConfig(text: string): unknown {
 
 async function readOmpModelFile(file: string): Promise<unknown> {
   const text = await readFile(file, "utf8");
-  return file.endsWith(".json") ? JSON.parse(text) as unknown : parseOmpConfig(text);
+  return file.endsWith(".json") ? (JSON.parse(text) as unknown) : parseOmpConfig(text);
 }
 
 function ompNativeDefault(): ProbeResult {
@@ -500,10 +493,7 @@ function parseChunk(chunk: string, source: "stdout" | "stderr"): readonly AgentE
   return events;
 }
 
-function buildArgsFor(
-  id: CliId,
-  options: PromptBuildOptions,
-): readonly string[] {
+function buildArgsFor(id: CliId, options: PromptBuildOptions): readonly string[] {
   const extra = options.extraArgs ?? [];
   const modelArgs = options.model ? ["--model", options.model] : [];
   switch (id) {
@@ -646,27 +636,22 @@ export function createCliAdapters(
       probeModels: () => probeOmpModels(ompDirs.agentDir),
       probeCapabilities: () => staticCapabilities.omp,
       buildPromptArgs: (promptOptions: PromptBuildOptions) => buildArgsFor("omp", promptOptions),
-      parseOutputChunk: (chunk: string, source: "stdout" | "stderr"): readonly AgentEvent[] => parseChunk(chunk, source),
+      parseOutputChunk: (chunk: string, source: "stdout" | "stderr"): readonly AgentEvent[] =>
+        parseChunk(chunk, source),
       defaultModel: () => undefined,
     }),
   });
 }
 
 /** Default registry derived from the current user's home and environment. */
-export const CLI_ADAPTERS: Readonly<Record<CliId, CliAdapter>> =
-  createCliAdapters();
+export const CLI_ADAPTERS: Readonly<Record<CliId, CliAdapter>> = createCliAdapters();
 
-export function getCliAdapter(
-  id: CliId,
-  options?: CliAdapterOptions,
-): CliAdapter {
+export function getCliAdapter(id: CliId, options?: CliAdapterOptions): CliAdapter {
   const adapters = options ? createCliAdapters(options) : CLI_ADAPTERS;
   return adapters[id];
 }
 
-export function getCliAdapters(
-  options?: CliAdapterOptions,
-): Readonly<Record<CliId, CliAdapter>> {
+export function getCliAdapters(options?: CliAdapterOptions): Readonly<Record<CliId, CliAdapter>> {
   return options ? createCliAdapters(options) : CLI_ADAPTERS;
 }
 

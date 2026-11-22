@@ -79,13 +79,9 @@ export function formatModelList(groups: readonly ModelListGroup[]): string {
       const models = group.models
         .map((entry) => {
           const model = entry.model ?? "(adapter default)";
-          const label =
-            entry.label && entry.label !== entry.model ? ` (${entry.label})` : "";
+          const label = entry.label && entry.label !== entry.model ? ` (${entry.label})` : "";
           const defaultMarker = entry.isDefault ? " [default]" : "";
-          const strengths =
-            entry.strengths.length > 0
-              ? ` [${entry.strengths.join(", ")}]`
-              : "";
+          const strengths = entry.strengths.length > 0 ? ` [${entry.strengths.join(", ")}]` : "";
           return `  - ${model}${label}${defaultMarker}${strengths}`;
         })
         .join("\n");

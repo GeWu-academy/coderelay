@@ -9,14 +9,7 @@ export function isRightPanelMode(val: unknown): val is RightPanelMode {
 }
 
 export type SidebarRouteId =
-  | "new-chat"
-  | `session:${string}`
-  | "files"
-  | "scm"
-  | "sessions"
-  | "stats"
-  | "config"
-  | "apikeys";
+  "new-chat" | `session:${string}` | "files" | "scm" | "sessions" | "stats" | "config" | "apikeys";
 
 export interface NavigationState {
   view: WorkspaceView;
@@ -83,10 +76,7 @@ export function isSessionRouteActive(
   return view === "workspace" && activeSessionId === sessionId;
 }
 
-export function isNewChatRouteActive(
-  view: WorkspaceView,
-  activeSessionId: string | null,
-): boolean {
+export function isNewChatRouteActive(view: WorkspaceView, activeSessionId: string | null): boolean {
   return view === "workspace" && activeSessionId === null;
 }
 
@@ -118,6 +108,35 @@ export function isConversationRouteActive(view: WorkspaceView): boolean {
   return isConversationView(view);
 }
 
+export const LAST_VIEW_STORAGE_KEY = "coderelay_last_view";
+
+export function isWorkspaceView(val: unknown): val is WorkspaceView {
+  return (WORKSPACE_VIEWS as readonly unknown[]).includes(val);
+}
+
+function getInitialView(): WorkspaceView {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return "workspace";
+  }
+  try {
+    const stored = window.localStorage.getItem(LAST_VIEW_STORAGE_KEY);
+    return isWorkspaceView(stored) ? stored : "workspace";
+  } catch {
+    return "workspace";
+  }
+}
+
+function persistLastView(view: WorkspaceView): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(LAST_VIEW_STORAGE_KEY, view);
+  } catch {
+    // ignore
+  }
+}
+
 function getInitialSidebarCollapsed(): boolean {
   if (typeof window === "undefined" || !window.localStorage) {
     return false;
@@ -141,7 +160,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
 }
 
 export const useNavigationStore = create<NavigationState>((set) => ({
-  view: "workspace",
+  view: getInitialView(),
   activeSessionId: null,
   sidebarCollapsed: getInitialSidebarCollapsed(),
   rightSidebarOpen: false,
@@ -149,50 +168,69 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   projectExpanded: true,
   workspaceDropdownOpen: false,
 
-  setView: (view) => set({ view }),
+  setView: (view) => {
+    persistLastView(view);
+    set({ view });
+  },
   setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
 
-  navigateToNewChat: () =>
+  navigateToNewChat: () => {
+    persistLastView("workspace");
     set({
       view: "workspace",
       activeSessionId: null,
-    }),
+    });
+  },
 
-  navigateToSession: (sessionId: string) =>
+  navigateToSession: (sessionId: string) => {
+    persistLastView("workspace");
     set({
       view: "workspace",
       activeSessionId: sessionId,
-    }),
+    });
+  },
 
-  navigateToFiles: () =>
+  navigateToFiles: () => {
+    persistLastView("files");
     set({
       view: "files",
-    }),
+    });
+  },
 
-  navigateToScm: () =>
+  navigateToScm: () => {
+    persistLastView("scm");
     set({
       view: "scm",
-    }),
+    });
+  },
 
-  navigateToSessions: () =>
+  navigateToSessions: () => {
+    persistLastView("sessions");
     set({
       view: "sessions",
-    }),
+    });
+  },
 
-  navigateToStats: () =>
+  navigateToStats: () => {
+    persistLastView("stats");
     set({
       view: "stats",
-    }),
+    });
+  },
 
-  navigateToConfig: () =>
+  navigateToConfig: () => {
+    persistLastView("config");
     set({
       view: "config",
-    }),
+    });
+  },
 
-  navigateToApiKeys: () =>
+  navigateToApiKeys: () => {
+    persistLastView("apikeys");
     set({
       view: "apikeys",
-    }),
+    });
+  },
 
   toggleSidebar: () =>
     set((state) => {
@@ -206,8 +244,7 @@ export const useNavigationStore = create<NavigationState>((set) => ({
     set({ sidebarCollapsed: collapsed });
   },
 
-  toggleRightSidebar: () =>
-    set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
+  toggleRightSidebar: () => set((state) => ({ rightSidebarOpen: !state.rightSidebarOpen })),
 
   setRightSidebarOpen: (open: boolean) => set({ rightSidebarOpen: open }),
 
@@ -221,14 +258,12 @@ export const useNavigationStore = create<NavigationState>((set) => ({
 
   setRightPanelMode: (mode: RightPanelMode) => set({ rightPanelMode: mode }),
 
-  toggleProjectExpanded: () =>
-    set((state) => ({ projectExpanded: !state.projectExpanded })),
+  toggleProjectExpanded: () => set((state) => ({ projectExpanded: !state.projectExpanded })),
 
   setProjectExpanded: (expanded: boolean) => set({ projectExpanded: expanded }),
 
   toggleWorkspaceDropdown: () =>
     set((state) => ({ workspaceDropdownOpen: !state.workspaceDropdownOpen })),
 
-  setWorkspaceDropdownOpen: (open: boolean) =>
-    set({ workspaceDropdownOpen: open }),
+  setWorkspaceDropdownOpen: (open: boolean) => set({ workspaceDropdownOpen: open }),
 }));

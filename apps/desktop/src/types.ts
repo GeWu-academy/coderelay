@@ -215,14 +215,45 @@ export function isCliId(value: unknown): value is CliId {
   return (CLI_IDS as readonly unknown[]).includes(value);
 }
 
-export const WORKSPACE_VIEWS = ["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"] as const;
+export const WORKSPACE_VIEWS = [
+  "workspace",
+  "files",
+  "scm",
+  "sessions",
+  "stats",
+  "config",
+  "apikeys",
+] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
-export const GIT_SYNC_ACTIONS = ["fetch", "pull", "push"] as const;
+export const GIT_SYNC_ACTIONS = [
+  "fetch",
+  "fetch_all",
+  "pull",
+  "pull_rebase",
+  "push",
+  "push_force",
+  "push_tags",
+  "sync",
+] as const;
 export type GitSyncAction = (typeof GIT_SYNC_ACTIONS)[number];
 
 export function isGitSyncAction(value: unknown): value is GitSyncAction {
   return (GIT_SYNC_ACTIONS as readonly unknown[]).includes(value);
+}
+
+export const GIT_VIEW_MODES = ["list", "tree"] as const;
+export type GitViewMode = (typeof GIT_VIEW_MODES)[number];
+
+export function isGitViewMode(value: unknown): value is GitViewMode {
+  return (GIT_VIEW_MODES as readonly unknown[]).includes(value);
+}
+
+export const GIT_SORT_MODES = ["name", "path", "status"] as const;
+export type GitSortMode = (typeof GIT_SORT_MODES)[number];
+
+export function isGitSortMode(value: unknown): value is GitSortMode {
+  return (GIT_SORT_MODES as readonly unknown[]).includes(value);
 }
 
 export interface GitStatusEntry {
@@ -269,6 +300,41 @@ export interface GitBranchInfo {
 export interface GitActionResult {
   ok: boolean;
   message: string;
+}
+
+export interface GitCloneResult {
+  ok: boolean;
+  message: string;
+  clonedPath: string;
+}
+
+export interface GitRemoteInfo {
+  name: string;
+  fetchUrl: string;
+  pushUrl: string;
+}
+
+export interface GitStashEntry {
+  reference: string;
+  message: string;
+  timestamp: number | null;
+}
+
+export interface GitTagInfo {
+  name: string;
+  oid: string;
+  creatorDate: number | null;
+  message: string | null;
+}
+
+export interface GitOutputEntry {
+  id: number;
+  timestampMs: number;
+  cwd: string;
+  command: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
 }
 
 export interface FileTreeEntry {
@@ -691,6 +757,54 @@ export const CODE_THEME_PRESETS: readonly CodeThemePreset[] = Object.freeze([
   },
 ]);
 
+export const FOLDER_STYLE_IDS = [
+  "clean",
+  "semantic-color",
+  "semantic-mono",
+  "tinted-folder",
+] as const;
+export type FolderStyleId = (typeof FOLDER_STYLE_IDS)[number];
+
+export function isFolderStyleId(value: unknown): value is FolderStyleId {
+  return (FOLDER_STYLE_IDS as readonly unknown[]).includes(value);
+}
+
+export const DEFAULT_FOLDER_STYLE_ID: FolderStyleId = "clean";
+
+export interface FolderStylePreset {
+  readonly id: FolderStyleId;
+  readonly name: string;
+  readonly subtitle: string;
+  readonly description: string;
+}
+
+export const FOLDER_STYLE_PRESETS: readonly FolderStylePreset[] = Object.freeze([
+  {
+    id: "clean",
+    name: "极简干净",
+    subtitle: "默认",
+    description: "保持统一简洁线框文件夹，无额外色彩干扰",
+  },
+  {
+    id: "semantic-color",
+    name: "语义彩色",
+    subtitle: "个性",
+    description: "按目录语义匹配专属图标与柔和色彩区分",
+  },
+  {
+    id: "semantic-mono",
+    name: "语义单色",
+    subtitle: "克制",
+    description: "按目录语义切换专属图标，保持单色统一质感",
+  },
+  {
+    id: "tinted-folder",
+    name: "色标文件夹",
+    subtitle: "轻彩",
+    description: "保留经典文件夹形态，仅按目录语义着色区分",
+  },
+]);
+
 export interface WelcomeTimeSnapshot {
   period: TimePeriod;
   greeting: string;
@@ -724,4 +838,3 @@ export interface WorkbenchState {
   jevBusy: boolean;
   configNotice: string | null;
 }
-

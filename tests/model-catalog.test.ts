@@ -30,7 +30,9 @@ function baseAdapter(id: CliId): CliAdapter {
   };
 }
 
-function fakeAdapters(probes: Record<CliId, ProbeResult | "unsupported">): Record<CliId, CliAdapter> {
+function fakeAdapters(
+  probes: Record<CliId, ProbeResult | "unsupported">,
+): Record<CliId, CliAdapter> {
   const out = {} as Record<CliId, CliAdapter>;
   for (const id of CLI_IDS) {
     const probe = probes[id];
@@ -66,7 +68,13 @@ function modelOption(cliId: CliId, modelId: string): ModelOption {
 describe("probeModelCatalog", () => {
   test("returns a unified catalog; failures carry reasons and no candidates", async () => {
     const config = defaultConfig();
-    config.agents["omp"] = { enabled: false, activationDecided: true, models: [], extraArgs: [], env: {} };
+    config.agents["omp"] = {
+      enabled: false,
+      activationDecided: true,
+      models: [],
+      extraArgs: [],
+      env: {},
+    };
     const adapters = fakeAdapters({
       codex: { ok: true, models: [{ id: "gpt-5" }, { id: "gpt-5-mini" }], capabilities: CAPS },
       claude: { ok: false, reason: "auth missing" },
@@ -107,7 +115,9 @@ describe("probeModelCatalog", () => {
     expect(codex?.isNativeDefault).toBe(true);
     expect(claude?.isDefault).toBe(false);
     expect(claude?.isNativeDefault).toBe(true);
-    expect(toRouteCandidates(catalog, config).every((candidate) => !candidate.isDefault)).toBe(true);
+    expect(toRouteCandidates(catalog, config).every((candidate) => !candidate.isDefault)).toBe(
+      true,
+    );
   });
 
   test("config overlays metadata and order but cannot invent models", async () => {
@@ -136,7 +146,9 @@ describe("probeModelCatalog", () => {
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.label).toBe("Mini!");
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.cost).toBe(1);
     expect(catalog.options.find((o) => o.modelId === "gpt-5-mini")?.contextWindow).toBe(64_000);
-    const candidate = toRouteCandidates(catalog, config).find((item) => item.model === "gpt-5-mini");
+    const candidate = toRouteCandidates(catalog, config).find(
+      (item) => item.model === "gpt-5-mini",
+    );
     expect(candidate?.contextWindow).toBe(64_000);
   });
 
@@ -149,11 +161,7 @@ describe("probeModelCatalog", () => {
         {
           id: "gpt-5",
           label: "GPT-5",
-          strengths: [
-            ...MODEL_STRENGTHS,
-            "invalid-strength",
-            "code",
-          ] as unknown as ModelStrength[],
+          strengths: [...MODEL_STRENGTHS, "invalid-strength", "code"] as unknown as ModelStrength[],
           cost: 3,
         },
       ],
@@ -184,7 +192,9 @@ describe("probeModelCatalog", () => {
       omp: { ok: false, reason: "nope" },
     });
     const catalog = await probeModelCatalog(DETECTED, adapters, config);
-    expect(() => validateExplicitTarget(catalog, "claude", undefined, "codex")).toThrow("auth missing");
+    expect(() => validateExplicitTarget(catalog, "claude", undefined, "codex")).toThrow(
+      "auth missing",
+    );
     expect(() => validateExplicitTarget(catalog, "codex", "codex:nope", "codex")).toThrow("gpt-5");
     expect(validateExplicitTarget(catalog, "codex", "codex:gpt-5", "codex")).toEqual({
       cliId: "codex",
@@ -202,9 +212,10 @@ describe("probeModelCatalog", () => {
     });
     const catalog = await probeModelCatalog(DETECTED, adapters, config);
 
-    expect(
-      validateExplicitTarget(catalog, "omp", "ollama/qwen3:8b", "codex"),
-    ).toEqual({ cliId: "omp", modelId: "ollama/qwen3:8b" });
+    expect(validateExplicitTarget(catalog, "omp", "ollama/qwen3:8b", "codex")).toEqual({
+      cliId: "omp",
+      modelId: "ollama/qwen3:8b",
+    });
   });
 
   test("toRouteCandidates only exposes available options", async () => {
@@ -290,9 +301,10 @@ describe("probeModelCatalog", () => {
     expect(() =>
       validateExplicitTarget(catalog, "codex", "codex:claude-sonnet-4-5", "codex"),
     ).toThrow("模型不存在于 codex");
-    expect(
-      validateExplicitTarget(catalog, "claude", "claude:claude-sonnet-4-5", "codex"),
-    ).toEqual({ cliId: "claude", modelId: "claude-sonnet-4-5" });
+    expect(validateExplicitTarget(catalog, "claude", "claude:claude-sonnet-4-5", "codex")).toEqual({
+      cliId: "claude",
+      modelId: "claude-sonnet-4-5",
+    });
   });
 
   test("validateExplicitTarget refuses a disabled CLI", async () => {

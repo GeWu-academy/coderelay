@@ -1,13 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, type ReactNode } from "react";
 
-import {
-  IconRail,
-  RightSidebar,
-  Sidebar,
-  Titlebar,
-  WorkbenchComposer,
-} from "./components";
+import { IconRail, RightSidebar, Sidebar, Titlebar, WorkbenchComposer } from "./components";
 import { WorkbenchLayout } from "./layouts/WorkbenchLayout";
 import {
   ApiKeyView,
@@ -22,6 +16,7 @@ import { isConversationRouteActive, useNavigationStore } from "./stores/navigati
 import { useThemeStore } from "./stores/themeStore";
 import { useWorkbenchStore } from "./stores/workbenchStore";
 import type { SessionDetail } from "./types";
+import { loadLastWorkspace } from "./utils";
 
 function renderComposer(compact = false): ReactNode {
   return <WorkbenchComposer compact={compact} />;
@@ -54,7 +49,6 @@ export function App() {
   const preview = useWorkbenchStore((s) => s.preview);
   const recentWorkspaces = useWorkbenchStore((s) => s.recentWorkspaces);
   const sessions = useWorkbenchStore((s) => s.sessions);
-  const sessionDetail = useWorkbenchStore((s) => s.sessionDetail);
   const workspaceInput = useWorkbenchStore((s) => s.workspaceInput);
   const selectedAgentId = useWorkbenchStore((s) => s.form.agent);
   const selectedModelId = useWorkbenchStore((s) => s.form.model);
@@ -70,19 +64,20 @@ export function App() {
   const openSessionAndNavigate = useWorkbenchStore((s) => s.openSessionAndNavigate);
   const deleteSession = useWorkbenchStore((s) => s.deleteSession);
   const deleteWorkspaceSessions = useWorkbenchStore((s) => s.deleteWorkspaceSessions);
-  const continueSession = useWorkbenchStore((s) => s.continueSession);
   const selectAgent = useWorkbenchStore((s) => s.selectAgent);
 
   useEffect(() => {
-    void loadDiscovery();
+    const rememberedWorkspace = loadLastWorkspace();
+    void loadDiscovery(
+      rememberedWorkspace || undefined,
+      rememberedWorkspace ? { fallbackOnFailure: true } : undefined,
+    );
     return subscribeRunEvents();
   }, [loadDiscovery, subscribeRunEvents]);
 
   const isConversationRoute = isConversationRouteActive(view);
   const agents = discovery?.agents ?? [];
-  const showThread = Boolean(
-    preview || output || activity.length > 0 || result || running,
-  );
+  const showThread = Boolean(preview || output || activity.length > 0 || result || running);
 
   function renderMainView(): ReactNode {
     switch (view) {
@@ -116,6 +111,7 @@ export function App() {
             selectedAgentId={selectedAgentId}
             selectedModelId={selectedModelId}
             onPickWorkspace={() => void pickWorkspace()}
+            onSelectWorkspace={(path) => void selectWorkspace(path)}
           />
         );
       case "sessions":
@@ -125,10 +121,8 @@ export function App() {
             workspaceInput={workspaceInput}
             sessions={sessions}
             activeSessionId={activeSessionId}
-            sessionDetail={sessionDetail}
             onRefreshSessions={() => void refreshSessions()}
             onOpenSession={openSessionAndNavigate}
-            onContinueSession={continueSession}
           />
         );
       case "stats":

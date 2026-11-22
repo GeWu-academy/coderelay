@@ -67,9 +67,7 @@ function renderRailItems(
         title={title}
         type="button"
       >
-        {active ? (
-          <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" />
-        ) : null}
+        {active ? <LiquidRouteIndicator layoutId="rail-active-pill" variant="glass" /> : null}
         <Icon size={iconSize} weight={active ? "duotone" : "regular"} />
         <span className="text-[10.5px] leading-none font-medium tracking-tight">{label}</span>
       </button>
@@ -77,10 +75,7 @@ function renderRailItems(
   });
 }
 
-export function IconRail({
-  currentView,
-  onSelectView,
-}: IconRailProps) {
+export function IconRail({ currentView, onSelectView }: IconRailProps) {
   return (
     <LayoutGroup id="rail-route-group">
       <nav

@@ -154,8 +154,7 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
 
     const terminal = new Terminal({
       cursorBlink: true,
-      fontFamily:
-        '"JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace',
+      fontFamily: '"JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace',
       fontSize: 12.5,
       lineHeight: 1.35,
       scrollback: 5000,
@@ -479,9 +478,7 @@ export function TerminalPanel({ active, workspaceCwd }: TerminalPanelProps) {
       ) : null}
 
       <div
-        className={`min-h-0 flex-1 px-2 py-2 ${
-          tabs.length === 0 ? "hidden" : "block"
-        }`}
+        className={`min-h-0 flex-1 px-2 py-2 ${tabs.length === 0 ? "hidden" : "block"}`}
         ref={stageRef}
       />
     </div>

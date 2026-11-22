@@ -22,7 +22,11 @@ function fakeChild(): ChildProcess {
 function collect(
   cmd: readonly string[],
   opts?: { readonly protocol?: "structured" | "text"; readonly timeoutMs?: number },
-): { readonly events: AgentEvent[]; readonly done: Promise<Awaited<ReturnType<typeof runAgentStream>["done"]>>; readonly handle: ReturnType<typeof runAgentStream> } {
+): {
+  readonly events: AgentEvent[];
+  readonly done: Promise<Awaited<ReturnType<typeof runAgentStream>["done"]>>;
+  readonly handle: ReturnType<typeof runAgentStream>;
+} {
   const events: AgentEvent[] = [];
   const handle = runAgentStream({
     cmd,
@@ -274,26 +278,15 @@ describe("resolveAgentShell", () => {
     path: "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
     runtime: "local",
   };
-  const wslTarget: LaunchTarget = {
-    path: "/usr/bin/claude",
-    runtime: "wsl",
-  };
 
   test("uses shell for local .cmd target on Windows", () => {
     expect(resolveAgentShell({ target: localTarget }, localTarget.path, "win32")).toBe(true);
   });
 
-  test("does not use shell for WSL target on Windows", () => {
-    expect(resolveAgentShell({ target: wslTarget }, "wsl.exe", "win32")).toBe(false);
-  });
-
-  test("does not use shell when binary is wsl.exe without target", () => {
-    expect(resolveAgentShell({}, "wsl.exe", "win32")).toBe(false);
-    expect(resolveAgentShell({}, "C:\\Windows\\System32\\wsl.exe", "win32")).toBe(false);
-  });
-
   test("uses shell on Windows when target is omitted for local binaries", () => {
-    expect(resolveAgentShell({}, "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd", "win32")).toBe(true);
+    expect(
+      resolveAgentShell({}, "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd", "win32"),
+    ).toBe(true);
     expect(resolveAgentShell({}, "claude.cmd", "win32")).toBe(true);
     expect(resolveAgentShell({}, "codex.exe", "win32")).toBe(true);
   });
@@ -304,14 +297,17 @@ describe("resolveAgentShell", () => {
   });
 
   test("honours explicit shell override", () => {
-    expect(resolveAgentShell({ shell: false, target: localTarget }, localTarget.path, "win32")).toBe(false);
+    expect(
+      resolveAgentShell({ shell: false, target: localTarget }, localTarget.path, "win32"),
+    ).toBe(false);
     expect(resolveAgentShell({ shell: true }, "/usr/bin/tool", "linux")).toBe(true);
   });
 });
 
 describe("runAgentStream shell handling", () => {
   test("spawns with shell: true and windowsHide: true on Windows for local .cmd target", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
+    let captured:
+      { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
     const target: LaunchTarget = {
       path: "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
       runtime: "local",
@@ -341,39 +337,9 @@ describe("runAgentStream shell handling", () => {
     });
   });
 
-  test("spawns with shell: false on Windows for WSL target", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
-    const target: LaunchTarget = {
-      path: "/usr/bin/claude",
-      runtime: "wsl",
-      distro: "Ubuntu",
-    };
-
-    runAgentStream({
-      cmd: ["wsl.exe", "-d", "Ubuntu", "--", target.path, "-p", "hi"],
-      target,
-      protocol: "text",
-      onEvent: () => undefined,
-      dependencies: {
-        platform: "win32",
-        spawn: (file, args, options) => {
-          captured = { file, args, options };
-          return fakeChild();
-        },
-      },
-    });
-
-    expect(captured).toBeDefined();
-    expect(captured?.file).toBe("wsl.exe");
-    expect(captured?.options).toMatchObject({
-      shell: false,
-      windowsHide: true,
-      detached: false,
-    });
-  });
-
   test("spawns with shell: false and detached: true on Unix", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
+    let captured:
+      { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
 
     runAgentStream({
       cmd: ["/usr/local/bin/claude", "-p", "hi"],

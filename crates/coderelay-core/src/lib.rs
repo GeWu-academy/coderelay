@@ -44,7 +44,7 @@ pub use runtime::{
 };
 pub use scanner::{
     CliCandidate, CliDiagnostic, CliRuntime, CliSource, DetectedCli, DiagnosticLevel, LaunchTarget,
-    ScannerOptions, cli_definitions, detect_host_agent, scan_coding_clis, scan_wsl_clis,
+    ScannerOptions, cli_definitions, detect_host_agent, scan_coding_clis,
 };
 pub use session::{
     AppendTurnInput, ListSessionsOptions, SessionRecord, SessionStore, SessionStoreError,

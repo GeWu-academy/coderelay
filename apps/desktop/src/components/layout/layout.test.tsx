@@ -10,6 +10,7 @@ import { TerminalPanel } from "./TerminalPanel";
 import { Titlebar } from "./Titlebar";
 import {
   buildWorkspaceWheelList,
+  stabilizeWorkspaceOrder,
   stepWorkspaceIndex,
   WorkspaceSwitcher,
 } from "./WorkspaceSwitcher";
@@ -23,10 +24,7 @@ describe("Layout shell components", () => {
 
     // When viewing apikeys
     const apiKeyRailHtml = renderToStaticMarkup(
-      <IconRail
-        currentView="apikeys"
-        onSelectView={handleSelectView}
-      />,
+      <IconRail currentView="apikeys" onSelectView={handleSelectView} />,
     );
 
     expect(apiKeyRailHtml).toContain('aria-label="API Keys"');
@@ -37,10 +35,7 @@ describe("Layout shell components", () => {
 
     // When viewing config
     const configRailHtml = renderToStaticMarkup(
-      <IconRail
-        currentView="config"
-        onSelectView={handleSelectView}
-      />,
+      <IconRail currentView="config" onSelectView={handleSelectView} />,
     );
 
     expect(configRailHtml).toContain('aria-label="API Keys"');
@@ -51,10 +46,7 @@ describe("Layout shell components", () => {
 
     // When viewing stats
     const statsRailHtml = renderToStaticMarkup(
-      <IconRail
-        currentView="stats"
-        onSelectView={handleSelectView}
-      />,
+      <IconRail currentView="stats" onSelectView={handleSelectView} />,
     );
 
     expect(statsRailHtml).toContain('aria-label="Stats"');
@@ -264,6 +256,7 @@ describe("Layout shell components", () => {
     expect(openSwitcherHtml).toContain("demo-app");
     expect(openSwitcherHtml).toContain("api-server");
     expect(openSwitcherHtml).toContain("1/3");
+    expect(openSwitcherHtml).not.toContain("立即切换");
     expect(openSwitcherHtml).toContain("打开文件夹");
 
     const emptySwitcherHtml = renderToStaticMarkup(
@@ -294,6 +287,39 @@ describe("Layout shell components", () => {
     expect(stepWorkspaceIndex(0, -1, 3)).toBe(2);
     expect(stepWorkspaceIndex(2, 1, 3)).toBe(0);
     expect(stepWorkspaceIndex(1, 1, 3)).toBe(2);
+
+    // Verify stabilizeWorkspaceOrder keeps mounted wheel order stable when active workspace moves to front
+    expect(
+      stabilizeWorkspaceOrder(
+        ["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"],
+        ["/Users/allure/Projects/Hearo", "/Users/allure/Projects/Modu"],
+      ),
+    ).toEqual(["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"]);
+
+    // Handles removals and newly opened folders without reshuffling existing items
+    expect(
+      stabilizeWorkspaceOrder(
+        [
+          "/Users/allure/Projects/Modu",
+          "/Users/allure/Projects/Hearo",
+          "/Users/allure/Projects/OldApp",
+        ],
+        [
+          "/Users/allure/Projects/NewApp",
+          "/Users/allure/Projects/Hearo",
+          "/Users/allure/Projects/Modu",
+        ],
+      ),
+    ).toEqual([
+      "/Users/allure/Projects/NewApp",
+      "/Users/allure/Projects/Modu",
+      "/Users/allure/Projects/Hearo",
+    ]);
+
+    // Initializes directly from incoming list when previous order is empty
+    expect(
+      stabilizeWorkspaceOrder([], ["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"]),
+    ).toEqual(["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"]);
   });
 
   it("renders RightSidebar in agents, terminal, and closed states", () => {
@@ -340,7 +366,9 @@ describe("Layout shell components", () => {
         models: ["claude-sonnet-4-5"],
         runtime: "native",
         source: "path",
-        candidates: [{ path: "/usr/local/bin/pi", runtime: "native", source: "path", version: "0.4.0" }],
+        candidates: [
+          { path: "/usr/local/bin/pi", runtime: "native", source: "path", version: "0.4.0" },
+        ],
         diagnostics: [],
       },
       {
@@ -355,7 +383,9 @@ describe("Layout shell components", () => {
         models: ["gpt-5-codex"],
         runtime: "native",
         source: "path",
-        candidates: [{ path: "/usr/local/bin/omp", runtime: "native", source: "path", version: "1.3.0" }],
+        candidates: [
+          { path: "/usr/local/bin/omp", runtime: "native", source: "path", version: "1.3.0" },
+        ],
         diagnostics: [],
       },
     ];
@@ -382,8 +412,12 @@ describe("Layout shell components", () => {
     expect(agentsHtml).toContain('data-cli-icon="codex"');
     expect(agentsHtml).toContain('data-cli-icon="pi"');
     expect(agentsHtml).toContain('data-cli-icon="omp"');
-    expect(agentsHtml.indexOf('data-cli-icon="codex"')).toBeLessThan(agentsHtml.indexOf("Codex CLI"));
-    expect(agentsHtml.indexOf('data-cli-icon="claude"')).toBeLessThan(agentsHtml.indexOf("Claude Code"));
+    expect(agentsHtml.indexOf('data-cli-icon="codex"')).toBeLessThan(
+      agentsHtml.indexOf("Codex CLI"),
+    );
+    expect(agentsHtml.indexOf('data-cli-icon="claude"')).toBeLessThan(
+      agentsHtml.indexOf("Claude Code"),
+    );
 
     const terminalHtml = renderToStaticMarkup(
       <RightSidebar

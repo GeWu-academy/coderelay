@@ -21,7 +21,12 @@ const CAPS: CliCapabilities = {
   toolEvents: true,
 };
 
-function option(overrides: Partial<ModelOption> & { readonly cliId: ModelOption["cliId"]; readonly modelId: string }): ModelOption {
+function option(
+  overrides: Partial<ModelOption> & {
+    readonly cliId: ModelOption["cliId"];
+    readonly modelId: string;
+  },
+): ModelOption {
   return {
     label: overrides.modelId,
     isDefault: false,
@@ -46,7 +51,14 @@ function settle(): Promise<void> {
 describe("unified lifecycle TUI phases", () => {
   test("probing shows each CLI status independently", () => {
     const instance = render(
-      <App clis={CLIS} initialId="codex" phase="probing" probes={PROBES} onLaunch={() => undefined} onExit={() => undefined} />,
+      <App
+        clis={CLIS}
+        initialId="codex"
+        phase="probing"
+        probes={PROBES}
+        onLaunch={() => undefined}
+        onExit={() => undefined}
+      />,
     );
     const frame = instance.lastFrame() ?? "";
     expect(frame).toContain("正在探测本机模型");
@@ -126,7 +138,9 @@ describe("unified lifecycle TUI phases", () => {
   });
 
   test("ctrl-c in probing/selecting cancels, in starting/running aborts, idle exits", async () => {
-    async function ctrlC(phase: "probing" | "selecting" | "starting" | "running" | "idle"): Promise<{ cancelled: number; aborted: number; exited: number }> {
+    async function ctrlC(
+      phase: "probing" | "selecting" | "starting" | "running" | "idle",
+    ): Promise<{ cancelled: number; aborted: number; exited: number }> {
       let cancelled = 0;
       let aborted = 0;
       let exited = 0;

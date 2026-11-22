@@ -75,9 +75,7 @@ async function readStream(
 }
 
 /** Run a command to completion and capture its output. */
-export async function runProcess(
-  options: ProcessOptions,
-): Promise<ProcessResult> {
+export async function runProcess(options: ProcessOptions): Promise<ProcessResult> {
   const { cmd, cwd, env, input, mode = "capture", signal, timeoutMs } = options;
 
   if (cmd.length === 0) {
@@ -115,15 +113,11 @@ export async function runProcess(
 
   const mirror = mode === "stream";
   const [stdout, stderr, code] = await Promise.all([
-    readStream(
-      proc.stdout as ReadableStream<Uint8Array> | undefined,
-      mirror,
-      (chunk) => process.stdout.write(chunk),
+    readStream(proc.stdout as ReadableStream<Uint8Array> | undefined, mirror, (chunk) =>
+      process.stdout.write(chunk),
     ),
-    readStream(
-      proc.stderr as ReadableStream<Uint8Array> | undefined,
-      mirror,
-      (chunk) => process.stderr.write(chunk),
+    readStream(proc.stderr as ReadableStream<Uint8Array> | undefined, mirror, (chunk) =>
+      process.stderr.write(chunk),
     ),
     proc.exited,
   ]);
@@ -187,9 +181,7 @@ export async function commandVersion(
 export function formatCommand(cmd: string[]): string {
   return cmd
     .map((part) =>
-      /^[A-Za-z0-9_@%+=:,./-]+$/.test(part)
-        ? part
-        : `'${part.replaceAll("'", `'\\''`)}'`,
+      /^[A-Za-z0-9_@%+=:,./-]+$/.test(part) ? part : `'${part.replaceAll("'", `'\\''`)}'`,
     )
     .join(" ");
 }

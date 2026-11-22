@@ -55,8 +55,6 @@ fn detected(agent: AgentId, available: bool) -> DetectedCli {
         available,
         runtime: CliRuntime::Local,
         source: CliSource::Path,
-        distro: None,
-        mount_root: None,
         candidates: Vec::new(),
         diagnostics: Vec::new(),
     }

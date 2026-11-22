@@ -2,12 +2,7 @@ import type { Config, RouteRule, RoutingMode } from "../config/schema";
 import { CLI_IDS } from "../models/cli";
 import { formatModelRef, parseModelRef } from "../models/types";
 import { matchRules, ruleMatchesCandidate } from "./rules";
-import {
-  compareScores,
-  scoreCandidate,
-  scoreCandidates,
-  toModelCost,
-} from "./scorer";
+import { compareScores, scoreCandidate, scoreCandidates, toModelCost } from "./scorer";
 import {
   RouteError,
   type RouteCandidate,
@@ -45,8 +40,7 @@ function candidateForModel(
     (defaultModel.agent === undefined || defaultModel.agent === agentId) &&
     (modelId === undefined || defaultModel.model === modelId);
   const strengths = (model?.strengths ?? []).filter(
-    (strength): strength is RouteCandidate["strengths"][number] =>
-      typeof strength === "string",
+    (strength): strength is RouteCandidate["strengths"][number] => typeof strength === "string",
   );
 
   return {
@@ -60,9 +54,7 @@ function candidateForModel(
   };
 }
 
-function dedupeCandidates(
-  candidates: readonly RouteCandidate[],
-): RouteCandidate[] {
+function dedupeCandidates(candidates: readonly RouteCandidate[]): RouteCandidate[] {
   const seen = new Set<string>();
   const result: RouteCandidate[] = [];
 
@@ -85,13 +77,8 @@ export function buildRouteCandidates(
   config: Config,
   options: Pick<RouteOptions, "availableAgents"> = {},
 ): RouteCandidate[] {
-  const available = options.availableAgents
-    ? new Set(options.availableAgents)
-    : null;
-  const ids = [...new Set([
-    ...(options.availableAgents ?? CLI_IDS),
-    config.defaultAgent,
-  ])];
+  const available = options.availableAgents ? new Set(options.availableAgents) : null;
+  const ids = [...new Set([...(options.availableAgents ?? CLI_IDS), config.defaultAgent])];
   const defaultModel = config.defaultModel
     ? parseModelRef(config.defaultModel, config.defaultAgent)
     : { agent: config.defaultAgent, model: "" };
@@ -109,9 +96,7 @@ export function buildRouteCandidates(
 
     if (agent && agent.models.length > 0) {
       candidates.push(
-        ...agent.models.map((model) =>
-          candidateForModel(config, agentId, model, defaultModel),
-        ),
+        ...agent.models.map((model) => candidateForModel(config, agentId, model, defaultModel)),
       );
       continue;
     }
@@ -126,17 +111,13 @@ export function buildRouteCandidates(
           }
         : undefined;
 
-    candidates.push(
-      candidateForModel(config, agentId, fallbackModel, defaultModel),
-    );
+    candidates.push(candidateForModel(config, agentId, fallbackModel, defaultModel));
   }
 
   return dedupeCandidates(candidates);
 }
 
-function defaultCandidate(
-  candidates: readonly RouteCandidate[],
-): RouteCandidate {
+function defaultCandidate(candidates: readonly RouteCandidate[]): RouteCandidate {
   return (
     candidates.find((candidate) => candidate.isDefault) ??
     candidates[0] ??
@@ -158,10 +139,7 @@ function decisionFromScore(
     strategy,
     score: scored.score,
     ruleMatches: scored.ruleMatches,
-    reasons:
-      scored.reasons.length > 0
-        ? scored.reasons
-        : ["fallback target"],
+    reasons: scored.reasons.length > 0 ? scored.reasons : ["fallback target"],
     matchedRule,
   };
 }
@@ -179,20 +157,15 @@ function routeWithRules(
     );
 
     if (matchingCandidates.length === 0) {
-      const target = [match.rule.use.agent, match.rule.use.model]
-        .filter(Boolean)
-        .join(":");
+      const target = [match.rule.use.agent, match.rule.use.model].filter(Boolean).join(":");
       throw new RouteError(
         `rule "${match.rule.name}" matched, but target "${target}" is not available; refusing silent fallback`,
       );
     }
 
-    const [best] = scoreCandidates(
-      request,
-      matchingCandidates,
-      config.routing.weights,
-      [match.rule],
-    ).sort(compareScores);
+    const [best] = scoreCandidates(request, matchingCandidates, config.routing.weights, [
+      match.rule,
+    ]).sort(compareScores);
 
     if (best) {
       return decisionFromScore("rules", best, match.rule);
@@ -219,23 +192,17 @@ function routeByScore(
   candidates: readonly RouteCandidate[],
   strategy: "score" | "hybrid",
 ): RouteDecision {
-  const rules =
-    strategy === "hybrid" ? config.routing.rules : ([] as RouteRule[]);
-  const [best] = scoreCandidates(
-    request,
-    candidates,
-    config.routing.weights,
-    rules,
-  ).sort(compareScores);
+  const rules = strategy === "hybrid" ? config.routing.rules : ([] as RouteRule[]);
+  const [best] = scoreCandidates(request, candidates, config.routing.weights, rules).sort(
+    compareScores,
+  );
 
   if (!best) {
     throw new RouteError("no route candidates are available");
   }
 
   const matchedRule =
-    strategy === "hybrid" && best.ruleMatches.length > 0
-      ? best.ruleMatches[0]?.rule
-      : undefined;
+    strategy === "hybrid" && best.ruleMatches.length > 0 ? best.ruleMatches[0]?.rule : undefined;
 
   return decisionFromScore(strategy, best, matchedRule);
 }
@@ -246,16 +213,10 @@ export function hasAmbiguousRoute(
   config: Config,
   candidates: readonly RouteCandidate[],
 ): boolean {
-  const rules =
-    config.routing.strategy === "hybrid"
-      ? config.routing.rules
-      : ([] as RouteRule[]);
-  const scored = scoreCandidates(
-    request,
-    candidates,
-    config.routing.weights,
-    rules,
-  ).sort(compareScores);
+  const rules = config.routing.strategy === "hybrid" ? config.routing.rules : ([] as RouteRule[]);
+  const scored = scoreCandidates(request, candidates, config.routing.weights, rules).sort(
+    compareScores,
+  );
 
   return scored.length > 1 && scored[0]?.score === scored[1]?.score;
 }
@@ -266,9 +227,7 @@ export function route(
   config: Config,
   options: RouteOptions = {},
 ): RouteDecision {
-  const candidates =
-    options.candidates ??
-    buildRouteCandidates(config, options);
+  const candidates = options.candidates ?? buildRouteCandidates(config, options);
 
   if (candidates.length === 0) {
     throw new RouteError("no route candidates are available");
@@ -291,9 +250,7 @@ export function selectCandidate(
   model?: string,
 ): RouteCandidate {
   const matched = candidates.filter(
-    (candidate) =>
-      (!agent || candidate.agent === agent) &&
-      (!model || candidate.model === model),
+    (candidate) => (!agent || candidate.agent === agent) && (!model || candidate.model === model),
   );
 
   const candidate = matched.find((item) => item.isDefault) ?? matched[0];
@@ -301,9 +258,7 @@ export function selectCandidate(
     return candidate;
   }
 
-  throw new RouteError(
-    `no candidate matches ${[agent, model].filter(Boolean).join(":")}`,
-  );
+  throw new RouteError(`no candidate matches ${[agent, model].filter(Boolean).join(":")}`);
 }
 
 /**

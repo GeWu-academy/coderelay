@@ -24,10 +24,7 @@ describe("CLI launcher", () => {
   test("builds prompt args from adapters and appends extra args", () => {
     const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
 
-    expect(buildPromptArgs(adapters.codex, "do work")).toEqual([
-      "exec",
-      "do work",
-    ]);
+    expect(buildPromptArgs(adapters.codex, "do work")).toEqual(["exec", "do work"]);
     expect(buildPromptArgs(adapters.claude, "do work", ["--json"])).toEqual([
       "-p",
       "do work",
@@ -80,9 +77,7 @@ describe("CLI launcher", () => {
   test("launchWithPromptCaptured pipes output and resolves on close", async () => {
     const adapters = createCliAdapters({ homeDir: "/home/tester", env: {} });
     const child = fakeChild();
-    let spawned:
-      | { file: string; args: readonly string[]; stdio: unknown }
-      | undefined;
+    let spawned: { file: string; args: readonly string[]; stdio: unknown } | undefined;
 
     const handle = launchWithPromptCaptured(adapters.claude, "do work", {
       binPath: "/opt/bin/claude",

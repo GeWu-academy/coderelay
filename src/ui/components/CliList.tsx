@@ -2,13 +2,7 @@ import { homedir } from "node:os";
 
 import { Box, Text } from "ink";
 
-import {
-  CLI_IDS,
-  cliRuntime,
-  cliSource,
-  type CliId,
-  type DetectedCli,
-} from "../../models/cli";
+import { CLI_IDS, cliSource, type CliId, type DetectedCli } from "../../models/cli";
 import { theme } from "../theme";
 
 const CLI_NAMES: Readonly<Record<CliId, string>> = {
@@ -29,11 +23,12 @@ export function cliDisplayName(id: CliId): string {
 
 function abbreviatePath(value: string, maxLength = 46): string {
   const home = homedir();
-  const withHome = value === home
-    ? "~"
-    : value.startsWith(`${home}/`)
-      ? `~/${value.slice(home.length + 1)}`
-      : value;
+  const withHome =
+    value === home
+      ? "~"
+      : value.startsWith(`${home}/`)
+        ? `~/${value.slice(home.length + 1)}`
+        : value;
 
   if (withHome.length <= maxLength) {
     return withHome;
@@ -73,11 +68,8 @@ function platformLabel(platform: NodeJS.Platform): string {
   return platform;
 }
 
-/** `local` shows the OS and install channel; `wsl` shows the distribution. */
+/** Shows the OS and install channel. */
 function originLabel(cli: DetectedCli): string {
-  if (cliRuntime(cli) === "wsl") {
-    return `WSL: ${cli.distro ?? "默认发行版"}`;
-  }
   return `${platformLabel(process.platform)} · ${cliSource(cli)}`;
 }
 

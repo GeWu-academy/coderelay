@@ -19,9 +19,7 @@ export const SLASH_HELP = SLASH_COMMANDS.map(
 ).join(" · ");
 
 /** 当前输入命中的命令（用于输入 `/` 时的实时菜单）。 */
-export function matchSlashCommands(
-  input: string,
-): readonly SlashCommand[] {
+export function matchSlashCommands(input: string): readonly SlashCommand[] {
   const trimmed = input.trim();
   if (!trimmed.startsWith("/")) {
     return [];
@@ -35,9 +33,7 @@ export function matchSlashCommands(
 }
 
 /** 精确匹配一条命令；找不到返回 undefined。 */
-export function findSlashCommand(
-  input: string,
-): SlashCommand | undefined {
+export function findSlashCommand(input: string): SlashCommand | undefined {
   const trimmed = input.trim();
   const cmd = trimmed.split(/\s+/)[0] ?? "";
   return SLASH_COMMANDS.find((command) => command.name === cmd);

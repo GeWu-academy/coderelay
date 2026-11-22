@@ -37,12 +37,8 @@ describe("routing issue regressions", () => {
       { agent: "claude", strengths: [], isDefault: false },
     ];
 
-    expect(
-      hasAmbiguousRoute({ prompt: "deploy this change" }, config, candidates),
-    ).toBe(false);
-    expect(
-      hasAmbiguousRoute({ prompt: "summarize this change" }, config, candidates),
-    ).toBe(true);
+    expect(hasAmbiguousRoute({ prompt: "deploy this change" }, config, candidates)).toBe(false);
+    expect(hasAmbiguousRoute({ prompt: "summarize this change" }, config, candidates)).toBe(true);
   });
 
   test("hybrid routing prefers the matching higher-priority rule over a larger low-priority score", () => {
@@ -51,8 +47,20 @@ describe("routing issue regressions", () => {
       routing: {
         strategy: "hybrid",
         rules: [
-          { name: "critical", priority: 100, score: 1, when: { keywords: ["deploy"] }, use: { agent: "codex" } },
-          { name: "fallback", priority: 0, score: 20, when: { keywords: ["deploy"] }, use: { agent: "claude" } },
+          {
+            name: "critical",
+            priority: 100,
+            score: 1,
+            when: { keywords: ["deploy"] },
+            use: { agent: "codex" },
+          },
+          {
+            name: "fallback",
+            priority: 0,
+            score: 20,
+            when: { keywords: ["deploy"] },
+            use: { agent: "claude" },
+          },
         ],
       },
     });
@@ -70,10 +78,12 @@ describe("routing issue regressions", () => {
     const config = ConfigSchema.parse({
       ...baseConfig,
       agents: {
-        codex: { models: [
-          { id: "fits", contextWindow: 128_000, strengths: [], cost: 2 },
-          { id: "small", contextWindow: 8_000, strengths: [], cost: 2 },
-        ] },
+        codex: {
+          models: [
+            { id: "fits", contextWindow: 128_000, strengths: [], cost: 2 },
+            { id: "small", contextWindow: 8_000, strengths: [], cost: 2 },
+          ],
+        },
       },
       defaultAgent: "codex",
       routing: { strategy: "score", weights: { context: 5, default: 0 } },

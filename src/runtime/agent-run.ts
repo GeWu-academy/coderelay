@@ -10,11 +10,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 
-import {
-  parseStructuredLine,
-  summarizeEvents,
-  type AgentEvent,
-} from "../models/agent-events";
+import { parseStructuredLine, summarizeEvents, type AgentEvent } from "../models/agent-events";
 import type { LaunchTarget } from "../models/cli";
 
 export type AgentSpawnRunner = (
@@ -48,10 +44,7 @@ export interface AgentRunOptions {
    * 适配器声明的文本解析器（structured 解析失败时的回退也经过它，
    * 未提供时默认按 assistant_text/stderr 透出）。
    */
-  readonly parseChunk?: (
-    chunk: string,
-    source: "stdout" | "stderr",
-  ) => readonly AgentEvent[];
+  readonly parseChunk?: (chunk: string, source: "stdout" | "stderr") => readonly AgentEvent[];
   readonly target?: LaunchTarget;
   readonly shell?: boolean;
   readonly dependencies?: Partial<AgentRunDependencies>;
@@ -78,10 +71,7 @@ const STDERR_TAIL_CHARS = 8_000;
 const MAX_RETAINED_EVENTS = 2_000;
 const KILL_GRACE_MS = 2_000;
 
-function defaultParse(
-  chunk: string,
-  source: "stdout" | "stderr",
-): readonly AgentEvent[] {
+function defaultParse(chunk: string, source: "stdout" | "stderr"): readonly AgentEvent[] {
   if (!chunk) {
     return [];
   }
@@ -159,37 +149,24 @@ function tail(text: string, maxChars: number): string {
   return text.length > maxChars ? text.slice(-maxChars) : text;
 }
 
-const defaultSpawn: AgentSpawnRunner = (file, args, options) =>
-  spawn(file, [...args], options);
+const defaultSpawn: AgentSpawnRunner = (file, args, options) => spawn(file, [...args], options);
 
 /**
  * Determine if spawn requires shell execution.
  * Windows .cmd/.bat shims (e.g. npm global binaries) require cmd.exe to launch.
- * WSL targets must spawn wsl.exe directly without cmd.exe re-parsing.
  */
 export function resolveAgentShell(
   options: {
     readonly shell?: boolean;
     readonly target?: LaunchTarget;
   },
-  bin: string,
+  _bin: string,
   platform: NodeJS.Platform = process.platform,
 ): boolean {
   if (options.shell !== undefined) {
     return options.shell;
   }
-  if (platform !== "win32") {
-    return false;
-  }
-  if (options.target?.runtime === "wsl") {
-    return false;
-  }
-  const normalized = bin.toLowerCase();
-  return (
-    normalized !== "wsl.exe" &&
-    !normalized.endsWith("\\wsl.exe") &&
-    !normalized.endsWith("/wsl.exe")
-  );
+  return platform === "win32";
 }
 
 /**
@@ -299,9 +276,7 @@ export function runAgentStream(options: AgentRunOptions): AgentRunHandle {
     timedOut: boolean,
     stderrTail: string,
   ): AgentRunResult => {
-    const text = outputParts.length > 0
-      ? outputParts.join("")
-      : summarizeEvents(events);
+    const text = outputParts.length > 0 ? outputParts.join("") : summarizeEvents(events);
     if (status === "completed") {
       emit({ kind: "completed", text, exitCode: code });
     } else if (status === "aborted" || status === "timeout") {

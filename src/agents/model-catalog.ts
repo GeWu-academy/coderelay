@@ -4,27 +4,13 @@
  * 不能伪造 CLI 实际不存在的模型。
  */
 import type { Config } from "../config/schema";
-import {
-  CLI_IDS,
-  type CliAdapter,
-  type CliId,
-  type DetectedCli,
-} from "../models/cli";
+import { CLI_IDS, type CliAdapter, type CliId, type DetectedCli } from "../models/cli";
 import type { CliCapabilities, ProbeResult } from "./capabilities";
-import {
-  MODEL_STRENGTHS,
-  parseModelRef,
-  type ModelStrength,
-} from "../models/types";
+import { MODEL_STRENGTHS, parseModelRef, type ModelStrength } from "../models/types";
 import type { RouteCandidate } from "../router/types";
 import { toModelCost } from "../router/scorer";
 
-export type ProbeDisplayStatus =
-  | "scanning"
-  | "found"
-  | "unprobed"
-  | "not-installed"
-  | "disabled";
+export type ProbeDisplayStatus = "scanning" | "found" | "unprobed" | "not-installed" | "disabled";
 
 /** 统一模型选择器的一行：CLI + 模型 + 元数据 + 可用性。 */
 export interface ModelOption {
@@ -57,10 +43,7 @@ export interface ModelCatalog {
   readonly options: readonly ModelOption[];
 }
 
-function detectedFor(
-  detected: readonly DetectedCli[],
-  id: CliId,
-): DetectedCli | undefined {
+function detectedFor(detected: readonly DetectedCli[], id: CliId): DetectedCli | undefined {
   return detected.find((item) => item.id === id);
 }
 
@@ -68,11 +51,7 @@ function isStrength(value: unknown): value is ModelStrength {
   return (MODEL_STRENGTHS as readonly unknown[]).includes(value);
 }
 
-function configStrengths(
-  config: Config,
-  cliId: CliId,
-  modelId: string,
-): readonly ModelStrength[] {
+function configStrengths(config: Config, cliId: CliId, modelId: string): readonly ModelStrength[] {
   const entry = config.agents[cliId]?.models.find((m) => m.id === modelId);
   return (entry?.strengths ?? []).filter(isStrength);
 }
@@ -122,9 +101,7 @@ export async function probeModelCatalog(
       const models: ModelOption[] = result.models.map((model) => {
         const override = agentConfig?.models.find((m) => m.id === model.id);
         const isTopDefault =
-          defaultRef !== undefined &&
-          defaultRef.agent === cliId &&
-          defaultRef.model === model.id;
+          defaultRef !== undefined && defaultRef.agent === cliId && defaultRef.model === model.id;
         return {
           cliId,
           modelId: model.id,
@@ -174,10 +151,8 @@ export function validateExplicitTarget(
   model: string | undefined,
   defaultAgent: string,
 ): { readonly cliId: CliId; readonly modelId?: string } {
-  const modelPrefix =
-    model !== undefined ? model.slice(0, model.indexOf(":")) : undefined;
-  const hasKnownAgentPrefix =
-    modelPrefix !== undefined && CLI_IDS.includes(modelPrefix as CliId);
+  const modelPrefix = model !== undefined ? model.slice(0, model.indexOf(":")) : undefined;
+  const hasKnownAgentPrefix = modelPrefix !== undefined && CLI_IDS.includes(modelPrefix as CliId);
   const reference =
     model !== undefined
       ? agent !== undefined && !hasKnownAgentPrefix
@@ -215,18 +190,13 @@ export function validateExplicitTarget(
   const found = probe.models.find((option) => option.modelId === modelId);
   if (!found) {
     const known = probe.models.map((option) => option.modelId).join("、") || "（空）";
-    throw new Error(
-      `模型不存在于 ${cliId} 的本机配置：${modelId}；已探测到：${known}`,
-    );
+    throw new Error(`模型不存在于 ${cliId} 的本机配置：${modelId}；已探测到：${known}`);
   }
   return { cliId, modelId };
 }
 
 /** 路由器输入：已探测模型候选 + 配置元数据（rules/score/hybrid 策略不变）。 */
-export function toRouteCandidates(
-  catalog: ModelCatalog,
-  config: Config,
-): RouteCandidate[] {
+export function toRouteCandidates(catalog: ModelCatalog, config: Config): RouteCandidate[] {
   const defaultRef = config.defaultModel
     ? parseModelRef(config.defaultModel, config.defaultAgent)
     : undefined;
