@@ -26,6 +26,7 @@ import {
   messageOf,
   resolveRouteSelection,
   sanitizePermission,
+  saveLastWorkspace,
   savePermission,
 } from "../utils";
 import { useNavigationStore } from "./navigationStore";
@@ -59,7 +60,10 @@ export interface WorkbenchStoreState {
   selectAgent: (agent: AgentEntry) => void;
   refreshRecentWorkspaces: () => Promise<void>;
   refreshSessions: () => Promise<SessionRecord[]>;
-  loadDiscovery: (cwd?: string) => Promise<void>;
+  loadDiscovery: (
+    cwd?: string,
+    options?: { fallbackOnFailure?: boolean },
+  ) => Promise<void>;
   openSession: (sessionId: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   deleteWorkspaceSessions: (workspace: string | null) => Promise<void>;
@@ -100,6 +104,7 @@ function switchWorkspaceOptimistically(
     return;
   }
   currentWorkspace = target;
+  saveLastWorkspace(target);
   set((current) => ({
     workspaceInput: target,
     form: syncPermissionForForm(target, current.form),
@@ -183,7 +188,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
     return sessions;
   },
 
-  loadDiscovery: async (cwd) => {
+  loadDiscovery: async (cwd, options) => {
     const requestId = ++discoveryRequestId;
     set({ loading: true, error: null });
     try {
@@ -209,6 +214,9 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
         return;
       }
       currentWorkspace = discovery.cwd;
+      if (discovery.cwd.trim()) {
+        saveLastWorkspace(discovery.cwd);
+      }
       set((current) => {
         const resolved = resolveRouteSelection(
           current.form,
@@ -239,6 +247,11 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
       });
     } catch (error) {
       if (requestId !== discoveryRequestId) {
+        return;
+      }
+      if (options?.fallbackOnFailure && cwd?.trim()) {
+        saveLastWorkspace("");
+        await get().loadDiscovery(undefined);
         return;
       }
       set({
@@ -310,6 +323,7 @@ export const useWorkbenchStore = create<WorkbenchStoreState>((set, get) => ({
     const wasCurrent = currentWorkspace === trimmed;
     if (wasCurrent) {
       currentWorkspace = "";
+      saveLastWorkspace("");
       set((current) => ({
         workspaceInput: "",
         form: syncPermissionForForm("", current.form),

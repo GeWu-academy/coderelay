@@ -218,7 +218,7 @@ export function isCliId(value: unknown): value is CliId {
 export const WORKSPACE_VIEWS = ["workspace", "files", "scm", "sessions", "stats", "config", "apikeys"] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
-export const GIT_SYNC_ACTIONS = ["fetch", "pull", "push"] as const;
+export const GIT_SYNC_ACTIONS = ["fetch", "pull", "push", "sync"] as const;
 export type GitSyncAction = (typeof GIT_SYNC_ACTIONS)[number];
 
 export function isGitSyncAction(value: unknown): value is GitSyncAction {

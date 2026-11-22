@@ -834,6 +834,47 @@ export function ScmView({
                 <span>提交 ({stagedEntries.length})</span>
               </button>
             </div>
+            {(() => {
+              const needsPublish = !status.detached && !status.upstream;
+              const syncCounts = [
+                status.behind > 0 ? `↓${status.behind}` : null,
+                status.ahead > 0 ? `↑${status.ahead}` : null,
+              ]
+                .filter(Boolean)
+                .join(" ");
+              const highlightSync =
+                stagedEntries.length === 0 && (needsPublish || Boolean(syncCounts));
+              const syncLabel =
+                busyAction === "sync"
+                  ? "同步中..."
+                  : needsPublish
+                    ? "发布并同步远程分支"
+                    : syncCounts
+                      ? `同步远程分支 (${syncCounts})`
+                      : "同步远程分支";
+              return (
+                <button
+                  className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-[7px] px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                    highlightSync
+                      ? "bg-ink text-canvas hover:opacity-90"
+                      : "border border-line bg-surface text-ink hover:bg-surface-subtle"
+                  }`}
+                  disabled={Boolean(busyAction) || status.detached}
+                  onClick={() => handleSync("sync")}
+                  title={
+                    status.detached
+                      ? "当前处于游离 HEAD 状态，无法同步远程分支"
+                      : needsPublish
+                        ? "将当前分支推送到远程并关联上游 (git push -u origin)"
+                        : "拉取并推送远程分支变更 (git pull && git push)"
+                  }
+                  type="button"
+                >
+                  <RefreshIcon size={13} />
+                  <span>{syncLabel}</span>
+                </button>
+              );
+            })()}
           </div>
         ) : null}
 

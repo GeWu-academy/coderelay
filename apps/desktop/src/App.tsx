@@ -22,6 +22,7 @@ import { isConversationRouteActive, useNavigationStore } from "./stores/navigati
 import { useThemeStore } from "./stores/themeStore";
 import { useWorkbenchStore } from "./stores/workbenchStore";
 import type { SessionDetail } from "./types";
+import { loadLastWorkspace } from "./utils";
 
 function renderComposer(compact = false): ReactNode {
   return <WorkbenchComposer compact={compact} />;
@@ -72,7 +73,11 @@ export function App() {
   const selectAgent = useWorkbenchStore((s) => s.selectAgent);
 
   useEffect(() => {
-    void loadDiscovery();
+    const rememberedWorkspace = loadLastWorkspace();
+    void loadDiscovery(
+      rememberedWorkspace || undefined,
+      rememberedWorkspace ? { fallbackOnFailure: true } : undefined,
+    );
     return subscribeRunEvents();
   }, [loadDiscovery, subscribeRunEvents]);
 

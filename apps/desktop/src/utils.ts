@@ -306,3 +306,49 @@ export function sanitizePermission(
 ): string {
   return options.some((option) => option.id === permission) ? permission : "";
 }
+
+export const LAST_WORKSPACE_STORAGE_KEY = "coderelay_last_workspace";
+
+type WorkspaceStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function defaultWorkspaceStorage(): WorkspaceStorage | null {
+  try {
+    return typeof window !== "undefined" && window.localStorage
+      ? window.localStorage
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function loadLastWorkspace(
+  storage: Pick<Storage, "getItem"> | null = defaultWorkspaceStorage(),
+): string {
+  if (!storage) {
+    return "";
+  }
+  try {
+    return storage.getItem(LAST_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveLastWorkspace(
+  workspace: string,
+  storage: Pick<Storage, "setItem" | "removeItem"> | null = defaultWorkspaceStorage(),
+): void {
+  if (!storage) {
+    return;
+  }
+  const trimmed = workspace.trim();
+  try {
+    if (trimmed) {
+      storage.setItem(LAST_WORKSPACE_STORAGE_KEY, trimmed);
+    } else {
+      storage.removeItem(LAST_WORKSPACE_STORAGE_KEY);
+    }
+  } catch {
+    // ignore quota/privacy-mode failures
+  }
+}

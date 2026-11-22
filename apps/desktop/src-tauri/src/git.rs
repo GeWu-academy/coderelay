@@ -723,24 +723,49 @@ pub fn git_delete_branch(request: GitDeleteBranchRequest) -> Result<GitActionRes
     })
 }
 
+fn has_upstream(repo_root: &Path) -> bool {
+    run_git_raw(repo_root, &["rev-parse", "--abbrev-ref", "@{u}"])
+        .is_ok_and(|res| res.status_code == 0)
+}
+
+fn push_branch_with_upstream(repo_root: &Path) -> Result<(String, String), String> {
+    let branch = run_git(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
+    let branch = branch.trim().to_owned();
+    if branch.is_empty() || branch == "HEAD" {
+        return Err("当前处于游离 HEAD 状态，无法自动推送".to_owned());
+    }
+    let out = run_git(repo_root, &["push", "-u", "origin", &branch])?;
+    Ok((branch, out))
+}
+
 #[tauri::command]
 pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
     let repo_root = require_git_repo_root(request.cwd)?;
     let action = request.action.trim();
-    let out = match action {
-        "fetch" => run_git(&repo_root, &["fetch", "--prune"])?,
-        "pull" => run_git(&repo_root, &["pull"])?,
+    let (out, fallback_message) = match action {
+        "fetch" => (run_git(&repo_root, &["fetch", "--prune"])?, "fetch 完成".to_owned()),
+        "pull" => (run_git(&repo_root, &["pull"])?, "pull 完成".to_owned()),
         "push" => {
-            let upstream = run_git_raw(&repo_root, &["rev-parse", "--abbrev-ref", "@{u}"]);
-            if upstream.is_ok_and(|res| res.status_code == 0) {
-                run_git(&repo_root, &["push"])?
+            if has_upstream(&repo_root) {
+                (run_git(&repo_root, &["push"])?, "推送完成".to_owned())
             } else {
-                let branch = run_git(&repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?;
-                let branch = branch.trim();
-                if branch.is_empty() || branch == "HEAD" {
-                    return Err("当前处于游离 HEAD 状态，无法自动推送".to_owned());
-                }
-                run_git(&repo_root, &["push", "-u", "origin", branch])?
+                let (branch, out) = push_branch_with_upstream(&repo_root)?;
+                (out, format!("已发布分支 {branch} 到远程"))
+            }
+        }
+        "sync" => {
+            if has_upstream(&repo_root) {
+                let pull_out = run_git(&repo_root, &["pull"])?;
+                let push_out = run_git(&repo_root, &["push"])?;
+                let combined = [pull_out.trim(), push_out.trim()]
+                    .into_iter()
+                    .filter(|s| !s.is_empty() && *s != "Already up to date.")
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                (combined, "已与远程分支同步".to_owned())
+            } else {
+                let (branch, out) = push_branch_with_upstream(&repo_root)?;
+                (out, format!("已发布分支 {branch} 到远程"))
             }
         }
         other => return Err(format!("不支持的同步操作: {other}")),
@@ -748,7 +773,7 @@ pub fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String> {
     Ok(GitActionResult {
         ok: true,
         message: if out.trim().is_empty() {
-            format!("{action} 完成")
+            fallback_message
         } else {
             out.trim().to_owned()
         },
