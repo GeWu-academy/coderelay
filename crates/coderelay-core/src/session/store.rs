@@ -395,13 +395,10 @@ impl SessionStore {
         Self::from_connection(Connection::open_in_memory()?)
     }
 
-    fn from_connection(connection: Connection) -> Result<Self, SessionStoreError> {
+    fn from_connection(mut connection: Connection) -> Result<Self, SessionStoreError> {
         connection.busy_timeout(Duration::from_secs(5))?;
-        connection.execute_batch(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
-        )?;
-        connection.execute_batch(SCHEMA)?;
-        run_migrations(&connection)?;
+        connection.execute_batch("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;")?;
+        initialize_schema(&mut connection)?;
         Ok(Self { connection })
     }
 
@@ -419,17 +416,31 @@ impl SessionStore {
                 std::env::current_dir()
                     .ok()
                     .map(|path| path.to_string_lossy().into_owned())
-            });
-        self.connection.execute(
+            })
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
+        let transaction = self.connection.transaction()?;
+        if let Some(ref ws) = workspace {
+            transaction.execute(
+                "INSERT INTO workspaces (path, updated_at)
+                 VALUES (?1, ?2)
+                 ON CONFLICT(path) DO UPDATE SET updated_at = excluded.updated_at",
+                params![ws, now as i64],
+            )?;
+        }
+        transaction.execute(
             "INSERT INTO sessions (id, cli_id, title, created_at, updated_at, workspace)
              VALUES (?1, ?2, ?3, ?4, ?4, ?5)",
             params![&id, cli_id.as_str(), title.into(), now as i64, &workspace],
         )?;
-        if let Some(ref ws) = workspace {
-            let _ = self.record_workspace(ws);
-        }
-        self.get_session(&id)?
-            .ok_or(SessionStoreError::SessionInsert(id))
+        let sql = format!("SELECT {SESSION_COLUMNS} FROM sessions WHERE id = ?1");
+        let session = transaction
+            .query_row(&sql, [&id], row_to_session)
+            .optional()?
+            .ok_or_else(|| SessionStoreError::SessionInsert(id.clone()))?;
+        transaction.commit()?;
+        Ok(session)
     }
 
     pub fn get_session(&self, id: &str) -> Result<Option<SessionRecord>, SessionStoreError> {
@@ -526,6 +537,11 @@ impl SessionStore {
             "UPDATE sessions SET updated_at = ?1 WHERE id = ?2",
             params![now as i64, input.session_id],
         )?;
+        transaction.execute(
+            "UPDATE workspaces SET updated_at = ?1
+             WHERE path = (SELECT workspace FROM sessions WHERE id = ?2)",
+            params![now as i64, input.session_id],
+        )?;
         let sql = format!("SELECT {TURN_COLUMNS} FROM turns WHERE id = ?1");
         let turn = transaction
             .query_row(&sql, [id], row_to_turn)
@@ -536,20 +552,12 @@ impl SessionStore {
     }
 
     pub fn prune_sessions(&mut self, keep: usize) -> Result<usize, SessionStoreError> {
-        let transaction = self.connection.transaction()?;
-        transaction.execute(
-            "DELETE FROM turns WHERE session_id IN (
-                SELECT id FROM sessions ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET ?1
-             )",
-            [keep as i64],
-        )?;
-        let removed = transaction.execute(
+        let removed = self.connection.execute(
             "DELETE FROM sessions WHERE id IN (
                 SELECT id FROM sessions ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET ?1
              )",
             [keep as i64],
         )?;
-        transaction.commit()?;
 
         if removed > 0 {
             self.connection
@@ -558,56 +566,36 @@ impl SessionStore {
         Ok(removed)
     }
 
-    /// Deletes one session together with its turns. Returns whether it existed.
+    /// Deletes one session together with its turns (via ON DELETE CASCADE).
+    /// Returns whether it existed.
     pub fn delete_session(&mut self, id: &str) -> Result<bool, SessionStoreError> {
-        let transaction = self.connection.transaction()?;
-        transaction.execute("DELETE FROM turns WHERE session_id = ?1", [id])?;
-        let removed = transaction.execute("DELETE FROM sessions WHERE id = ?1", [id])?;
-        transaction.commit()?;
+        let removed = self
+            .connection
+            .execute("DELETE FROM sessions WHERE id = ?1", [id])?;
         Ok(removed > 0)
     }
 
-    /// Deletes every session (and turns) of a workspace; `None` targets sessions
-    /// that belong to no workspace. Returns the number of removed sessions.
+    /// Deletes every session (and turns via ON DELETE CASCADE) of a workspace;
+    /// `None` targets sessions that belong to no workspace. Returns the number
+    /// of removed sessions.
     pub fn delete_workspace_sessions(
         &mut self,
         workspace: Option<&str>,
     ) -> Result<usize, SessionStoreError> {
-        let transaction = self.connection.transaction()?;
         let removed = match workspace {
-            Some(workspace) => {
-                transaction.execute(
-                    "DELETE FROM turns WHERE session_id IN (SELECT id FROM sessions WHERE workspace = ?1)",
-                    [workspace],
-                )?;
-                transaction.execute("DELETE FROM sessions WHERE workspace = ?1", [workspace])?
-            }
-            None => {
-                transaction.execute(
-                    "DELETE FROM turns WHERE session_id IN (
-                        SELECT id FROM sessions WHERE workspace IS NULL OR workspace = ''
-                     )",
-                    [],
-                )?;
-                transaction.execute(
-                    "DELETE FROM sessions WHERE workspace IS NULL OR workspace = ''",
-                    [],
-                )?
-            }
+            Some(workspace) => self
+                .connection
+                .execute("DELETE FROM sessions WHERE workspace = ?1", [workspace])?,
+            None => self.connection.execute(
+                "DELETE FROM sessions WHERE workspace IS NULL OR workspace = ''",
+                [],
+            )?,
         };
-        transaction.commit()?;
         Ok(removed)
     }
 
-    pub fn schema_version(&self) -> Result<Option<String>, SessionStoreError> {
-        Ok(self
-            .connection
-            .query_row(
-                "SELECT value FROM schema_meta WHERE key = 'schema_version'",
-                [],
-                |row| row.get(0),
-            )
-            .optional()?)
+    pub fn schema_version(&self) -> Result<u32, SessionStoreError> {
+        user_version(&self.connection)
     }
 
     pub fn get_preference(&self, key: &str) -> Result<Option<String>, SessionStoreError> {
@@ -680,34 +668,30 @@ impl SessionStore {
         }
         let now = now_ms();
         self.connection.execute(
-            "INSERT INTO recent_workspaces (workspace, updated_at)
+            "INSERT INTO workspaces (path, updated_at)
              VALUES (?1, ?2)
-             ON CONFLICT(workspace) DO UPDATE SET updated_at = excluded.updated_at",
+             ON CONFLICT(path) DO UPDATE SET updated_at = excluded.updated_at",
             params![workspace, now as i64],
         )?;
         Ok(())
     }
 
+    /// Removes a workspace and cascades deletion to its sessions and turns.
     pub fn remove_recent_workspace(&mut self, workspace: &str) -> Result<bool, SessionStoreError> {
-        let count = self.connection.execute(
-            "DELETE FROM recent_workspaces WHERE workspace = ?1",
-            [workspace],
-        )?;
+        let workspace = workspace.trim();
+        if workspace.is_empty() {
+            return Ok(false);
+        }
+        let count = self
+            .connection
+            .execute("DELETE FROM workspaces WHERE path = ?1", [workspace])?;
         Ok(count > 0)
     }
 
     pub fn get_recent_workspaces(&self, limit: u32) -> Result<Vec<String>, SessionStoreError> {
         let mut statement = self.connection.prepare(
-            "SELECT workspace FROM (
-                 SELECT workspace, updated_at FROM recent_workspaces
-                 WHERE workspace IS NOT NULL AND workspace != ''
-                 UNION ALL
-                 SELECT workspace, MAX(updated_at) AS updated_at FROM sessions
-                 WHERE workspace IS NOT NULL AND workspace != ''
-                 GROUP BY workspace
-             )
-             GROUP BY workspace
-             ORDER BY MAX(updated_at) DESC
+            "SELECT path FROM workspaces
+             ORDER BY updated_at DESC, path ASC
              LIMIT ?1",
         )?;
         let rows = statement.query_map([limit], |row| row.get(0))?;
