@@ -27,6 +27,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["index.ts", "dbg-wsl.ts", "src", "tests", "scripts"],
+  "include": ["index.ts", "src", "tests", "scripts"],
   "exclude": ["apps/desktop", "node_modules", "target"]
 }

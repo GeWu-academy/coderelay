@@ -31,8 +31,8 @@ const LABELLED: DetectedCli[] = [
     path: "/home/me/.local/bin/claude",
     version: "2.0.1",
     available: true,
-    runtime: "wsl",
-    distro: "Ubuntu",
+    runtime: "local",
+    source: "npm",
   },
   {
     id: "pi",
@@ -74,11 +74,11 @@ describe("CLI rail labels", () => {
     expect(frame).toContain("· installer");
   });
 
-  test("a WSL CLI names the distribution instead of the host OS", () => {
+  test("an npm CLI shows its npm install channel", () => {
     const frame = detailLineFor(1);
 
-    expect(frame).toContain("WSL: Ubuntu");
-    expect(frame).not.toContain("· installer");
+    expect(frame).toContain("v2.0.1");
+    expect(frame).toContain("· npm");
   });
 
   test("a CLI without a version says so rather than showing a blank", () => {

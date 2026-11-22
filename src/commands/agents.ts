@@ -38,9 +38,8 @@ export interface AgentListEntry {
   readonly version: string | null;
   readonly configDir: string;
   readonly models: readonly string[];
-  /** Where the selected executable runs: this machine, or a WSL distro. */
+  /** Where the selected executable runs. */
   readonly runtime: CliRuntime;
-  readonly distro?: string;
   readonly source: CliSource;
   readonly candidates: readonly CliCandidate[];
   readonly diagnostics: readonly CliDiagnostic[];
@@ -72,7 +71,6 @@ export function buildAgentList(
     const detectedCli = detectedById.get(id);
     const agentConfig = config.agents[id];
     const command = agentConfig?.command?.trim() || detectedCli?.path || "";
-    const distro = detectedCli?.distro;
 
     return {
       id,
@@ -86,7 +84,6 @@ export function buildAgentList(
       configDir: adapters[id].configDir,
       models: agentConfig?.models.map((model) => model.id) ?? [],
       runtime: detectedCli ? cliRuntime(detectedCli) : "local",
-      ...(distro ? { distro } : {}),
       source: detectedCli ? cliSource(detectedCli) : "path",
       candidates: detectedCli ? cliCandidates(detectedCli) : [],
       diagnostics: detectedCli ? cliDiagnostics(detectedCli) : [],
@@ -95,15 +92,11 @@ export function buildAgentList(
 }
 
 function runtimeLabel(entry: AgentListEntry): string {
-  return entry.runtime === "wsl"
-    ? `wsl (${entry.distro ?? "默认发行版"})`
-    : `local (${entry.source})`;
+  return `local (${entry.source})`;
 }
 
 function candidateLabel(candidate: CliCandidate): string {
-  return candidate.runtime === "wsl"
-    ? `${candidate.path} (wsl: ${candidate.distro ?? "默认发行版"})`
-    : `${candidate.path} (${candidate.source})`;
+  return `${candidate.path} (${candidate.source})`;
 }
 
 export interface FormatAgentListOptions {

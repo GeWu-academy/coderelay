@@ -10,7 +10,6 @@ import type {
   SpawnRequestOptions,
   SpawnRunner,
 } from "../models/cli";
-import { buildWslArgs, toWslPath, WSL_EXECUTABLE } from "./wsl";
 
 export interface LaunchProcessOptions {
   readonly cwd?: string;
@@ -96,20 +95,12 @@ function resolveDependencies(
 
 /**
  * Turn a scanned runtime context plus CLI arguments into the argv the host
- * must actually spawn. A WSL CLI is reached through `wsl.exe`; its Linux path
- * is passed as an argument and never handed to a native Windows spawn.
+ * must actually spawn.
  */
 export function buildLaunchArgv(
   target: LaunchTarget,
   args: readonly string[] = [],
 ): { readonly file: string; readonly args: readonly string[] } {
-  if (target.runtime === "wsl") {
-    return {
-      file: WSL_EXECUTABLE,
-      args: buildWslArgs(target.distro, [target.path, ...args]),
-    };
-  }
-
   return { file: target.path, args: [...args] };
 }
 
@@ -122,46 +113,23 @@ export function buildLaunchCmd(
   return [argv.file, ...argv.args];
 }
 
-/**
- * The working directory the child can understand. WSL cannot use a Windows
- * path, so it is translated; `undefined` leaves WSL in its own default
- * directory and the caller is expected to say why.
- */
+/** The working directory for the child process. */
 export function resolveLaunchCwd(
   cwd: string | undefined,
-  target:
-    | LaunchTarget
-    | {
-        readonly runtime?: string;
-        readonly distro?: string;
-        readonly mountRoot?: string;
-      }
-    | undefined,
+  _target?: LaunchTarget | { readonly runtime?: string },
 ): string | undefined {
-  if (!cwd || target?.runtime !== "wsl") {
-    return cwd;
-  }
-
-  return (
-    toWslPath(cwd, {
-      distro: target.distro,
-      mountRoot: target.mountRoot,
-    }) ?? undefined
-  );
+  return cwd;
 }
 
 export function createSpawnOptions(
   options: LaunchProcessOptions,
   platform: NodeJS.Platform,
 ): SpawnRequestOptions {
-  // A WSL launch spawns wsl.exe directly: routing it through cmd.exe would
-  // re-parse the Linux path and the `--` separator.
-  const wsl = options.target?.runtime === "wsl";
   return {
     cwd: resolveLaunchCwd(options.cwd, options.target),
     env: options.env ?? process.env,
     stdio: "inherit",
-    shell: platform === "win32" && !wsl,
+    shell: platform === "win32",
     windowsHide: platform === "win32",
   };
 }
@@ -249,12 +217,11 @@ function createCaptureOptions(
   options: LaunchProcessOptions,
   platform: NodeJS.Platform,
 ): SpawnRequestOptions {
-  const wsl = options.target?.runtime === "wsl";
   return {
     cwd: resolveLaunchCwd(options.cwd, options.target),
     env: options.env ?? process.env,
     stdio: ["ignore", "pipe", "pipe"],
-    shell: platform === "win32" && !wsl,
+    shell: platform === "win32",
     windowsHide: platform === "win32",
   };
 }
@@ -419,7 +386,7 @@ export async function runOnce(
     timeout: timeoutMs,
     maxBuffer,
     windowsHide: true,
-    shell: dependencies.platform === "win32" && target.runtime !== "wsl",
+    shell: dependencies.platform === "win32",
   };
 
   try {

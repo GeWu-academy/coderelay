@@ -34,10 +34,9 @@ export const CLI_DEFINITIONS: readonly CliDefinition[] = [
 
 /**
  * Where a discovered executable actually runs. `local` means the current
- * process can spawn it directly; `wsl` means it lives inside a WSL
- * distribution and must be reached through `wsl.exe`.
+ * process can spawn it directly.
  */
-export type CliRuntime = "local" | "wsl";
+export type CliRuntime = "local";
 
 /** Installation channel behind a discovered executable. */
 export type CliSource =
@@ -58,10 +57,6 @@ export interface CliCandidate {
   readonly path: string;
   readonly runtime: CliRuntime;
   readonly source: CliSource;
-  /** WSL distribution name; only set when `runtime` is `"wsl"`. */
-  readonly distro?: string;
-  /** WSL mount root for Windows drives; e.g. `/mnt` or custom automount root. */
-  readonly mountRoot?: string;
   readonly version: string | null;
 }
 
@@ -85,8 +80,6 @@ export interface DetectedCli {
   readonly version: string | null;
   readonly available: boolean;
   readonly runtime?: CliRuntime;
-  readonly distro?: string;
-  readonly mountRoot?: string;
   readonly source?: CliSource;
   /** Every candidate found, selected one first, in resolution order. */
   readonly candidates?: readonly CliCandidate[];
@@ -97,16 +90,10 @@ export interface DetectedCli {
 export interface LaunchTarget {
   readonly path: string;
   readonly runtime: CliRuntime;
-  readonly distro?: string;
-  readonly mountRoot?: string;
 }
 
 export function cliRuntime(cli: DetectedCli): CliRuntime {
   return cli.runtime ?? "local";
-}
-
-export function cliMountRoot(cli: DetectedCli): string | undefined {
-  return cli.mountRoot;
 }
 
 export function cliSource(cli: DetectedCli): CliSource {
@@ -127,13 +114,9 @@ export function cliLaunchTarget(cli: DetectedCli): LaunchTarget | null {
     return null;
   }
 
-  const distro = cli.distro;
-  const mountRoot = cli.mountRoot;
   return {
     path: cli.path,
     runtime: cliRuntime(cli),
-    ...(distro ? { distro } : {}),
-    ...(mountRoot ? { mountRoot } : {}),
   };
 }
 

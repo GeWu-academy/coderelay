@@ -27,7 +27,6 @@ import {
   userInstallDirs,
 } from "./candidate-paths";
 import { probeVersion } from "./version-probe";
-import { scanWslClis, type WslCliLocation, type WslScanResult } from "./wsl";
 
 export type FileAccess = (path: string, mode?: number) => Promise<void>;
 export type FileRead = (
@@ -47,13 +46,6 @@ export interface ScannerOptions {
   readonly resolveTimeoutMs?: number;
   readonly versionTimeoutMs?: number;
   readonly versionArgs?: readonly (readonly string[])[];
-  /**
-   * Probe WSL for CLIs. Defaults to on for native Windows only — WSL paths
-   * must never be treated as launchable from another platform.
-   */
-  readonly probeWsl?: boolean;
-  /** Overridable for tests; WSL is normally reached as `wsl.exe`. */
-  readonly wslBin?: string;
 }
 
 interface ResolvedScannerOptions {
@@ -67,8 +59,6 @@ interface ResolvedScannerOptions {
   readonly resolveTimeoutMs: number;
   readonly versionTimeoutMs: number;
   readonly versionArgs: readonly (readonly string[])[];
-  readonly probeWsl: boolean;
-  readonly wslBin: string | undefined;
 }
 
 const execFileAsync = promisify(execFile);
@@ -100,8 +90,6 @@ function resolveScannerOptions(
     resolveTimeoutMs: options.resolveTimeoutMs ?? 3_000,
     versionTimeoutMs: options.versionTimeoutMs ?? 5_000,
     versionArgs: options.versionArgs ?? DEFAULT_VERSION_ARGS,
-    probeWsl: options.probeWsl ?? platform === "win32",
-    wslBin: options.wslBin,
   };
 }
 
@@ -531,19 +519,6 @@ async function toLocalCandidates(
   );
 }
 
-function toWslCandidates(
-  locations: readonly WslCliLocation[],
-): readonly CliCandidate[] {
-  return locations.map((location) => ({
-    path: location.path,
-    runtime: "wsl" as const,
-    source: "installer" as const,
-    distro: location.distro,
-    ...(location.mountRoot ? { mountRoot: location.mountRoot } : {}),
-    version: location.version,
-  }));
-}
-
 function selectedFrom(
   candidates: readonly CliCandidate[],
 ): CliCandidate | null {
@@ -554,7 +529,6 @@ function buildDiagnostics(
   definition: CliDefinition,
   resolved: ResolvedScannerOptions,
   selected: CliCandidate | null,
-  wsl: WslScanResult | null,
   searchedDirs: readonly string[],
 ): readonly CliDiagnostic[] {
   const diagnostics: CliDiagnostic[] = [];
@@ -565,19 +539,6 @@ function buildDiagnostics(
       message: `未发现 ${definition.bin}。已检查 PATH 与常见安装目录：${[
         ...new Set(searchedDirs),
       ].join(", ")}`,
-    });
-    for (const diagnostic of wsl?.diagnostics ?? []) {
-      diagnostics.push(diagnostic);
-    }
-    return diagnostics;
-  }
-
-  if (selected.runtime === "wsl") {
-    diagnostics.push({
-      level: "warn",
-      message: `仅在 WSL:${
-        selected.distro ?? "默认发行版"
-      } 中可用；原生 Windows shell 无法直接调用 ${definition.bin}。`,
     });
     return diagnostics;
   }
@@ -599,16 +560,6 @@ function buildDiagnostics(
     });
   }
 
-  const wslLocations = wsl?.locations.get(definition.id) ?? [];
-  if (wslLocations.length > 0) {
-    diagnostics.push({
-      level: "info",
-      message: `WSL:${
-        wslLocations[0]?.distro ?? "默认发行版"
-      } 中也检测到 ${definition.bin}；当前 shell 优先使用原生路径。`,
-    });
-  }
-
   return diagnostics;
 }
 
@@ -616,7 +567,6 @@ async function scanCli(
   definition: CliDefinition,
   resolved: ResolvedScannerOptions,
   packageDirs: readonly InstallDir[],
-  wsl: WslScanResult | null,
 ): Promise<DetectedCli> {
   const searchedDirs: string[] = [];
   const local = await collectLocalCandidates(
@@ -625,16 +575,12 @@ async function scanCli(
     packageDirs,
     searchedDirs,
   );
-  const candidates: CliCandidate[] = [
-    ...(await toLocalCandidates(local, resolved)),
-    ...toWslCandidates(wsl?.locations.get(definition.id) ?? []),
-  ];
+  const candidates = await toLocalCandidates(local, resolved);
   const selected = selectedFrom(candidates);
   const diagnostics = buildDiagnostics(
     definition,
     resolved,
     selected,
-    wsl,
     searchedDirs,
   );
 
@@ -660,8 +606,6 @@ async function scanCli(
     available: true,
     runtime: selected.runtime,
     source: selected.source,
-    ...(selected.distro ? { distro: selected.distro } : {}),
-    ...(selected.mountRoot ? { mountRoot: selected.mountRoot } : {}),
     candidates,
     diagnostics,
   };
@@ -673,27 +617,13 @@ export async function scanCodingClis(
 ): Promise<DetectedCli[]> {
   const resolved = resolveScannerOptions(options);
 
-  // Both are resolved once per scan and shared by every CLI: the package
-  // managers and wsl.exe are far slower than the per-CLI lookups.
-  const packageDirsPromise = probePackageBinDirs(resolved);
-  const wslPromise: Promise<WslScanResult | null> = resolved.probeWsl
-    ? scanWslClis({
-        execFile: resolved.execFile,
-        resolveTimeoutMs: resolved.resolveTimeoutMs,
-        versionTimeoutMs: resolved.versionTimeoutMs,
-        versionArgs: resolved.versionArgs,
-        wslBin: resolved.wslBin,
-      })
-    : Promise.resolve(null);
-
-  const [packageDirs, wsl] = await Promise.all([
-    packageDirsPromise,
-    wslPromise,
-  ]);
+  // Resolved once per scan and shared by every CLI: package manager lookups
+  // are slower than the per-CLI checks.
+  const packageDirs = await probePackageBinDirs(resolved);
 
   return Promise.all(
     CLI_DEFINITIONS.map((definition) =>
-      scanCli(definition, resolved, packageDirs, wsl),
+      scanCli(definition, resolved, packageDirs),
     ),
   );
 }

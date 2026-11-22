@@ -1,5 +1,5 @@
 /**
- * Version probing shared by local and WSL candidates.
+ * Version probing for discovered CLI candidates.
  *
  * Every probe is isolated: a CLI that ignores or rejects a version flag, times
  * out, or exits non-zero simply yields `null` and never fails the scan.

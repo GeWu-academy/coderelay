@@ -92,8 +92,6 @@ fn windows_options(home: &str, env: &[(&str, &str)]) -> ScannerOptions {
         resolve_timeout: Duration::from_millis(100),
         version_timeout: Duration::from_millis(100),
         version_args: vec![vec!["--version".to_owned()]],
-        probe_wsl: false,
-        wsl_bin: "wsl.exe".to_owned(),
     }
 }
 
@@ -108,8 +106,6 @@ fn linux_options(home: &str, env: &[(&str, &str)]) -> ScannerOptions {
         resolve_timeout: Duration::from_millis(100),
         version_timeout: Duration::from_millis(100),
         version_args: vec![vec!["--version".to_owned()]],
-        probe_wsl: false,
-        wsl_bin: "wsl.exe".to_owned(),
     }
 }
 
@@ -225,35 +221,6 @@ fn latest_claude_version_directory_is_used_with_numeric_ordering() {
         .expect("claude");
     assert_eq!(claude.path, v278);
     assert_eq!(claude.version.as_deref(), Some("2.1.278"));
-}
-
-#[test]
-fn windows_scan_selects_a_wsl_candidate_when_no_native_cli_exists() {
-    let host = FakeHost::default()
-        .with_output("wsl.exe -l -q", "Ubuntu\0\r\n")
-        .with_output(
-            "wsl.exe -d Ubuntu -- sh -lc command -v codex",
-            "/usr/bin/codex\n",
-        )
-        .with_output(
-            "wsl.exe -d Ubuntu -- /usr/bin/codex --version",
-            "codex-cli 1.0.0\n",
-        );
-    let mut options = windows_options("C:\\fixture-home", &[]);
-    options.probe_wsl = true;
-
-    let detected = scan_coding_clis(&host, &options);
-    let codex = &detected[0];
-    assert!(codex.available);
-    assert_eq!(codex.runtime, CliRuntime::Wsl);
-    let wsl = codex
-        .candidates
-        .iter()
-        .find(|candidate| candidate.runtime == CliRuntime::Wsl)
-        .expect("wsl candidate");
-    assert_eq!(wsl.path, "/usr/bin/codex");
-    assert_eq!(wsl.distro.as_deref(), Some("Ubuntu"));
-    assert_eq!(wsl.version.as_deref(), Some("codex-cli 1.0.0"));
 }
 
 #[test]

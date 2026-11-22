@@ -274,22 +274,9 @@ describe("resolveAgentShell", () => {
     path: "C:\\Users\\tester\\AppData\\Roaming\\npm\\claude.cmd",
     runtime: "local",
   };
-  const wslTarget: LaunchTarget = {
-    path: "/usr/bin/claude",
-    runtime: "wsl",
-  };
 
   test("uses shell for local .cmd target on Windows", () => {
     expect(resolveAgentShell({ target: localTarget }, localTarget.path, "win32")).toBe(true);
-  });
-
-  test("does not use shell for WSL target on Windows", () => {
-    expect(resolveAgentShell({ target: wslTarget }, "wsl.exe", "win32")).toBe(false);
-  });
-
-  test("does not use shell when binary is wsl.exe without target", () => {
-    expect(resolveAgentShell({}, "wsl.exe", "win32")).toBe(false);
-    expect(resolveAgentShell({}, "C:\\Windows\\System32\\wsl.exe", "win32")).toBe(false);
   });
 
   test("uses shell on Windows when target is omitted for local binaries", () => {
@@ -336,37 +323,6 @@ describe("runAgentStream shell handling", () => {
     expect(captured?.args).toEqual(["-p", "hi"]);
     expect(captured?.options).toMatchObject({
       shell: true,
-      windowsHide: true,
-      detached: false,
-    });
-  });
-
-  test("spawns with shell: false on Windows for WSL target", () => {
-    let captured: { file: string; args: readonly string[]; options: Record<string, unknown> } | undefined;
-    const target: LaunchTarget = {
-      path: "/usr/bin/claude",
-      runtime: "wsl",
-      distro: "Ubuntu",
-    };
-
-    runAgentStream({
-      cmd: ["wsl.exe", "-d", "Ubuntu", "--", target.path, "-p", "hi"],
-      target,
-      protocol: "text",
-      onEvent: () => undefined,
-      dependencies: {
-        platform: "win32",
-        spawn: (file, args, options) => {
-          captured = { file, args, options };
-          return fakeChild();
-        },
-      },
-    });
-
-    expect(captured).toBeDefined();
-    expect(captured?.file).toBe("wsl.exe");
-    expect(captured?.options).toMatchObject({
-      shell: false,
       windowsHide: true,
       detached: false,
     });

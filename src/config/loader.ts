@@ -15,7 +15,6 @@ import path, { dirname, join, resolve } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { z } from "zod";
 
-import { toWslPath, type WslPathOptions } from "../runtime/wsl";
 import { ConfigSchema, defaultConfig, type Config } from "./schema";
 
 export const CONFIG_DIR = ".coderelay";
@@ -92,12 +91,12 @@ export function crossPlatformDirname(p: string): string {
 }
 
 /**
- * Resolve the user's home/base directory across macOS, Windows, and WSL.
+ * Resolve the user's home/base directory across macOS, Windows, and Linux.
  * Order of precedence:
  *   1. Explicit homeDir argument
  *   2. CODERELAY_HOME environment variable
  *   3. Windows: USERPROFILE > HOMEDRIVE+HOMEPATH > os.homedir()
- *   4. macOS / Linux / WSL: HOME > os.homedir()
+ *   4. macOS / Linux: HOME > os.homedir()
  */
 export function resolveGlobalBaseDir(
   homeDir?: string,
@@ -129,26 +128,6 @@ export function resolveGlobalBaseDir(
   return homedir();
 }
 
-/** Inside WSL, find the mounted Windows user home directory (e.g. /mnt/c/Users/<user>). */
-export function findWslWindowsHome(
-  env: NodeJS.ProcessEnv = process.env,
-  options?: WslPathOptions,
-): string | null {
-  const resolvedOptions: WslPathOptions =
-    typeof options === "string"
-      ? { env, mountRoot: options }
-      : { env, ...options };
-  const userProfile = env.USERPROFILE?.trim();
-  if (userProfile) {
-    return toWslPath(userProfile, resolvedOptions);
-  }
-  const username = env.USER || env.LOGNAME;
-  if (username) {
-    return toWslPath(`C:\\Users\\${username}`, resolvedOptions);
-  }
-  return null;
-}
-
 /** Walk up from `startDir` looking for a config file, falling back to global config (~/.coderelay/config.yaml). */
 export async function findConfigPath(
   startDir: string,
@@ -178,20 +157,6 @@ export async function findConfigPath(
     const candidate = crossPlatformJoin(globalDir, name);
     if (await Bun.file(candidate).exists()) {
       return candidate;
-    }
-  }
-
-  // If in WSL and no config found yet, check Windows home profile if available
-  if (platform === "linux" && (env.WSL_DISTRO_NAME || env.WSL_INTEROP)) {
-    const wslWinHome = findWslWindowsHome(env);
-    if (wslWinHome) {
-      const winGlobalDir = crossPlatformJoin(wslWinHome, CONFIG_DIR);
-      for (const name of ["config.yaml", "config.yml"]) {
-        const candidate = crossPlatformJoin(winGlobalDir, name);
-        if (await Bun.file(candidate).exists()) {
-          return candidate;
-        }
-      }
     }
   }
 

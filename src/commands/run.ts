@@ -98,7 +98,7 @@ function resolveTarget(
     return { path: resolved, runtime: "local" };
   }
 
-  // 扫描结果携带真实运行上下文（本地 / WSL），启动必须沿用同一条路径，
+  // 扫描结果携带真实运行上下文，启动必须沿用同一条路径，
   // 不在启动时重新按 bin 名称查找，避免 PATH 变化导致启动失败。
   const detectedCli = findDetected(detected, agent);
   const scanned = detectedCli ? cliLaunchTarget(detectedCli) : null;
@@ -249,11 +249,6 @@ export async function runRunCommand(
     write(`coderelay: routing to ${targetDescription(agent, model)}\n`);
 
     const launchCwd = resolveLaunchCwd(options.cwd, executable);
-    if (executable.runtime === "wsl" && options.cwd && !launchCwd) {
-      write(
-        `coderelay: 无法把工作目录转换为 WSL 路径（${options.cwd}），将在 WSL 当前目录执行\n`,
-      );
-    }
 
     // 统一流式生命周期：assistant 文本写 stdout，诊断写 stderr。
     const onEvent = (event: AgentEvent): void => {

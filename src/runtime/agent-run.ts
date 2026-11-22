@@ -165,31 +165,19 @@ const defaultSpawn: AgentSpawnRunner = (file, args, options) =>
 /**
  * Determine if spawn requires shell execution.
  * Windows .cmd/.bat shims (e.g. npm global binaries) require cmd.exe to launch.
- * WSL targets must spawn wsl.exe directly without cmd.exe re-parsing.
  */
 export function resolveAgentShell(
   options: {
     readonly shell?: boolean;
     readonly target?: LaunchTarget;
   },
-  bin: string,
+  _bin: string,
   platform: NodeJS.Platform = process.platform,
 ): boolean {
   if (options.shell !== undefined) {
     return options.shell;
   }
-  if (platform !== "win32") {
-    return false;
-  }
-  if (options.target?.runtime === "wsl") {
-    return false;
-  }
-  const normalized = bin.toLowerCase();
-  return (
-    normalized !== "wsl.exe" &&
-    !normalized.endsWith("\\wsl.exe") &&
-    !normalized.endsWith("/wsl.exe")
-  );
+  return platform === "win32";
 }
 
 /**

@@ -9,7 +9,6 @@ import {
   ConfigError,
   defaultConfigPath,
   findConfigPath,
-  findWslWindowsHome,
   globalConfigDir,
   loadConfig,
   resolveConfigPath,
@@ -349,37 +348,10 @@ describe("saveActivationDecisions", () => {
     ).toBe("D:\\Users\\winuser\\.coderelay\\config.yaml");
   });
 
-  test("adapts storage location to WSL and Linux environments", () => {
-    // Standard Linux / WSL HOME
+  test("adapts storage location to Linux environments", () => {
     expect(
-      defaultConfigPath(undefined, { HOME: "/home/wsluser" }, "linux"),
-    ).toBe("/home/wsluser/.coderelay/config.yaml");
-
-    // WSL Windows profile discovery via USERPROFILE
-    expect(
-      findWslWindowsHome({ USERPROFILE: "C:\\Users\\alice" }),
-    ).toBe("/mnt/c/Users/alice");
-
-    // WSL Windows profile discovery via USER
-    expect(
-      findWslWindowsHome({ USER: "bob" }),
-    ).toBe("/mnt/c/Users/bob");
-
-    // WSL Windows profile discovery respects custom mount root
-    expect(
-      findWslWindowsHome(
-        { USERPROFILE: "C:\\Users\\alice", WSL_AUTOMOUNT_ROOT: "/windir" },
-      ),
-    ).toBe("/windir/c/Users/alice");
-    expect(
-      findWslWindowsHome({ USER: "bob" }, "/windir"),
-    ).toBe("/windir/c/Users/bob");
-    expect(
-      findWslWindowsHome({ USER: "bob" }, "/"),
-    ).toBe("/c/Users/bob");
-    expect(
-      findWslWindowsHome({ USER: "bob" }, { mountRoot: null }),
-    ).toBeNull();
+      defaultConfigPath(undefined, { HOME: "/home/linuxuser" }, "linux"),
+    ).toBe("/home/linuxuser/.coderelay/config.yaml");
   });
 
   test("supports CODERELAY_HOME override across all platforms", () => {

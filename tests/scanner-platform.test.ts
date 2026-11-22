@@ -43,8 +43,6 @@ function scannerOptionsFor(host: FakeHost): ScannerOptions {
         });
       }
     },
-    // Native-matrix tests never want a WSL probe unless they ask for one.
-    probeWsl: false,
   };
 }
 
@@ -325,7 +323,6 @@ describe("version probing", () => {
       platform: "linux",
       homeDir: "/home/tester",
       env: { PATH: "/opt/bin" },
-      probeWsl: false,
       execFile: async (file, args) => {
         const command = [file, ...args].join(" ");
         if (command === "which pi") {

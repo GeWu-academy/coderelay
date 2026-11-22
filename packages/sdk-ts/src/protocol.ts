@@ -52,8 +52,6 @@ export interface CliCandidate {
   path: string;
   runtime: string;
   source: string;
-  distro?: string;
-  mountRoot?: string;
   version: string | null;
 }
 
@@ -70,8 +68,6 @@ export interface DetectedCli {
   available: boolean;
   runtime: string;
   source: string;
-  distro?: string;
-  mountRoot?: string;
   candidates: CliCandidate[];
   diagnostics: CliDiagnostic[];
 }

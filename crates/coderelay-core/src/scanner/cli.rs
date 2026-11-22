@@ -14,9 +14,6 @@ use crate::scanner::types::{
     DiagnosticLevel, cli_definitions,
 };
 use crate::scanner::version::probe_version;
-use crate::scanner::wsl::{
-    WSL_EXECUTABLE, WslCliLocation, WslScanOptions, WslScanResult, scan_wsl_clis,
-};
 
 #[derive(Debug, Clone)]
 pub struct ScannerOptions {
@@ -26,8 +23,6 @@ pub struct ScannerOptions {
     pub resolve_timeout: Duration,
     pub version_timeout: Duration,
     pub version_args: Vec<Vec<String>>,
-    pub probe_wsl: bool,
-    pub wsl_bin: String,
 }
 
 impl Default for ScannerOptions {
@@ -43,8 +38,6 @@ impl Default for ScannerOptions {
                 .iter()
                 .map(|args| args.iter().map(|arg| (*arg).to_owned()).collect())
                 .collect(),
-            probe_wsl: platform == Platform::Win32,
-            wsl_bin: WSL_EXECUTABLE.to_owned(),
         }
     }
 }
@@ -395,8 +388,6 @@ fn to_local_candidates(
             path: entry.path.clone(),
             runtime: CliRuntime::Local,
             source: entry.source,
-            distro: None,
-            mount_root: None,
             version: probe_version(
                 runner,
                 std::slice::from_ref(&entry.path),
@@ -408,25 +399,10 @@ fn to_local_candidates(
         .collect()
 }
 
-fn to_wsl_candidates(locations: &[WslCliLocation]) -> Vec<CliCandidate> {
-    locations
-        .iter()
-        .map(|location| CliCandidate {
-            path: location.path.clone(),
-            runtime: CliRuntime::Wsl,
-            source: CliSource::Installer,
-            distro: Some(location.distro.clone()),
-            mount_root: Some(location.mount_root.clone()),
-            version: location.version.clone(),
-        })
-        .collect()
-}
-
 fn build_diagnostics(
     definition: &CliDefinition,
     options: &ScannerOptions,
     selected: Option<&CliCandidate>,
-    wsl: Option<&WslScanResult>,
     searched_dirs: &[String],
     initial: Vec<CliDiagnostic>,
 ) -> Vec<CliDiagnostic> {
@@ -447,23 +423,8 @@ fn build_diagnostics(
                 unique.join(", ")
             ),
         });
-        if let Some(wsl) = wsl {
-            diagnostics.extend(wsl.diagnostics.clone());
-        }
         return diagnostics;
     };
-
-    if selected.runtime == CliRuntime::Wsl {
-        diagnostics.push(CliDiagnostic {
-            level: DiagnosticLevel::Warn,
-            message: format!(
-                "仅在 WSL:{} 中可用；原生 Windows shell 无法直接调用 {}。",
-                selected.distro.as_deref().unwrap_or("默认发行版"),
-                definition.bin
-            ),
-        });
-        return diagnostics;
-    }
 
     if selected.version.is_none() {
         diagnostics.push(CliDiagnostic {
@@ -486,19 +447,6 @@ fn build_diagnostics(
         });
     }
 
-    if let Some(wsl) = wsl
-        && let Some(locations) = wsl.locations.get(&definition.id)
-        && let Some(first) = locations.first()
-    {
-        diagnostics.push(CliDiagnostic {
-            level: DiagnosticLevel::Info,
-            message: format!(
-                "WSL:{} 中也检测到 {}；当前 shell 优先使用原生路径。",
-                first.distro, definition.bin
-            ),
-        });
-    }
-
     diagnostics
 }
 
@@ -507,7 +455,6 @@ fn scan_cli(
     definition: &CliDefinition,
     options: &ScannerOptions,
     package_dirs: &[InstallDir],
-    wsl: Option<&WslScanResult>,
 ) -> DetectedCli {
     let mut searched_dirs = Vec::new();
     let mut diagnostics = Vec::new();
@@ -520,19 +467,13 @@ fn scan_cli(
         &mut searched_dirs,
         &mut diagnostics,
     );
-    let mut candidates = to_local_candidates(host, &local, options);
-    if let Some(wsl) = wsl
-        && let Some(locations) = wsl.locations.get(&definition.id)
-    {
-        candidates.extend(to_wsl_candidates(locations));
-    }
+    let candidates = to_local_candidates(host, &local, options);
 
     let selected = candidates.first().cloned();
     let diagnostics = build_diagnostics(
         definition,
         options,
         selected.as_ref(),
-        wsl,
         &searched_dirs,
         diagnostics,
     );
@@ -546,8 +487,6 @@ fn scan_cli(
             available: true,
             runtime: selected.runtime,
             source: selected.source,
-            distro: selected.distro,
-            mount_root: selected.mount_root,
             candidates,
             diagnostics,
         },
@@ -559,8 +498,6 @@ fn scan_cli(
             available: false,
             runtime: CliRuntime::Local,
             source: CliSource::Path,
-            distro: None,
-            mount_root: None,
             candidates,
             diagnostics,
         },
@@ -570,22 +507,9 @@ fn scan_cli(
 /// Scan supported CLIs while preserving canonical agent order.
 pub fn scan_coding_clis(host: &dyn Host, options: &ScannerOptions) -> Vec<DetectedCli> {
     let package_dirs = probe_package_bin_dirs(host, options);
-    let wsl = if options.probe_wsl && options.platform == Platform::Win32 {
-        let wsl_options = WslScanOptions {
-            resolve_timeout: options.resolve_timeout,
-            version_timeout: options.version_timeout,
-            version_args: options.version_args.clone(),
-            wsl_bin: options.wsl_bin.clone(),
-            mount_root: None,
-            env: options.environment.clone(),
-        };
-        Some(scan_wsl_clis(host, &wsl_options))
-    } else {
-        None
-    };
 
     cli_definitions()
         .iter()
-        .map(|definition| scan_cli(host, definition, options, &package_dirs, wsl.as_ref()))
+        .map(|definition| scan_cli(host, definition, options, &package_dirs))
         .collect()
 }

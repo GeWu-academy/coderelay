@@ -130,34 +130,6 @@ describe("per-CLI states", () => {
     );
   });
 
-  test("a CLI that only WSL can launch is a warning naming the distro", () => {
-    const report = buildDoctorReport(
-      defaultConfig(),
-      [
-        detectedCli({
-          id: "claude",
-          available: true,
-          path: "/home/me/.local/bin/claude",
-          version: "2.0.1",
-          runtime: "wsl",
-          distro: "Ubuntu",
-        }),
-      ],
-      {
-        platform: "win32",
-        homeDir: "C:\\Users\\tester",
-        env: { PATH: "C:\\Windows" },
-      },
-    );
-
-    const check = checkNamed(report, "cli claude");
-    expect(check.status).toBe("warn");
-    expect(check.message).toBe(
-      "仅在 WSL:Ubuntu 中可用 · /home/me/.local/bin/claude",
-    );
-    expect(check.details?.join("\n")).toContain("wsl.exe -d Ubuntu");
-  });
-
   test("candidates that all failed to launch carry the official install commands", () => {
     const report = buildDoctorReport(
       defaultConfig(),
@@ -266,7 +238,7 @@ describe("per-CLI states", () => {
 });
 
 describe("install guidance", () => {
-  test("Windows guidance names the official entry points, including WSL", () => {
+  test("Windows guidance names the official entry points", () => {
     const report = buildDoctorReport(defaultConfig(), [], {
       platform: "win32",
       homeDir: "C:\\Users\\tester",
@@ -306,53 +278,6 @@ describe("install guidance", () => {
     );
 
     expect(checkNamed(report, "cli codex").details).toBeUndefined();
-  });
-});
-
-describe("WSL check", () => {
-  test("is absent off native Windows", () => {
-    const report = buildDoctorReport(defaultConfig(), [], LINUX_HOST);
-
-    expect(report.checks.some((check) => check.name === "WSL")).toBe(false);
-  });
-
-  test("names the distributions the scan found", () => {
-    const report = buildDoctorReport(
-      defaultConfig(),
-      [
-        detectedCli({
-          id: "codex",
-          available: true,
-          path: "/home/me/.local/bin/codex",
-          version: "0.139.0",
-          runtime: "wsl",
-          distro: "Ubuntu",
-        }),
-      ],
-      {
-        platform: "win32",
-        homeDir: "C:\\Users\\tester",
-        env: { PATH: "C:\\Windows" },
-      },
-    );
-
-    expect(checkNamed(report, "WSL")).toMatchObject({
-      status: "ok",
-      message: "发现发行版：Ubuntu",
-    });
-  });
-
-  test("explains the WSL route when no distribution was found", () => {
-    const report = buildDoctorReport(defaultConfig(), [], {
-      platform: "win32",
-      homeDir: "C:\\Users\\tester",
-      env: { PATH: "C:\\Windows" },
-    });
-
-    const check = checkNamed(report, "WSL");
-    expect(check.status).toBe("warn");
-    expect(check.message).toBe("未检测到 WSL 发行版");
-    expect(check.details?.join("\n")).toContain("wsl.exe");
   });
 });
 

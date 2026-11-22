@@ -196,10 +196,10 @@ describe("session store", () => {
       defaultSessionDbPath(undefined, { USERPROFILE: "C:\\Users\\winuser" }, "win32"),
     ).toBe("C:\\Users\\winuser\\.coderelay\\sessions.db");
 
-    // WSL / Linux
+    // Linux
     expect(
-      defaultSessionDbPath(undefined, { HOME: "/home/wsluser" }, "linux"),
-    ).toBe("/home/wsluser/.coderelay/sessions.db");
+      defaultSessionDbPath(undefined, { HOME: "/home/linuxuser" }, "linux"),
+    ).toBe("/home/linuxuser/.coderelay/sessions.db");
 
     // macOS
     expect(

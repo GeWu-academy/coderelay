@@ -42,8 +42,8 @@ const DETECTED: readonly DetectedCli[] = [
     available: true,
     path: "/home/me/.local/bin/pi",
     version: "0.73.1",
-    runtime: "wsl",
-    distro: "Ubuntu",
+    runtime: "local",
+    source: "path",
   }),
   detectedCli({
     id: "omp",
@@ -76,8 +76,8 @@ describe("buildAgentList", () => {
       path: "/Users/me/.local/bin/codex",
     });
     expect(entryFor(entries, "pi")).toMatchObject({
-      runtime: "wsl",
-      distro: "Ubuntu",
+      runtime: "local",
+      source: "path",
     });
   });
 
@@ -142,7 +142,7 @@ describe("formatAgentList", () => {
     expect(output).toContain("  status: 0.154.0");
     expect(output).toContain("  runtime: local (installer)");
     expect(output).toContain("  path: /Users/me/.local/bin/codex");
-    expect(output).toContain("  runtime: wsl (Ubuntu)");
+    expect(output).toContain("  runtime: local (path)");
   });
 
   test("lists the alternatives only when more than one was found", () => {

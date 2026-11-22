@@ -4,7 +4,6 @@ import { Box, Text } from "ink";
 
 import {
   CLI_IDS,
-  cliRuntime,
   cliSource,
   type CliId,
   type DetectedCli,
@@ -73,11 +72,8 @@ function platformLabel(platform: NodeJS.Platform): string {
   return platform;
 }
 
-/** `local` shows the OS and install channel; `wsl` shows the distribution. */
+/** Shows the OS and install channel. */
 function originLabel(cli: DetectedCli): string {
-  if (cliRuntime(cli) === "wsl") {
-    return `WSL: ${cli.distro ?? "默认发行版"}`;
-  }
   return `${platformLabel(process.platform)} · ${cliSource(cli)}`;
 }
 
