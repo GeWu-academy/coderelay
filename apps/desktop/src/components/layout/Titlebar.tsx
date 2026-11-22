@@ -1,7 +1,13 @@
 import type { RightPanelMode } from "../stores/navigationStore";
 import { AgentsIcon, PanelLeftIcon, TerminalIcon } from "./icons";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 export interface TitlebarProps {
+  workspaceInput?: string;
+  recentWorkspaces?: readonly string[];
+  onSelectWorkspace?: (workspace: string) => void;
+  onDeleteWorkspace?: (workspace: string) => void;
+  onPickWorkspace?: () => void;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
   rightSidebarOpen: boolean;
@@ -11,6 +17,11 @@ export interface TitlebarProps {
 }
 
 export function Titlebar({
+  workspaceInput,
+  recentWorkspaces,
+  onSelectWorkspace,
+  onDeleteWorkspace,
+  onPickWorkspace,
   sidebarCollapsed = false,
   onToggleSidebar,
   rightSidebarOpen,
@@ -18,6 +29,10 @@ export function Titlebar({
   onToggleRightSidebar,
   onToggleRightPanelMode,
 }: TitlebarProps) {
+  const showWorkspaceSwitcher =
+    workspaceInput !== undefined ||
+    onSelectWorkspace !== undefined ||
+    onPickWorkspace !== undefined;
   const agentsActive = rightSidebarOpen && rightPanelMode === "agents";
   const terminalActive = rightSidebarOpen && rightPanelMode === "terminal";
 
@@ -42,7 +57,17 @@ export function Titlebar({
       className="relative z-20 flex min-h-[38px] shrink-0 basis-[38px] items-center justify-between border-b border-line bg-canvas pr-3.5 pl-[76px] select-none"
       data-tauri-drag-region
     >
-      <div className="h-full w-12" data-tauri-drag-region />
+      {showWorkspaceSwitcher ? (
+        <WorkspaceSwitcher
+          currentWorkspace={workspaceInput ?? ""}
+          recentWorkspaces={recentWorkspaces}
+          onSelectWorkspace={onSelectWorkspace}
+          onDeleteWorkspace={onDeleteWorkspace}
+          onPickWorkspace={onPickWorkspace}
+        />
+      ) : (
+        <div className="h-full w-12" data-tauri-drag-region />
+      )}
       <div className="h-full flex-1" data-tauri-drag-region />
       <div className="flex items-center gap-2">
         {onToggleSidebar ? (

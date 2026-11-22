@@ -1,16 +1,16 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { CliIcon, HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "../../components/icons";
+import type { AgentEntry, ModelOption, SessionDetail, SessionRecord, SessionTurn } from "../../types";
+import { formatTimestamp, workspaceName } from "../../utils";
 import {
   computeOverview,
   formatDisplayDate,
   type DailyTrendPoint,
   type FullStatsOverview,
   type HeatmapDay,
-} from "../stats";
-import type { AgentEntry, ModelOption, SessionDetail, SessionRecord, SessionTurn } from "../types";
-import { formatTimestamp, workspaceName } from "../utils";
-import { CliIcon, HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "./icons";
+} from "./stats";
 
 export interface StatsViewProps {
   workspaceInput: string;

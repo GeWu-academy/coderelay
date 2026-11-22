@@ -1,10 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
 
-import type { SessionDetail, SessionRecord } from "../types";
-import { formatTimestamp, workspaceName } from "../utils";
-import { splitThinkingAndOutput } from "../utils/thinking";
-import { ThinkingBar } from "./ThinkingBar";
-import { ArrowUpIcon, HistoryIcon, RefreshIcon, TerminalIcon } from "./icons";
+import { ArrowUpIcon, HistoryIcon, RefreshIcon, TerminalIcon, ThinkingBar } from "../../components";
+import type { SessionDetail, SessionRecord } from "../../types";
+import { formatTimestamp, workspaceName } from "../../utils";
+import { splitThinkingAndOutput } from "../../utils/thinking";
 
 export interface SessionsViewProps {
   workspaceInput: string;

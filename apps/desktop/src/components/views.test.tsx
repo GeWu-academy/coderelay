@@ -3,12 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ApiKeyView } from "./ApiKeyView";
 import { ConfigView } from "./ConfigView";
-import {
-  buildWorkspaceWheelList,
-  closeFileTab,
-  FilesView,
-  stepWorkspaceIndex,
-} from "./FilesView";
+import { closeFileTab, FilesView } from "./FilesView";
 import { IconRail } from "./IconRail";
 import { RightSidebar } from "./RightSidebar";
 import { ScmView } from "./ScmView";
@@ -17,6 +12,11 @@ import { StatsView } from "./StatsView";
 import { TerminalPanel } from "./TerminalPanel";
 import { ThinkingBar } from "./ThinkingBar";
 import { Titlebar } from "./Titlebar";
+import {
+  buildWorkspaceWheelList,
+  stepWorkspaceIndex,
+  WorkspaceSwitcher,
+} from "./WorkspaceSwitcher";
 import { WorkspaceView as WorkspacePanelView } from "./WorkspaceView";
 import { isConversationRouteActive } from "../stores/navigationStore";
 import type { AgentEntry, JevSettings, WorkspaceView } from "../types";
@@ -530,7 +530,7 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(statsHtml).toContain("多");
   });
 
-  it("renders Files route in IconRail and VS Code-style Explorer in FilesView", () => {
+  it("renders Files route in IconRail and VS Code-style Explorer in FilesView without embedded workspace wheel", () => {
     const railHtml = renderToStaticMarkup(
       <IconRail currentView="files" onSelectView={() => {}} />,
     );
@@ -538,6 +538,20 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
 
     const filesHtml = renderToStaticMarkup(
       <FilesView
+        workspaceInput="/Users/allure/Desktop/coderelay"
+        onPickWorkspace={() => {}}
+      />,
+    );
+    expect(filesHtml).toContain("Explorer");
+    expect(filesHtml).not.toContain("Workspace wheel switcher");
+    expect(filesHtml).toContain("coderelay");
+    expect(filesHtml).toContain('placeholder="Filter files..."');
+    expect(filesHtml).toContain("Select a file from the explorer sidebar");
+  });
+
+  it("renders unified WorkspaceSwitcher in Titlebar with wheel switching, removal, and empty state", () => {
+    const titlebarHtml = renderToStaticMarkup(
+      <Titlebar
         workspaceInput="/Users/allure/Desktop/coderelay"
         recentWorkspaces={[
           "/Users/allure/Desktop/coderelay",
@@ -547,17 +561,48 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
         onSelectWorkspace={() => {}}
         onDeleteWorkspace={() => {}}
         onPickWorkspace={() => {}}
+        rightSidebarOpen={false}
+        onToggleRightSidebar={() => {}}
       />,
     );
-    expect(filesHtml).toContain("Explorer");
-    expect(filesHtml).toContain("Workspace wheel switcher");
-    expect(filesHtml).toContain('aria-label="Remove workspace coderelay"');
-    expect(filesHtml).toContain("coderelay");
-    expect(filesHtml).toContain("demo-app");
-    expect(filesHtml).toContain("api-server");
-    expect(filesHtml).toContain("1/3");
-    expect(filesHtml).toContain('placeholder="Filter files..."');
-    expect(filesHtml).toContain("Select a file from the explorer sidebar");
+    expect(titlebarHtml).toContain('aria-label="Switch workspace"');
+    expect(titlebarHtml).toContain("coderelay");
+
+    const openSwitcherHtml = renderToStaticMarkup(
+      <WorkspaceSwitcher
+        currentWorkspace="/Users/allure/Desktop/coderelay"
+        recentWorkspaces={[
+          "/Users/allure/Desktop/coderelay",
+          "/Users/allure/Projects/demo-app",
+          "/Users/allure/Projects/api-server",
+        ]}
+        onSelectWorkspace={() => {}}
+        onDeleteWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        defaultOpen
+      />,
+    );
+    expect(openSwitcherHtml).toContain("Workspace wheel switcher");
+    expect(openSwitcherHtml).toContain('aria-label="Remove workspace coderelay"');
+    expect(openSwitcherHtml).toContain("coderelay");
+    expect(openSwitcherHtml).toContain("demo-app");
+    expect(openSwitcherHtml).toContain("api-server");
+    expect(openSwitcherHtml).toContain("1/3");
+    expect(openSwitcherHtml).toContain("打开文件夹");
+
+    const emptySwitcherHtml = renderToStaticMarkup(
+      <WorkspaceSwitcher
+        currentWorkspace=""
+        recentWorkspaces={[]}
+        onSelectWorkspace={() => {}}
+        onDeleteWorkspace={() => {}}
+        onPickWorkspace={() => {}}
+        defaultOpen
+      />,
+    );
+    expect(emptySwitcherHtml).toContain("选择工作区");
+    expect(emptySwitcherHtml).toContain("未选择文件夹");
+    expect(emptySwitcherHtml).not.toContain("Remove workspace");
 
     // Verify wheel list & wrap-around stepping helpers
     const wheelList = buildWorkspaceWheelList("/Users/allure/Projects/new-ws", [
@@ -603,9 +648,6 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     const emptyFilesHtml = renderToStaticMarkup(
       <FilesView
         workspaceInput=""
-        recentWorkspaces={[]}
-        onSelectWorkspace={() => {}}
-        onDeleteWorkspace={() => {}}
         onPickWorkspace={() => {}}
       />,
     );

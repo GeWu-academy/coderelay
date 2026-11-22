@@ -1,4 +1,4 @@
-import type { AgentEntry, ModelOption, SessionRecord, SessionTurn } from "./types";
+import type { AgentEntry, ModelOption, SessionRecord, SessionTurn } from "../../types";
 
 export interface CliUsageStat {
   cliId: string;

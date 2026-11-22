@@ -2,12 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useNavigationStore } from "../stores/navigationStore";
-import { getCodeThemePalette, useThemeStore } from "../stores/themeStore";
-import { useWorkbenchStore } from "../stores/workbenchStore";
-import { CODE_THEME_PRESETS, THEME_PRESETS, type ConfigSource } from "../types";
-import { messageOf } from "../utils";
-import { CheckIcon, CodeIcon, ImageIcon, PaletteIcon, RefreshIcon, TrashIcon } from "./icons";
+import { CheckIcon, CodeIcon, ImageIcon, PaletteIcon, RefreshIcon, TrashIcon } from "../../components/icons";
+import { useNavigationStore } from "../../stores/navigationStore";
+import { getCodeThemePalette, useThemeStore } from "../../stores/themeStore";
+import { useWorkbenchStore } from "../../stores/workbenchStore";
+import { CODE_THEME_PRESETS, THEME_PRESETS, type ConfigSource } from "../../types";
+import { messageOf } from "../../utils";
 
 export interface ConfigViewProps {
   configPath?: string;

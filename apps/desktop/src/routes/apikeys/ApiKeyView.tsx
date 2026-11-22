@@ -2,9 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-import type { JevSettings } from "../types";
-import { messageOf } from "../utils";
-import { CheckIcon, CloseIcon, KeyIcon } from "./icons";
+import { CheckIcon, CloseIcon, KeyIcon } from "../../components/icons";
+import type { JevSettings } from "../../types";
+import { messageOf } from "../../utils";
 
 export interface ApiKeyViewProps {
   jevBusy?: boolean;

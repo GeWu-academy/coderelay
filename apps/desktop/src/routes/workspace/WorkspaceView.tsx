@@ -1,11 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { AgentRunResult, RoutePreview } from "../types";
-import { formatDuration, getWelcomeTimeSnapshot } from "../utils";
-import { mergeThinkingContent, splitThinkingAndOutput } from "../utils/thinking";
-import { ThinkingBar } from "./ThinkingBar";
-import { RouteIcon, TerminalIcon } from "./icons";
+import { RouteIcon, TerminalIcon, ThinkingBar } from "../../components";
+import type { AgentRunResult, RoutePreview } from "../../types";
+import { formatDuration, getWelcomeTimeSnapshot } from "../../utils";
+import { mergeThinkingContent, splitThinkingAndOutput } from "../../utils/thinking";
 
 export interface WorkspaceViewProps {
   error: string | null;
