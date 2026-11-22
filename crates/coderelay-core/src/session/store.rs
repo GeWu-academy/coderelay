@@ -691,7 +691,7 @@ impl SessionStore {
     pub fn get_recent_workspaces(&self, limit: u32) -> Result<Vec<String>, SessionStoreError> {
         let mut statement = self.connection.prepare(
             "SELECT path FROM workspaces
-             ORDER BY updated_at DESC, path ASC
+             ORDER BY updated_at DESC, rowid DESC
              LIMIT ?1",
         )?;
         let rows = statement.query_map([limit], |row| row.get(0))?;

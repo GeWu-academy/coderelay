@@ -416,7 +416,7 @@ export function createSessionStore(dbPath: string): SessionStore {
   );
   const selectRecentWorkspaces = db.query<{ path: string }, [number]>(
     `SELECT path FROM workspaces
-     ORDER BY updated_at DESC, path ASC
+     ORDER BY updated_at DESC, rowid DESC
      LIMIT ?`,
   );
   const upsertWorkspace = db.query<unknown, [string, number]>(
@@ -457,11 +457,12 @@ export function createSessionStore(dbPath: string): SessionStore {
   const selectTurns = db.query<TurnRow, [string]>(
     `SELECT ${TURN_COLUMNS} FROM turns WHERE session_id = ? ORDER BY id ASC`,
   );
-  const deleteOldSessions = db.query<unknown, [number]>(
+  const deleteOldSessions = db.query<{ id: string }, [number]>(
     `DELETE FROM sessions
      WHERE id IN (
        SELECT id FROM sessions ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET ?
-     )`,
+     )
+     RETURNING id`,
   );
   const createSessionTx = db.transaction(
     (
@@ -552,7 +553,7 @@ export function createSessionStore(dbPath: string): SessionStore {
     },
 
     pruneSessions(keep) {
-      const removed = deleteOldSessions.run(Math.max(0, Math.floor(keep))).changes;
+      const removed = deleteOldSessions.all(Math.max(0, Math.floor(keep))).length;
       if (removed > 0) {
         // VACUUM 会重写数据库文件，让删除后的空间真正归还磁盘。
         db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
