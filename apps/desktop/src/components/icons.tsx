@@ -12,6 +12,7 @@ import {
   ClockCounterClockwise,
   Code,
   Copy,
+  DotsThree,
   File,
   Files,
   Folder,
@@ -123,6 +124,7 @@ export const MinusIcon = createIcon(Minus, 14);
 export const ArrowDownIcon = createIcon(ArrowDown, 15);
 export const UndoIcon = createIcon(ArrowCounterClockwise, 14);
 export const SparkleIcon = createIcon(Sparkle, 14);
+export const MoreHorizontalIcon = createIcon(DotsThree, 16, "bold");
 
 export function CodexCliIcon({ size = 16, className = "" }: IconProps = {}) {
   return (

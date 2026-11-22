@@ -601,13 +601,71 @@ export async function mockInvoke(
     case "git_stage":
     case "git_unstage":
     case "git_discard":
+    case "git_clear_output_log":
       return null;
     case "git_commit":
+    case "git_undo_last_commit":
+    case "git_discard_all":
     case "git_checkout":
     case "git_delete_branch":
+    case "git_rename_branch":
+    case "git_merge_branch":
+    case "git_rebase_branch":
     case "git_sync":
     case "git_init":
+    case "git_add_remote":
+    case "git_remove_remote":
+    case "git_stash_push":
+    case "git_stash_apply":
+    case "git_stash_pop":
+    case "git_stash_drop":
+    case "git_stash_clear":
+    case "git_create_tag":
+    case "git_delete_tag":
       return { ok: true, message: "Mock git action completed" };
+    case "git_clone":
+      return {
+        ok: true,
+        message: "Mock repository cloned",
+        clonedPath: "/Users/allure/Desktop/cloned-repo",
+      };
+    case "git_remotes":
+      return [
+        {
+          name: "origin",
+          fetchUrl: "https://github.com/google/coderelay.git",
+          pushUrl: "https://github.com/google/coderelay.git",
+        },
+      ];
+    case "git_stashes":
+      return [
+        {
+          reference: "stash@{0}",
+          message: "WIP on main: mock stash",
+          timestamp: 1763700000,
+        },
+      ];
+    case "git_tags":
+      return [
+        {
+          name: "v0.4.7",
+          oid: "a1b2c3d",
+          creatorDate: 1763700000,
+          message: "Release v0.4.7",
+        },
+      ];
+    case "git_output_log":
+      return [
+        {
+          id: 1,
+          timestampMs: Date.now(),
+          cwd: "/Users/allure/Desktop/coderelay",
+          command: "git status --porcelain=v2 --branch --untracked-files=all",
+          exitCode: 0,
+          stdout: "# branch.head main",
+          stderr: "",
+        },
+      ];
     case "git_generate_commit_message":
       return "feat(desktop): add source control view with branch management";
     default:

@@ -9,6 +9,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CloseIcon,
+  FolderIcon,
   GitBranchIcon,
   GitCommitIcon,
   MinusIcon,
@@ -22,9 +23,12 @@ import type {
   GitActionResult,
   GitBranchInfo,
   GitDiffResult,
+  GitOutputEntry,
+  GitSortMode,
   GitStatusEntry,
   GitStatusResult,
   GitSyncAction,
+  GitViewMode,
 } from "../../types";
 import { messageOf, workspaceName } from "../../utils";
 import {
@@ -34,12 +38,22 @@ import {
   type CommitType,
   detectCommitType,
 } from "./commitPresets";
+import { ScmActionDialog, type ScmDialogState } from "./ScmActionDialog";
+import { ScmMoreMenu } from "./ScmMoreMenu";
+import { ScmOutputPanel } from "./ScmOutputPanel";
+import {
+  buildGitEntryTree,
+  type ScmTreeNode,
+  sortGitEntries,
+  splitPathParts,
+} from "./scmTree";
 
 export interface ScmViewProps {
   workspaceInput: string;
   selectedAgentId?: string | null;
   selectedModelId?: string | null;
   onPickWorkspace?: () => void;
+  onSelectWorkspace?: (path: string) => void;
 }
 
 interface SelectedDiffTarget {
@@ -78,17 +92,6 @@ function parseDiffLines(diff: string): ParsedDiffLine[] {
     }
     return { key: `${index}-${line.slice(0, 16)}`, kind, text: line };
   });
-}
-
-function splitPathParts(filePath: string): { name: string; dir: string } {
-  const slashIdx = filePath.lastIndexOf("/");
-  if (slashIdx === -1) {
-    return { name: filePath, dir: "" };
-  }
-  return {
-    name: filePath.slice(slashIdx + 1),
-    dir: filePath.slice(0, slashIdx),
-  };
 }
 
 function statusBadge(entry: GitStatusEntry, staged: boolean): { label: string; colorClass: string } {
@@ -131,6 +134,7 @@ export function ScmView({
   selectedAgentId,
   selectedModelId,
   onPickWorkspace,
+  onSelectWorkspace,
 }: ScmViewProps) {
   const cwd = workspaceInput.trim();
 
@@ -187,6 +191,33 @@ export function ScmView({
   const [newBranchName, setNewBranchName] = useState("");
   const [pendingDeleteBranch, setPendingDeleteBranch] = useState<string | null>(null);
   const [pendingDiscardPath, setPendingDiscardPath] = useState<string | null>(null);
+  const newBranchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [viewMode, setViewMode] = useState<GitViewMode>("list");
+  const [sortMode, setSortMode] = useState<GitSortMode>("path");
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
+  const [activeDialog, setActiveDialog] = useState<ScmDialogState | null>(null);
+  const [outputOpen, setOutputOpen] = useState(false);
+  const [outputEntries, setOutputEntries] = useState<GitOutputEntry[]>([]);
+  const [outputLoading, setOutputLoading] = useState(false);
+
+  const loadOutputLog = useCallback(async () => {
+    setOutputLoading(true);
+    try {
+      const entries = await invoke<GitOutputEntry[]>("git_output_log");
+      setOutputEntries(entries);
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setOutputLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (outputOpen) {
+      void loadOutputLog();
+    }
+  }, [outputOpen, loadOutputLog]);
 
   const loadDiff = useCallback(
     async (target: SelectedDiffTarget | null) => {
@@ -256,13 +287,33 @@ export function ScmView({
   }, [loadDiff, selectedTarget]);
 
   const stagedEntries = useMemo(
-    () => (status?.entries ?? []).filter((e) => e.staged),
-    [status],
+    () =>
+      sortGitEntries(
+        (status?.entries ?? []).filter((e) => e.staged),
+        sortMode,
+        true,
+      ),
+    [status, sortMode],
   );
 
   const unstagedEntries = useMemo(
-    () => (status?.entries ?? []).filter((e) => e.unstaged || e.untracked || e.conflicted),
-    [status],
+    () =>
+      sortGitEntries(
+        (status?.entries ?? []).filter((e) => e.unstaged || e.untracked || e.conflicted),
+        sortMode,
+        false,
+      ),
+    [status, sortMode],
+  );
+
+  const stagedTree = useMemo(
+    () => buildGitEntryTree(stagedEntries, sortMode, true),
+    [stagedEntries, sortMode],
+  );
+
+  const unstagedTree = useMemo(
+    () => buildGitEntryTree(unstagedEntries, sortMode, false),
+    [unstagedEntries, sortMode],
   );
 
   const localBranches = useMemo(() => {
@@ -294,7 +345,74 @@ export function ScmView({
     } catch (err) {
       setError(messageOf(err));
     } finally {
+      if (outputOpen) {
+        void loadOutputLog();
+      }
       setBusyAction(null);
+    }
+  }
+
+  function toggleFolder(folderKey: string) {
+    setCollapsedFolders((prev) => ({
+      ...prev,
+      [folderKey]: !prev[folderKey],
+    }));
+  }
+
+  function handleCommitWithOptions(options: { all?: boolean; amend?: boolean }) {
+    const trimmed = commitMessage.trim();
+    if (!trimmed && !options.amend) {
+      setError("请输入提交信息");
+      return;
+    }
+    void runAction("commit", async () => {
+      const res = await invoke<GitActionResult>("git_commit", {
+        request: {
+          cwd,
+          message: trimmed,
+          amend: Boolean(options.amend),
+          all: Boolean(options.all),
+        },
+      });
+      setCommitMessage("");
+      setSelectedTarget(null);
+      setNotice(res.message || "提交成功");
+    });
+  }
+
+  function handleUndoLastCommit() {
+    void runAction("undo-commit", async () => {
+      const res = await invoke<GitActionResult>("git_undo_last_commit", {
+        request: { cwd },
+      });
+      setNotice(res.message || "已撤销上次提交");
+    });
+  }
+
+  function handleStashPopLatest() {
+    void runAction("stash-pop", async () => {
+      const res = await invoke<GitActionResult>("git_stash_pop", {
+        request: { cwd, reference: null },
+      });
+      setNotice(res.message || "已弹出最新存储");
+    });
+  }
+
+  function handleStashApplyLatest() {
+    void runAction("stash-apply", async () => {
+      const res = await invoke<GitActionResult>("git_stash_apply", {
+        request: { cwd, reference: null },
+      });
+      setNotice(res.message || "已应用最新存储");
+    });
+  }
+
+  async function handleClearOutputLog() {
+    try {
+      await invoke("git_clear_output_log");
+      setOutputEntries([]);
+    } catch (err) {
+      setError(messageOf(err));
     }
   }
 
@@ -518,6 +636,48 @@ export function ScmView({
               >
                 <ArrowUpIcon size={14} />
               </button>
+              <ScmMoreMenu
+                busy={Boolean(busyAction)}
+                hasCommitMessage={Boolean(commitMessage.trim())}
+                hasStaged={stagedEntries.length > 0}
+                hasUnstaged={unstagedEntries.length > 0}
+                isRepo={Boolean(status?.isRepo)}
+                onChangeSortMode={setSortMode}
+                onCommitAll={() => handleCommitWithOptions({ all: true })}
+                onCommitAmend={() => handleCommitWithOptions({ amend: true })}
+                onCommitStaged={handleCommit}
+                onOpenCheckout={() => setBranchPanelOpen(true)}
+                onOpenClone={() => setActiveDialog({ kind: "clone" })}
+                onOpenCreateBranch={() => {
+                  setBranchPanelOpen(true);
+                  requestAnimationFrame(() => newBranchInputRef.current?.focus());
+                }}
+                onOpenDeleteBranch={() => setBranchPanelOpen(true)}
+                onOpenDiscardAll={() => setActiveDialog({ kind: "discard-all" })}
+                onOpenMergeBranch={() => setActiveDialog({ kind: "merge-branch" })}
+                onOpenRebaseBranch={() => setActiveDialog({ kind: "rebase-branch" })}
+                onOpenRemotes={() => setActiveDialog({ kind: "remotes" })}
+                onOpenRenameBranch={() => setActiveDialog({ kind: "rename-branch" })}
+                onOpenStashCreate={(includeUntracked) =>
+                  setActiveDialog({ kind: "stash-create", includeUntracked })
+                }
+                onOpenStashList={() => setActiveDialog({ kind: "stash-list" })}
+                onOpenTagCreate={() => setActiveDialog({ kind: "tag-create" })}
+                onOpenTagList={() => setActiveDialog({ kind: "tag-list" })}
+                onStageAll={() => handleStage([], true)}
+                onStashApplyLatest={handleStashApplyLatest}
+                onStashPopLatest={handleStashPopLatest}
+                onSync={handleSync}
+                onToggleOutput={() => setOutputOpen((prev) => !prev)}
+                onToggleViewMode={() =>
+                  setViewMode((prev) => (prev === "tree" ? "list" : "tree"))
+                }
+                onUndoLastCommit={handleUndoLastCommit}
+                onUnstageAll={() => handleUnstage([], true)}
+                outputOpen={outputOpen}
+                sortMode={sortMode}
+                viewMode={viewMode}
+              />
             </div>
           </div>
 
@@ -568,6 +728,7 @@ export function ScmView({
                             }
                           }}
                           placeholder="新建分支名..."
+                          ref={newBranchInputRef}
                           value={newBranchName}
                         />
                         <button
@@ -836,6 +997,7 @@ export function ScmView({
             </div>
             {(() => {
               const needsPublish = !status.detached && !status.upstream;
+              const isSyncing = busyAction === "sync";
               const syncCounts = [
                 status.behind > 0 ? `↓${status.behind}` : null,
                 status.ahead > 0 ? `↑${status.ahead}` : null,
@@ -844,17 +1006,19 @@ export function ScmView({
                 .join(" ");
               const highlightSync =
                 stagedEntries.length === 0 && (needsPublish || Boolean(syncCounts));
-              const syncLabel =
-                busyAction === "sync"
-                  ? "同步中..."
-                  : needsPublish
-                    ? "发布并同步远程分支"
-                    : syncCounts
-                      ? `同步远程分支 (${syncCounts})`
-                      : "同步远程分支";
+              const syncLabel = isSyncing
+                ? "正在同步远程分支..."
+                : needsPublish
+                  ? "发布并同步远程分支"
+                  : syncCounts
+                    ? `同步远程分支 (${syncCounts})`
+                    : "同步远程分支";
               return (
                 <button
-                  className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-[7px] px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                  aria-busy={isSyncing}
+                  className={`relative mt-1.5 flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-[7px] px-3 py-1.5 text-xs font-medium transition-all ${
+                    isSyncing ? "cursor-wait opacity-90" : "disabled:opacity-40"
+                  } ${
                     highlightSync
                       ? "bg-ink text-canvas hover:opacity-90"
                       : "border border-line bg-surface text-ink hover:bg-surface-subtle"
@@ -870,8 +1034,28 @@ export function ScmView({
                   }
                   type="button"
                 >
-                  <RefreshIcon size={13} />
-                  <span>{syncLabel}</span>
+                  {isSyncing ? (
+                    <motion.span
+                      animate={{ x: ["-25%", "225%"] }}
+                      aria-hidden="true"
+                      className={`pointer-events-none absolute inset-y-0 left-0 w-1/2 -skew-x-12 ${
+                        highlightSync
+                          ? "bg-gradient-to-r from-transparent via-canvas/25 to-transparent"
+                          : "bg-gradient-to-r from-transparent via-ink/15 to-transparent"
+                      }`}
+                      initial={{ x: "-25%" }}
+                      transition={{
+                        duration: 0.75,
+                        ease: "linear",
+                        repeat: Infinity,
+                      }}
+                    />
+                  ) : null}
+                  <RefreshIcon
+                    className={`relative z-10 ${isSyncing ? "animate-[spin_0.7s_linear_infinite]" : ""}`.trim()}
+                    size={13}
+                  />
+                  <span className="relative z-10">{syncLabel}</span>
                 </button>
               );
             })()}
