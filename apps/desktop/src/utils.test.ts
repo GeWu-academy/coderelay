@@ -9,9 +9,12 @@ import {
   getTimePeriod,
   getWelcomeTimeSnapshot,
   groupSessionsByWorkspace,
+  LAST_WORKSPACE_STORAGE_KEY,
+  loadLastWorkspace,
   loadPermission,
   PERMISSION_STORAGE_KEY,
   sanitizePermission,
+  saveLastWorkspace,
   savePermission,
   mergeRecentWorkspaces,
   PERIOD_GREETINGS,
@@ -350,5 +353,52 @@ describe("permission persistence", () => {
     expect(sanitizePermission("plan", options)).toBe("plan");
     expect(sanitizePermission("yolo", options)).toBe("");
     expect(sanitizePermission("plan", [])).toBe("");
+  });
+});
+
+describe("last workspace persistence", () => {
+  function fakeWorkspaceStorage(initial: Record<string, string> = {}) {
+    const data = { ...initial };
+    return {
+      data,
+      getItem: (key: string) => data[key] ?? null,
+      setItem: (key: string, value: string) => {
+        data[key] = value;
+      },
+      removeItem: (key: string) => {
+        delete data[key];
+      },
+    };
+  }
+
+  it("saves, trims, restores, and clears the remembered workspace path", () => {
+    const storage = fakeWorkspaceStorage();
+    saveLastWorkspace("  /Users/dev/coderelay  ", storage);
+    expect(storage.data[LAST_WORKSPACE_STORAGE_KEY]).toBe("/Users/dev/coderelay");
+    expect(loadLastWorkspace(storage)).toBe("/Users/dev/coderelay");
+
+    saveLastWorkspace("   ", storage);
+    expect(storage.data[LAST_WORKSPACE_STORAGE_KEY]).toBeUndefined();
+    expect(loadLastWorkspace(storage)).toBe("");
+  });
+
+  it("handles missing or throwing storage gracefully", () => {
+    expect(loadLastWorkspace(null)).toBe("");
+    saveLastWorkspace("/Users/dev/coderelay", null);
+
+    const brokenStorage = {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: () => {
+        throw new Error("denied");
+      },
+    };
+    expect(loadLastWorkspace(brokenStorage)).toBe("");
+    expect(() => saveLastWorkspace("/Users/dev/coderelay", brokenStorage)).not.toThrow();
+    expect(() => saveLastWorkspace("", brokenStorage)).not.toThrow();
   });
 });
