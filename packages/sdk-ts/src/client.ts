@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 
@@ -165,10 +165,78 @@ export class CoderelayRun implements AsyncIterable<AgentEvent> {
   }
 }
 
+interface HostProcess {
+  writeStdin(line: string, onError: (error: Error) => void): void;
+  kill(): void;
+}
+
+interface BunFileSink {
+  write(data: string | Uint8Array): number | Promise<number>;
+}
+
+interface BunSubprocess {
+  readonly stdin: BunFileSink;
+  readonly stdout: ReadableStream<Uint8Array>;
+  readonly stderr: ReadableStream<Uint8Array>;
+  readonly exited: Promise<number>;
+  readonly signalCode?: NodeJS.Signals | null;
+  readonly killed: boolean;
+  kill(): void;
+}
+
+interface BunRuntime {
+  spawn(
+    cmd: string[],
+    options: {
+      cwd?: string;
+      env?: Record<string, string | undefined>;
+      stdin: "pipe";
+      stdout: "pipe";
+      stderr: "pipe";
+    },
+  ): BunSubprocess;
+}
+
+function getBunRuntime(): BunRuntime | null {
+  const candidate = (globalThis as { Bun?: unknown }).Bun;
+  if (isRecord(candidate) && typeof candidate["spawn"] === "function") {
+    return candidate as unknown as BunRuntime;
+  }
+  return null;
+}
+
+async function readTextStream(
+  stream: ReadableStream<Uint8Array>,
+  onChunk: (text: string) => void,
+): Promise<void> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        const text = decoder.decode(value, { stream: true });
+        if (text) {
+          onChunk(text);
+        }
+      }
+    }
+    const tail = decoder.decode();
+    if (tail) {
+      onChunk(tail);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export class CoderelayClient {
   private readonly options: Required<Pick<CoderelayClientOptions, "command" | "args">> &
     Omit<CoderelayClientOptions, "command" | "args">;
-  private child: ChildProcessWithoutNullStreams | null = null;
+  private child: HostProcess | null = null;
   private startPromise: Promise<void> | null = null;
   private pending = new Map<string, PendingRequest>();
   private runs = new Map<string, RunState>();
@@ -193,16 +261,103 @@ export class CoderelayClient {
       await this.startPromise;
       return this;
     }
+    const bunRuntime = getBunRuntime();
+    if (bunRuntime) {
+      let proc: BunSubprocess;
+      try {
+        proc = bunRuntime.spawn([this.options.command, ...this.options.args], {
+          cwd: this.options.cwd,
+          env: { ...process.env, ...this.options.env },
+          stdin: "pipe",
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+      } catch (error) {
+        this.child = null;
+        this.startPromise = null;
+        throw error;
+      }
+      const host: HostProcess = {
+        writeStdin: (line, onError) => {
+          try {
+            Promise.resolve(proc.stdin.write(line)).catch((error: unknown) => {
+              onError(error instanceof Error ? error : new Error(String(error)));
+            });
+          } catch (error) {
+            onError(error instanceof Error ? error : new Error(String(error)));
+          }
+        },
+        kill: () => {
+          if (!proc.killed) {
+            proc.kill();
+          }
+        },
+      };
+      this.child = host;
+      let stdoutBuffer = "";
+      const stdoutDone = readTextStream(proc.stdout, (chunk) => {
+        stdoutBuffer += chunk;
+        let newlineIndex = stdoutBuffer.indexOf("\n");
+        while (newlineIndex !== -1) {
+          const line = stdoutBuffer.slice(0, newlineIndex).replace(/\r$/, "");
+          stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+          if (this.child === host) {
+            this.handleLine(line);
+          }
+          newlineIndex = stdoutBuffer.indexOf("\n");
+        }
+      });
+      let stderrTail = "";
+      const stderrDone = readTextStream(proc.stderr, (chunk) => {
+        stderrTail = (stderrTail + chunk).slice(-8_000);
+      });
+      void proc.exited.then(async (code) => {
+        await Promise.race([
+          Promise.allSettled([stdoutDone, stderrDone]),
+          new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 500);
+            timer.unref?.();
+          }),
+        ]);
+        if (stdoutBuffer.length > 0 && this.child === host) {
+          this.handleLine(stdoutBuffer.replace(/\r$/, ""));
+          stdoutBuffer = "";
+        }
+        const details = stderrTail.trim();
+        this.disconnect(
+          host,
+          new Error(`CodeRelay host exited (${code ?? proc.signalCode ?? "unknown"})${details ? `: ${details}` : ""}`),
+        );
+      });
+      this.startPromise = Promise.resolve();
+      await this.startPromise;
+      return this;
+    }
+
     const child = spawn(this.options.command, this.options.args, {
       cwd: this.options.cwd,
       env: { ...process.env, ...this.options.env },
       stdio: ["pipe", "pipe", "pipe"],
     });
-    this.child = child;
+    const host: HostProcess = {
+      writeStdin: (line, onError) => {
+        child.stdin.write(line, (error) => {
+          if (error) {
+            onError(error);
+          }
+        });
+      },
+      kill: () => {
+        if (!child.killed) {
+          child.kill();
+        }
+      },
+    };
+    this.child = host;
     this.startPromise = new Promise<void>((resolve, reject) => {
       child.once("spawn", resolve);
       child.once("error", (error) => {
-        this.disconnect(child, error);
+        this.disconnect(host, error);
         reject(error);
       });
       let stderrTail = "";
@@ -220,12 +375,12 @@ export class CoderelayClient {
         }
         const details = stderrTail.trim();
         this.disconnect(
-          child,
+          host,
           new Error(`CodeRelay host exited (${code ?? signal ?? "unknown"})${details ? `: ${details}` : ""}`),
         );
       };
       const scheduleExitFallback = (delayMs: number) => {
-        if (!exitInfo || this.child !== child) {
+        if (!exitInfo || this.child !== host) {
           return;
         }
         if (exitFallbackTimer) {
@@ -255,7 +410,7 @@ export class CoderelayClient {
       child.stdin.on("error", () => {});
       const lines = createInterface({ input: child.stdout });
       lines.on("line", (line) => {
-        if (this.child === child) {
+        if (this.child === host) {
           this.handleLine(line);
         }
       });
@@ -339,13 +494,11 @@ export class CoderelayClient {
     const child = this.child;
     if (child) {
       this.disconnect(child, new Error("CodeRelay client closed"));
-      if (!child.killed) {
-        child.kill();
-      }
+      child.kill();
     }
   }
 
-  private disconnect(child: ChildProcessWithoutNullStreams, error: Error): void {
+  private disconnect(child: HostProcess, error: Error): void {
     if (this.child !== child) {
       return;
     }
@@ -504,8 +657,8 @@ export class CoderelayClient {
         reject,
         timer,
       });
-      child.stdin.write(`${JSON.stringify(request)}\n`, (error) => {
-        if (error && this.pending.delete(requestId)) {
+      child.writeStdin(`${JSON.stringify(request)}\n`, (error) => {
+        if (this.pending.delete(requestId)) {
           clearTimeout(timer);
           reject(error);
         }
