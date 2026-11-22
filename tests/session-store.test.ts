@@ -7,6 +7,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Database } from "bun:sqlite";
 
 import {
+  SCHEMA_VERSION,
   applyColumnMigration,
   createSessionStore,
   defaultSessionDbPath,

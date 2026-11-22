@@ -250,14 +250,154 @@ function migrateTurnColumns(db: { exec: (sql: string) => void }): void {
   }
 }
 
+function tableExists(db: Database, table: string): boolean {
+  const row = db
+    .query<{ found: number }, [string]>(
+      "SELECT 1 AS found FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+    )
+    .get(table);
+  return row !== null;
+}
+
+function getUserVersion(db: Database): number {
+  const row = db.query<{ user_version: number }, []>("PRAGMA user_version").get();
+  return row?.user_version ?? 0;
+}
+
+function migrateLegacyToV2(db: Database): void {
+  migrateSessionColumns(db);
+  migrateTurnColumns(db);
+
+  const hasRecentWorkspaces = tableExists(db, "recent_workspaces");
+  db.exec("PRAGMA foreign_keys = OFF;");
+  try {
+    const migrateTx = db.transaction(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS workspaces (
+          path TEXT PRIMARY KEY,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+
+      if (hasRecentWorkspaces) {
+        db.exec(`
+          INSERT INTO workspaces (path, updated_at)
+          SELECT TRIM(workspace), MAX(updated_at)
+          FROM recent_workspaces
+          WHERE workspace IS NOT NULL AND TRIM(workspace) != ''
+          GROUP BY TRIM(workspace)
+          ON CONFLICT(path) DO UPDATE SET
+            updated_at = MAX(workspaces.updated_at, excluded.updated_at);
+        `);
+      }
+
+      db.exec(`
+        INSERT INTO workspaces (path, updated_at)
+        SELECT TRIM(workspace), MAX(updated_at)
+        FROM sessions
+        WHERE workspace IS NOT NULL AND TRIM(workspace) != ''
+        GROUP BY TRIM(workspace)
+        ON CONFLICT(path) DO UPDATE SET
+          updated_at = MAX(workspaces.updated_at, excluded.updated_at);
+
+        CREATE TABLE sessions_v2 (
+          id TEXT PRIMARY KEY,
+          cli_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          workspace TEXT REFERENCES workspaces(path) ON DELETE CASCADE
+        );
+        INSERT INTO sessions_v2 (id, cli_id, title, created_at, updated_at, workspace)
+        SELECT
+          id,
+          cli_id,
+          title,
+          created_at,
+          updated_at,
+          CASE
+            WHEN workspace IS NULL OR TRIM(workspace) = '' THEN NULL
+            ELSE TRIM(workspace)
+          END
+        FROM sessions;
+
+        CREATE TABLE turns_v2 (
+          id INTEGER PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          cli_id TEXT NOT NULL,
+          prompt TEXT NOT NULL,
+          output TEXT NOT NULL DEFAULT '',
+          exit_code INTEGER,
+          signal TEXT,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          model_id TEXT,
+          protocol TEXT,
+          reused_native INTEGER,
+          status TEXT,
+          event_summary TEXT,
+          context_source TEXT
+        );
+        INSERT INTO turns_v2 (
+          id, session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at,
+          model_id, protocol, reused_native, status, event_summary, context_source
+        )
+        SELECT
+          id, session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at,
+          model_id, protocol, reused_native, status, event_summary, context_source
+        FROM turns
+        WHERE session_id IN (SELECT id FROM sessions_v2);
+
+        DROP TABLE turns;
+        DROP TABLE sessions;
+        ALTER TABLE sessions_v2 RENAME TO sessions;
+        ALTER TABLE turns_v2 RENAME TO turns;
+        DROP TABLE IF EXISTS recent_workspaces;
+        DROP TABLE IF EXISTS schema_meta;
+
+        CREATE TABLE IF NOT EXISTS preferences (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspaces_updated ON workspaces(updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_sessions_workspace_updated
+          ON sessions(workspace, updated_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_sessions_updated
+          ON sessions(updated_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, id);
+        PRAGMA user_version = ${SCHEMA_VERSION};
+      `);
+    });
+    migrateTx();
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON;");
+  }
+}
+
+function initializeSchema(db: Database): void {
+  const version = getUserVersion(db);
+  if (version >= SCHEMA_VERSION) {
+    db.exec("PRAGMA foreign_keys = ON;");
+    db.exec(SCHEMA);
+    return;
+  }
+
+  if (tableExists(db, "sessions")) {
+    migrateLegacyToV2(db);
+  } else {
+    db.exec("PRAGMA foreign_keys = ON;");
+    db.exec(SCHEMA);
+    db.exec("DROP TABLE IF EXISTS recent_workspaces; DROP TABLE IF EXISTS schema_meta;");
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+  }
+}
+
 export function createSessionStore(dbPath: string): SessionStore {
   mkdirSync(crossPlatformDirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
-  db.exec("PRAGMA foreign_keys = ON;");
   db.exec("PRAGMA journal_mode = WAL;");
-  db.exec(SCHEMA);
-  migrateSessionColumns(db);
-  migrateTurnColumns(db);
+  initializeSchema(db);
 
   const insertSession = db.query<
     unknown,
@@ -274,25 +414,21 @@ export function createSessionStore(dbPath: string): SessionStore {
   const selectAllSessions = db.query<SessionRow, [number]>(
     `SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC, id DESC LIMIT ?`,
   );
-  const selectRecentWorkspaces = db.query<{ workspace: string }, [number]>(
-    `SELECT workspace FROM (
-       SELECT workspace, updated_at FROM recent_workspaces
-       WHERE workspace IS NOT NULL AND workspace != ''
-       UNION ALL
-       SELECT workspace, MAX(updated_at) AS updated_at FROM sessions
-       WHERE workspace IS NOT NULL AND workspace != ''
-       GROUP BY workspace
-     )
-     GROUP BY workspace
-     ORDER BY MAX(updated_at) DESC
+  const selectRecentWorkspaces = db.query<{ path: string }, [number]>(
+    `SELECT path FROM workspaces
+     ORDER BY updated_at DESC, path ASC
      LIMIT ?`,
   );
-  const insertRecentWorkspace = db.query<unknown, [string, number]>(
-    `INSERT INTO recent_workspaces (workspace, updated_at) VALUES (?, ?)
-     ON CONFLICT(workspace) DO UPDATE SET updated_at = excluded.updated_at`,
+  const upsertWorkspace = db.query<unknown, [string, number]>(
+    `INSERT INTO workspaces (path, updated_at) VALUES (?, ?)
+     ON CONFLICT(path) DO UPDATE SET updated_at = excluded.updated_at`,
   );
   const touchSession = db.query<unknown, [number, string]>(
     "UPDATE sessions SET updated_at = ? WHERE id = ?",
+  );
+  const touchWorkspaceForSession = db.query<unknown, [number, string]>(
+    `UPDATE workspaces SET updated_at = ?
+     WHERE path = (SELECT workspace FROM sessions WHERE id = ?)`,
   );
   const insertTurn = db.query<
     unknown,
@@ -321,22 +457,50 @@ export function createSessionStore(dbPath: string): SessionStore {
   const selectTurns = db.query<TurnRow, [string]>(
     `SELECT ${TURN_COLUMNS} FROM turns WHERE session_id = ? ORDER BY id ASC`,
   );
-  const deleteOldTurns = db.query<unknown, [number]>(
-    `DELETE FROM turns
-     WHERE session_id IN (
-       SELECT id FROM sessions ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET ?
-     )`,
-  );
   const deleteOldSessions = db.query<unknown, [number]>(
     `DELETE FROM sessions
      WHERE id IN (
        SELECT id FROM sessions ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET ?
      )`,
   );
-  const prune = db.transaction((keep: number): number => {
-    deleteOldTurns.run(keep);
-    return deleteOldSessions.run(keep).changes;
-  });
+  const createSessionTx = db.transaction(
+    (
+      id: string,
+      cliId: CliId,
+      title: string,
+      now: number,
+      workspace: string | null,
+    ): SessionRow | null => {
+      if (workspace) {
+        upsertWorkspace.run(workspace, now);
+      }
+      insertSession.run(id, cliId, title, now, now, workspace);
+      return selectSession.get(id);
+    },
+  );
+  const appendTurnTx = db.transaction(
+    (input: AppendTurnInput, now: number): TurnRow | null => {
+      const result = insertTurn.run(
+        input.sessionId,
+        input.cliId,
+        input.prompt,
+        input.output,
+        input.exitCode,
+        input.signal,
+        input.durationMs,
+        now,
+        input.modelId ?? null,
+        input.protocol ?? null,
+        input.reusedNative === undefined ? null : input.reusedNative ? 1 : 0,
+        input.status ?? null,
+        input.eventSummary ?? null,
+        input.contextSource ?? null,
+      );
+      touchSession.run(now, input.sessionId);
+      touchWorkspaceForSession.run(now, input.sessionId);
+      return selectTurn.get(Number(result.lastInsertRowid));
+    },
+  );
 
   const selectPreference = db.query<{ value: string }, [string]>(
     "SELECT value FROM preferences WHERE key = ?",
@@ -353,11 +517,8 @@ export function createSessionStore(dbPath: string): SessionStore {
     createSession(cliId, title, workspace = process.cwd()) {
       const now = Date.now();
       const id = randomUUID();
-      insertSession.run(id, cliId, title, now, now, workspace);
-      if (workspace && workspace.trim()) {
-        insertRecentWorkspace.run(workspace.trim(), now);
-      }
-      const row = selectSession.get(id);
+      const normalizedWorkspace = workspace?.trim() ? workspace.trim() : null;
+      const row = createSessionTx(id, cliId, title, now, normalizedWorkspace);
       if (!row) {
         throw new Error(`session insert failed: ${id}`);
       }
@@ -383,24 +544,7 @@ export function createSessionStore(dbPath: string): SessionStore {
 
     appendTurn(input) {
       const now = Date.now();
-      const result = insertTurn.run(
-        input.sessionId,
-        input.cliId,
-        input.prompt,
-        input.output,
-        input.exitCode,
-        input.signal,
-        input.durationMs,
-        now,
-        input.modelId ?? null,
-        input.protocol ?? null,
-        input.reusedNative === undefined ? null : input.reusedNative ? 1 : 0,
-        input.status ?? null,
-        input.eventSummary ?? null,
-        input.contextSource ?? null,
-      );
-      touchSession.run(now, input.sessionId);
-      const row = selectTurn.get(Number(result.lastInsertRowid));
+      const row = appendTurnTx(input, now);
       if (!row) {
         throw new Error(`turn insert failed in session ${input.sessionId}`);
       }
@@ -408,7 +552,7 @@ export function createSessionStore(dbPath: string): SessionStore {
     },
 
     pruneSessions(keep) {
-      const removed = prune(Math.max(0, Math.floor(keep)));
+      const removed = deleteOldSessions.run(Math.max(0, Math.floor(keep))).changes;
       if (removed > 0) {
         // VACUUM 会重写数据库文件，让删除后的空间真正归还磁盘。
         db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
@@ -451,11 +595,11 @@ export function createSessionStore(dbPath: string): SessionStore {
       if (!trimmed) {
         return;
       }
-      insertRecentWorkspace.run(trimmed, Date.now());
+      upsertWorkspace.run(trimmed, Date.now());
     },
 
     getRecentWorkspaces(limit = 10) {
-      return selectRecentWorkspaces.all(limit).map((r: { workspace: string }) => r.workspace);
+      return selectRecentWorkspaces.all(limit).map((r: { path: string }) => r.path);
     },
 
     close() {
