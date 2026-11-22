@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { closeSync, fstatSync, openSync, readSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 
 import {
@@ -175,10 +178,14 @@ interface BunFileSink {
   end?(): number | Promise<number> | void;
 }
 
+interface BunFileLike {
+  readonly size?: number;
+}
+
 interface BunSubprocess {
   readonly stdin: BunFileSink;
   readonly stdout: ReadableStream<Uint8Array>;
-  readonly stderr: ReadableStream<Uint8Array>;
+  readonly stderr: ReadableStream<Uint8Array> | null;
   readonly exited: Promise<number>;
   readonly signalCode?: NodeJS.Signals | null;
   readonly killed: boolean;
@@ -186,6 +193,7 @@ interface BunSubprocess {
 }
 
 interface BunRuntime {
+  file?(path: string): BunFileLike;
   spawn(
     cmd: string[],
     options: {
@@ -193,7 +201,7 @@ interface BunRuntime {
       env?: Record<string, string | undefined>;
       stdin: "pipe";
       stdout: "pipe";
-      stderr: "pipe";
+      stderr: "pipe" | BunFileLike;
     },
   ): BunSubprocess;
 }
@@ -234,6 +242,36 @@ async function readTextStream(
   }
 }
 
+function readTailAndCleanup(filePath: string, maxBytes = 8_000): string {
+  let fd: number | undefined;
+  try {
+    fd = openSync(filePath, "r");
+    const { size } = fstatSync(fd);
+    if (size <= 0) {
+      return "";
+    }
+    const length = Math.min(size, maxBytes);
+    const buffer = Buffer.allocUnsafe(length);
+    const bytesRead = readSync(fd, buffer, 0, length, size - length);
+    return buffer.subarray(0, bytesRead).toString("utf8");
+  } catch {
+    return "";
+  } finally {
+    if (fd !== undefined) {
+      try {
+        closeSync(fd);
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      rmSync(filePath, { force: true });
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export class CoderelayClient {
   private readonly options: Required<Pick<CoderelayClientOptions, "command" | "args">> &
     Omit<CoderelayClientOptions, "command" | "args">;
@@ -264,6 +302,11 @@ export class CoderelayClient {
     }
     const bunRuntime = getBunRuntime();
     if (bunRuntime) {
+      // Redirect stderr to a temp file under Bun to avoid Linux pipe/epoll drain hangs on exit.
+      const stderrPath =
+        typeof bunRuntime.file === "function"
+          ? join(tmpdir(), `coderelay-sdk-stderr-${randomUUID()}.log`)
+          : null;
       let proc: BunSubprocess;
       try {
         proc = bunRuntime.spawn([this.options.command, ...this.options.args], {
@@ -271,9 +314,16 @@ export class CoderelayClient {
           env: { ...process.env, ...this.options.env },
           stdin: "pipe",
           stdout: "pipe",
-          stderr: "pipe",
+          stderr: stderrPath && bunRuntime.file ? bunRuntime.file(stderrPath) : "pipe",
         });
       } catch (error) {
+        if (stderrPath) {
+          try {
+            rmSync(stderrPath, { force: true });
+          } catch {
+            // ignore
+          }
+        }
         this.child = null;
         this.startPromise = null;
         throw error;
@@ -297,6 +347,13 @@ export class CoderelayClient {
           if (!proc.killed) {
             proc.kill();
           }
+          if (stderrPath) {
+            try {
+              rmSync(stderrPath, { force: true });
+            } catch {
+              // ignore
+            }
+          }
         },
       };
       this.child = host;
@@ -314,25 +371,35 @@ export class CoderelayClient {
         }
       });
       let stderrTail = "";
-      const stderrDone = new Response(proc.stderr)
-        .text()
-        .then((text) => {
-          stderrTail = text.slice(-8_000);
-        })
-        .catch(() => {});
+      const stderrDone =
+        !stderrPath && proc.stderr
+          ? readTextStream(proc.stderr, (chunk) => {
+              stderrTail = (stderrTail + chunk).slice(-8_000);
+            }).catch(() => {})
+          : Promise.resolve();
       void proc.exited.then(async (code) => {
         try {
           void Promise.resolve(proc.stdin.end?.()).catch(() => {});
         } catch {
           // ignore
         }
-        await Promise.race([
-          Promise.allSettled([stdoutDone, stderrDone]),
-          new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, 1_000);
-            timer.unref?.();
-          }),
-        ]);
+        let drainTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            Promise.allSettled([stdoutDone, stderrDone]),
+            new Promise<void>((resolve) => {
+              drainTimer = setTimeout(resolve, 1_000);
+              drainTimer.unref?.();
+            }),
+          ]);
+        } finally {
+          if (drainTimer) {
+            clearTimeout(drainTimer);
+          }
+        }
+        if (stderrPath) {
+          stderrTail = readTailAndCleanup(stderrPath);
+        }
         if (stdoutBuffer.length > 0 && this.child === host) {
           this.handleLine(stdoutBuffer.replace(/\r$/, ""));
           stdoutBuffer = "";
