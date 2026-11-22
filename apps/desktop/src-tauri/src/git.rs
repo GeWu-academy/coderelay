@@ -956,7 +956,10 @@ fn git_sync_blocking(request: GitSyncRequest) -> Result<GitActionResult, String>
     let repo_root = require_git_repo_root(request.cwd)?;
     let action = request.action.trim();
     let (out, fallback_message) = match action {
-        "fetch" => (run_git(&repo_root, &["fetch", "--prune"])?, "抓取完成".to_owned()),
+        "fetch" => (
+            run_git(&repo_root, &["fetch", "--prune"])?,
+            "抓取完成".to_owned(),
+        ),
         "fetch_all" => (
             run_git(&repo_root, &["fetch", "--all", "--prune"])?,
             "已抓取全部远程".to_owned(),
@@ -1026,7 +1029,10 @@ pub async fn git_sync(request: GitSyncRequest) -> Result<GitActionResult, String
 pub fn derive_clone_dir_name(url: &str) -> String {
     let trimmed = url.trim().trim_end_matches('/');
     let after_slash = trimmed.rsplit(['/', ':']).next().unwrap_or("");
-    let stripped = after_slash.strip_suffix(".git").unwrap_or(after_slash).trim();
+    let stripped = after_slash
+        .strip_suffix(".git")
+        .unwrap_or(after_slash)
+        .trim();
     if stripped.is_empty() {
         "repository".to_owned()
     } else {

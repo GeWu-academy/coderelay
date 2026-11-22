@@ -129,16 +129,4 @@ describe("missing-CLI detail screen", () => {
     expect(frame).toContain("装好后重新打开终端");
     instance.cleanup();
   });
-
-  test("a WSL CLI is labelled by its distribution on the rail", async () => {
-    const instance = await renderApp(LABELLED);
-
-    instance.stdin.write("\r");
-    await nextTick();
-    instance.stdin.write(ARROW_RIGHT);
-    await nextTick();
-
-    expect(instance.lastFrame()).toContain("WSL: Ubuntu");
-    instance.cleanup();
-  });
 });

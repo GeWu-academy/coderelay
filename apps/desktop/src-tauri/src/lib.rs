@@ -28,9 +28,9 @@ use git::{
     git_add_remote, git_branches, git_checkout, git_clear_output_log, git_clone, git_commit,
     git_create_tag, git_delete_branch, git_delete_tag, git_diff, git_discard, git_discard_all,
     git_generate_commit_message, git_init, git_merge_branch, git_output_log, git_rebase_branch,
-    git_remotes, git_remove_remote, git_rename_branch, git_stage, git_stash_apply,
-    git_stash_clear, git_stash_drop, git_stash_pop, git_stash_push, git_stashes, git_status,
-    git_sync, git_tags, git_undo_last_commit, git_unstage,
+    git_remotes, git_remove_remote, git_rename_branch, git_stage, git_stash_apply, git_stash_clear,
+    git_stash_drop, git_stash_pop, git_stash_push, git_stashes, git_status, git_sync, git_tags,
+    git_undo_last_commit, git_unstage,
 };
 use terminal::{
     TerminalRegistry, terminal_close, terminal_create, terminal_resize, terminal_write,
