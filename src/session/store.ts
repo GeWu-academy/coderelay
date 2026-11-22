@@ -77,39 +77,52 @@ interface TurnRow {
   readonly context_source?: string | null;
 }
 
+export const SCHEMA_VERSION = 2;
+
 const SESSION_COLUMNS =
   "id, cli_id, title, created_at, updated_at, workspace";
 const TURN_COLUMNS =
   "id, session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at, model_id, protocol, reused_native, status, event_summary, context_source";
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS workspaces (
+  path TEXT PRIMARY KEY,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workspaces_updated ON workspaces(updated_at DESC);
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   cli_id TEXT NOT NULL,
   title TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  workspace TEXT
+  workspace TEXT REFERENCES workspaces(path) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_sessions_workspace_updated
+  ON sessions(workspace, updated_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_updated
+  ON sessions(updated_at DESC, id DESC);
 CREATE TABLE IF NOT EXISTS turns (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id TEXT NOT NULL REFERENCES sessions(id),
+  id INTEGER PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   cli_id TEXT NOT NULL,
   prompt TEXT NOT NULL,
   output TEXT NOT NULL DEFAULT '',
   exit_code INTEGER,
   signal TEXT,
   duration_ms INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  model_id TEXT,
+  protocol TEXT,
+  reused_native INTEGER,
+  status TEXT,
+  event_summary TEXT,
+  context_source TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, id);
 CREATE TABLE IF NOT EXISTS preferences (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS recent_workspaces (
-  workspace TEXT PRIMARY KEY,
   updated_at INTEGER NOT NULL
 );
 `;

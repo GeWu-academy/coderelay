@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use coderelay_core::AgentId;
 use coderelay_core::session::{
-    AppendTurnInput, ListSessionsOptions, SessionStore, TurnContextSource, TurnProtocol,
-    TurnRunStatus, apply_column_migration, default_session_db_path,
+    AppendTurnInput, ListSessionsOptions, SCHEMA_VERSION, SessionStore, TurnContextSource,
+    TurnProtocol, TurnRunStatus, apply_column_migration, default_session_db_path,
 };
 use rusqlite::Connection;
 use tempfile::TempDir;
@@ -274,8 +274,8 @@ VALUES ('legacy', 'codex', 'legacy prompt', 'legacy output', 0, NULL, 15, 3);
 
     let store = SessionStore::open(&path).expect("migrate legacy db");
     assert_eq!(
-        store.schema_version().expect("schema version").as_deref(),
-        Some("1")
+        store.schema_version().expect("schema version"),
+        SCHEMA_VERSION
     );
     let session = store.get_session("legacy").expect("get").expect("session");
     assert_eq!(session.title, "Legacy session");
@@ -426,5 +426,217 @@ fn deletes_single_sessions_and_whole_workspace_groups() {
             .expect("all")
             .len(),
         1
+    );
+}
+
+#[test]
+fn fresh_database_has_only_normalized_tables_and_indexes() {
+    let (_dir, path) = temp_db();
+    let store = SessionStore::open(&path).expect("open store");
+    assert_eq!(
+        store.schema_version().expect("schema version"),
+        SCHEMA_VERSION
+    );
+    drop(store);
+
+    let connection = Connection::open(&path).expect("inspect db");
+    let mut stmt = connection
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .expect("prepare tables");
+    let tables: Vec<String> = stmt
+        .query_map([], |row| row.get(0))
+        .expect("query tables")
+        .collect::<Result<_, _>>()
+        .expect("collect tables");
+    assert_eq!(
+        tables,
+        vec!["preferences", "sessions", "turns", "workspaces"]
+    );
+
+    let mut idx_stmt = connection
+        .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .expect("prepare indexes");
+    let indexes: Vec<String> = idx_stmt
+        .query_map([], |row| row.get(0))
+        .expect("query indexes")
+        .collect::<Result<_, _>>()
+        .expect("collect indexes");
+    assert_eq!(
+        indexes,
+        vec![
+            "idx_sessions_updated",
+            "idx_sessions_workspace_updated",
+            "idx_turns_session",
+            "idx_workspaces_updated",
+        ]
+    );
+}
+
+#[test]
+fn v1_database_with_orphan_tables_migrates_losslessly_to_v2() {
+    let (_dir, path) = temp_db();
+    let connection = Connection::open(&path).expect("v1 db");
+    connection
+        .execute_batch(
+            r#"
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  cli_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  workspace TEXT
+);
+CREATE TABLE turns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL REFERENCES sessions(id),
+  cli_id TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  output TEXT NOT NULL DEFAULT '',
+  exit_code INTEGER,
+  signal TEXT,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  model_id TEXT,
+  protocol TEXT,
+  reused_native INTEGER,
+  status TEXT,
+  event_summary TEXT,
+  context_source TEXT
+);
+CREATE TABLE preferences (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE recent_workspaces (
+  workspace TEXT PRIMARY KEY,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+INSERT INTO schema_meta VALUES ('schema_version', '1');
+INSERT INTO preferences VALUES ('favorite_agent', 'claude', 100);
+INSERT INTO recent_workspaces VALUES ('/ws/empty-opened', 500);
+INSERT INTO recent_workspaces VALUES ('/ws/shared', 200);
+INSERT INTO sessions VALUES ('s1', 'claude', 'Shared session', 100, 400, '/ws/shared');
+INSERT INTO sessions VALUES ('s2', 'codex', 'Only in sessions', 150, 300, '/ws/from-sessions');
+INSERT INTO sessions VALUES ('s3', 'pi', 'Blank workspace', 160, 170, '   ');
+INSERT INTO turns (
+  session_id, cli_id, prompt, output, exit_code, signal, duration_ms, created_at,
+  model_id, protocol, reused_native, status, event_summary, context_source
+) VALUES (
+  's1', 'claude', 'p1', 'o1', 0, NULL, 250, 400,
+  'claude-sonnet-4', 'structured', 0, 'completed', 'done', 'transcript'
+);
+"#,
+        )
+        .expect("seed v1");
+    drop(connection);
+
+    let store = SessionStore::open(&path).expect("migrate v1 to v2");
+    assert_eq!(store.schema_version().expect("version"), SCHEMA_VERSION);
+    assert_eq!(
+        store.get_favorite_agent().expect("favorite"),
+        Some(AgentId::Claude)
+    );
+    assert_eq!(
+        store.get_recent_workspaces(10).expect("workspaces"),
+        vec![
+            "/ws/empty-opened".to_owned(),
+            "/ws/shared".to_owned(),
+            "/ws/from-sessions".to_owned(),
+        ]
+    );
+    assert_eq!(
+        store
+            .get_session("s3")
+            .expect("s3")
+            .expect("session")
+            .workspace,
+        None
+    );
+
+    let turns = store.list_turns("s1").expect("turns");
+    assert_eq!(turns.len(), 1);
+    assert_eq!(turns[0].model_id.as_deref(), Some("claude-sonnet-4"));
+    assert_eq!(turns[0].protocol, Some(TurnProtocol::Structured));
+    assert_eq!(turns[0].reused_native, Some(false));
+    assert_eq!(turns[0].status, Some(TurnRunStatus::Completed));
+    assert_eq!(turns[0].event_summary.as_deref(), Some("done"));
+    assert_eq!(turns[0].context_source, Some(TurnContextSource::Transcript));
+    drop(store);
+
+    let connection = Connection::open(&path).expect("inspect migrated db");
+    let orphan_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('schema_meta', 'recent_workspaces')",
+            [],
+            |row| row.get(0),
+        )
+        .expect("check orphans");
+    assert_eq!(orphan_count, 0);
+}
+
+#[test]
+fn deleting_workspace_cascades_sessions_and_turns_and_append_turn_bumps_workspace() {
+    let mut store = SessionStore::open_in_memory().expect("open store");
+    let alpha = PathBuf::from("/project/alpha");
+    let beta = PathBuf::from("/project/beta");
+
+    let alpha_session = store
+        .create_session(AgentId::Codex, "alpha task", Some(&alpha))
+        .expect("alpha session");
+    thread::sleep(Duration::from_millis(3));
+    let beta_session = store
+        .create_session(AgentId::Claude, "beta task", Some(&beta))
+        .expect("beta session");
+    assert_eq!(
+        store.get_recent_workspaces(10).expect("before turn"),
+        vec!["/project/beta", "/project/alpha"]
+    );
+
+    thread::sleep(Duration::from_millis(3));
+    store
+        .append_turn(AppendTurnInput::new(
+            &alpha_session.id,
+            AgentId::Codex,
+            "continue alpha",
+            "alpha output",
+            Some(0),
+            50,
+        ))
+        .expect("append turn");
+    assert_eq!(
+        store.get_recent_workspaces(10).expect("after turn"),
+        vec!["/project/alpha", "/project/beta"]
+    );
+
+    assert!(
+        store
+            .remove_recent_workspace("/project/alpha")
+            .expect("delete workspace")
+    );
+    assert!(
+        store
+            .get_session(&alpha_session.id)
+            .expect("alpha session")
+            .is_none()
+    );
+    assert!(
+        store
+            .list_turns(&alpha_session.id)
+            .expect("alpha turns")
+            .is_empty()
+    );
+    assert!(
+        store
+            .get_session(&beta_session.id)
+            .expect("beta session")
+            .is_some()
     );
 }
