@@ -25,7 +25,6 @@ pub enum CliSource {
 #[serde(rename_all = "lowercase")]
 pub enum CliRuntime {
     Local,
-    Wsl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,10 +33,6 @@ pub struct CliCandidate {
     pub path: String,
     pub runtime: CliRuntime,
     pub source: CliSource,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub distro: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mount_root: Option<String>,
     pub version: Option<String>,
 }
 
@@ -65,10 +60,6 @@ pub struct DetectedCli {
     pub available: bool,
     pub runtime: CliRuntime,
     pub source: CliSource,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub distro: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mount_root: Option<String>,
     pub candidates: Vec<CliCandidate>,
     pub diagnostics: Vec<CliDiagnostic>,
 }
@@ -81,8 +72,6 @@ impl DetectedCli {
         Some(LaunchTarget {
             path: self.path.clone(),
             runtime: self.runtime,
-            distro: self.distro.clone(),
-            mount_root: self.mount_root.clone(),
         })
     }
 }
@@ -92,10 +81,6 @@ impl DetectedCli {
 pub struct LaunchTarget {
     pub path: String,
     pub runtime: CliRuntime,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub distro: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mount_root: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

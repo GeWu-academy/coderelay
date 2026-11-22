@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use crate::agent::AgentId;
 use crate::host::{CommandRunner, ExecRequest};
-use crate::scanner::{CliRuntime, DetectedCli, build_wsl_args};
+use crate::scanner::DetectedCli;
 
 pub use claude::ClaudePermissions;
 pub use codex::CodexPermissions;
