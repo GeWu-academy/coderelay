@@ -119,6 +119,7 @@ export function App() {
             selectedAgentId={selectedAgentId}
             selectedModelId={selectedModelId}
             onPickWorkspace={() => void pickWorkspace()}
+            onSelectWorkspace={(path) => void selectWorkspace(path)}
           />
         );
       case "sessions":

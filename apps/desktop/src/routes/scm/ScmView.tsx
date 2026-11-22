@@ -1118,7 +1118,7 @@ export function ScmView({
                       const renderTree = (
                         nodes: ScmTreeNode[],
                         depth: number,
-                      ): JSX.Element[] =>
+                      ): ReactElement[] =>
                         nodes.flatMap((node) => {
                           if (node.kind === "folder") {
                             const folderKey = `staged:${node.path}`;
@@ -1253,68 +1253,163 @@ export function ScmView({
                     </button>
                   ) : null}
                 </div>
-                {unstagedEntries.map((entry) => {
-                  const { name, dir } = splitPathParts(entry.path);
-                  const badge = statusBadge(entry, false);
-                  const active =
-                    selectedTarget?.path === entry.path && !selectedTarget.staged;
-                  return (
-                    <div
-                      key={`changes-${entry.path}`}
-                      className={`group flex items-center gap-1 rounded-[7px] px-2 py-1 text-xs ${
-                        active
-                          ? "bg-surface-subtle text-ink"
-                          : "text-ink/85 hover:bg-surface-subtle/60"
-                      }`}
-                    >
-                      <button
-                        className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
-                        onClick={() =>
-                          setSelectedTarget({
-                            path: entry.path,
-                            staged: false,
-                            untracked: entry.untracked,
-                          })
-                        }
-                        type="button"
-                      >
-                        <span className="truncate font-medium">{name}</span>
-                        {dir ? (
-                          <span className="truncate text-[10.5px] text-dim">{dir}</span>
-                        ) : null}
-                      </button>
-                      <button
-                        aria-label={`放弃更改 ${entry.path}`}
-                        className={`h-5 place-items-center rounded px-1 text-[10px] ${
-                          pendingDiscardPath === entry.path
-                            ? "grid bg-rose-500 text-white"
-                            : "hidden w-5 text-muted group-hover:grid hover:bg-surface hover:text-rose-500"
-                        }`}
-                        onClick={() => handleDiscard(entry)}
-                        title={
-                          pendingDiscardPath === entry.path
-                            ? "再次点击确认放弃更改"
-                            : "放弃更改"
-                        }
-                        type="button"
-                      >
-                        {pendingDiscardPath === entry.path ? "确认" : <UndoIcon size={12} />}
-                      </button>
-                      <button
-                        aria-label={`暂存 ${entry.path}`}
-                        className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
-                        onClick={() => handleStage([entry.path])}
-                        title="暂存更改"
-                        type="button"
-                      >
-                        <PlusIcon size={12} />
-                      </button>
-                      <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
-                        {badge.label}
-                      </span>
-                    </div>
-                  );
-                })}
+                {viewMode === "tree"
+                  ? (() => {
+                      const renderTree = (
+                        nodes: ScmTreeNode[],
+                        depth: number,
+                      ): ReactElement[] =>
+                        nodes.flatMap((node) => {
+                          if (node.kind === "folder") {
+                            const folderKey = `changes:${node.path}`;
+                            const collapsed = Boolean(collapsedFolders[folderKey]);
+                            return [
+                              <button
+                                className="flex w-full items-center gap-1.5 rounded-[7px] py-1 pr-2 text-left text-xs text-muted hover:bg-surface-subtle/60 hover:text-ink"
+                                key={folderKey}
+                                onClick={() => toggleFolder(folderKey)}
+                                style={{ paddingLeft: `${8 + depth * 12}px` }}
+                                type="button"
+                              >
+                                <ChevronRightIcon
+                                  className={`shrink-0 transition-transform ${collapsed ? "" : "rotate-90"}`}
+                                  size={10}
+                                />
+                                <FolderIcon size={13} className="shrink-0 text-muted" />
+                                <span className="truncate font-medium">{node.name}</span>
+                              </button>,
+                              ...(collapsed ? [] : renderTree(node.children, depth + 1)),
+                            ];
+                          }
+                          const entry = node.entry;
+                          const badge = statusBadge(entry, false);
+                          const active =
+                            selectedTarget?.path === entry.path && !selectedTarget.staged;
+                          return [
+                            <div
+                              key={`changes-${entry.path}`}
+                              className={`group flex items-center gap-1 rounded-[7px] py-1 pr-2 text-xs ${
+                                active
+                                  ? "bg-surface-subtle text-ink"
+                                  : "text-ink/85 hover:bg-surface-subtle/60"
+                              }`}
+                              style={{ paddingLeft: `${8 + depth * 12}px` }}
+                            >
+                              <button
+                                className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
+                                onClick={() =>
+                                  setSelectedTarget({
+                                    path: entry.path,
+                                    staged: false,
+                                    untracked: entry.untracked,
+                                  })
+                                }
+                                type="button"
+                              >
+                                <span className="truncate font-medium">{node.name}</span>
+                              </button>
+                              <button
+                                aria-label={`放弃更改 ${entry.path}`}
+                                className={`h-5 place-items-center rounded px-1 text-[10px] ${
+                                  pendingDiscardPath === entry.path
+                                    ? "grid bg-rose-500 text-white"
+                                    : "hidden w-5 text-muted group-hover:grid hover:bg-surface hover:text-rose-500"
+                                }`}
+                                onClick={() => handleDiscard(entry)}
+                                title={
+                                  pendingDiscardPath === entry.path
+                                    ? "再次点击确认放弃更改"
+                                    : "放弃更改"
+                                }
+                                type="button"
+                              >
+                                {pendingDiscardPath === entry.path ? (
+                                  "确认"
+                                ) : (
+                                  <UndoIcon size={12} />
+                                )}
+                              </button>
+                              <button
+                                aria-label={`暂存 ${entry.path}`}
+                                className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
+                                onClick={() => handleStage([entry.path])}
+                                title="暂存更改"
+                                type="button"
+                              >
+                                <PlusIcon size={12} />
+                              </button>
+                              <span
+                                className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}
+                              >
+                                {badge.label}
+                              </span>
+                            </div>,
+                          ];
+                        });
+                      return renderTree(unstagedTree, 0);
+                    })()
+                  : unstagedEntries.map((entry) => {
+                      const { name, dir } = splitPathParts(entry.path);
+                      const badge = statusBadge(entry, false);
+                      const active =
+                        selectedTarget?.path === entry.path && !selectedTarget.staged;
+                      return (
+                        <div
+                          key={`changes-${entry.path}`}
+                          className={`group flex items-center gap-1 rounded-[7px] px-2 py-1 text-xs ${
+                            active
+                              ? "bg-surface-subtle text-ink"
+                              : "text-ink/85 hover:bg-surface-subtle/60"
+                          }`}
+                        >
+                          <button
+                            className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
+                            onClick={() =>
+                              setSelectedTarget({
+                                path: entry.path,
+                                staged: false,
+                                untracked: entry.untracked,
+                              })
+                            }
+                            type="button"
+                          >
+                            <span className="truncate font-medium">{name}</span>
+                            {dir ? (
+                              <span className="truncate text-[10.5px] text-dim">{dir}</span>
+                            ) : null}
+                          </button>
+                          <button
+                            aria-label={`放弃更改 ${entry.path}`}
+                            className={`h-5 place-items-center rounded px-1 text-[10px] ${
+                              pendingDiscardPath === entry.path
+                                ? "grid bg-rose-500 text-white"
+                                : "hidden w-5 text-muted group-hover:grid hover:bg-surface hover:text-rose-500"
+                            }`}
+                            onClick={() => handleDiscard(entry)}
+                            title={
+                              pendingDiscardPath === entry.path
+                                ? "再次点击确认放弃更改"
+                                : "放弃更改"
+                            }
+                            type="button"
+                          >
+                            {pendingDiscardPath === entry.path ? "确认" : <UndoIcon size={12} />}
+                          </button>
+                          <button
+                            aria-label={`暂存 ${entry.path}`}
+                            className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
+                            onClick={() => handleStage([entry.path])}
+                            title="暂存更改"
+                            type="button"
+                          >
+                            <PlusIcon size={12} />
+                          </button>
+                          <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+                      );
+                    })}
                 {status.entries.length === 0 ? (
                   <p className="px-2 py-6 text-center text-xs text-dim">
                     工作区干净，没有未提交的更改
@@ -1411,7 +1506,37 @@ export function ScmView({
             </div>
           </>
         )}
+
+        {outputOpen ? (
+          <ScmOutputPanel
+            entries={outputEntries}
+            loading={outputLoading}
+            onClear={() => void handleClearOutputLog()}
+            onClose={() => setOutputOpen(false)}
+            onRefresh={() => void loadOutputLog()}
+          />
+        ) : null}
       </section>
+
+      <ScmActionDialog
+        branches={branches}
+        currentBranch={status?.branch ?? ""}
+        cwd={cwd}
+        dialog={activeDialog}
+        onClose={() => setActiveDialog(null)}
+        onPushTags={() => handleSync("push_tags")}
+        onSuccess={(message, options) => {
+          setNotice(message);
+          if (options?.openWorkspace && onSelectWorkspace) {
+            onSelectWorkspace(options.openWorkspace);
+          } else {
+            void refreshAll();
+          }
+          if (outputOpen) {
+            void loadOutputLog();
+          }
+        }}
+      />
     </motion.div>
   );
 }
