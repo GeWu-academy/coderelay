@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ArrowDownIcon,
@@ -1113,51 +1113,125 @@ export function ScmView({
                     </button>
                   ) : null}
                 </div>
-                {stagedEntries.map((entry) => {
-                  const { name, dir } = splitPathParts(entry.path);
-                  const badge = statusBadge(entry, true);
-                  const active =
-                    selectedTarget?.path === entry.path && selectedTarget.staged;
-                  return (
-                    <div
-                      key={`staged-${entry.path}`}
-                      className={`group flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-xs ${
-                        active
-                          ? "bg-surface-subtle text-ink"
-                          : "text-ink/85 hover:bg-surface-subtle/60"
-                      }`}
-                    >
-                      <button
-                        className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
-                        onClick={() =>
-                          setSelectedTarget({
-                            path: entry.path,
-                            staged: true,
-                            untracked: false,
-                          })
-                        }
-                        type="button"
-                      >
-                        <span className="truncate font-medium">{name}</span>
-                        {dir ? (
-                          <span className="truncate text-[10.5px] text-dim">{dir}</span>
-                        ) : null}
-                      </button>
-                      <button
-                        aria-label={`取消暂存 ${entry.path}`}
-                        className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
-                        onClick={() => handleUnstage([entry.path])}
-                        title="取消暂存"
-                        type="button"
-                      >
-                        <MinusIcon size={12} />
-                      </button>
-                      <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
-                        {badge.label}
-                      </span>
-                    </div>
-                  );
-                })}
+                {viewMode === "tree"
+                  ? (() => {
+                      const renderTree = (
+                        nodes: ScmTreeNode[],
+                        depth: number,
+                      ): JSX.Element[] =>
+                        nodes.flatMap((node) => {
+                          if (node.kind === "folder") {
+                            const folderKey = `staged:${node.path}`;
+                            const collapsed = Boolean(collapsedFolders[folderKey]);
+                            return [
+                              <button
+                                className="flex w-full items-center gap-1.5 rounded-[7px] py-1 pr-2 text-left text-xs text-muted hover:bg-surface-subtle/60 hover:text-ink"
+                                key={folderKey}
+                                onClick={() => toggleFolder(folderKey)}
+                                style={{ paddingLeft: `${8 + depth * 12}px` }}
+                                type="button"
+                              >
+                                <ChevronRightIcon
+                                  className={`shrink-0 transition-transform ${collapsed ? "" : "rotate-90"}`}
+                                  size={10}
+                                />
+                                <FolderIcon size={13} className="shrink-0 text-muted" />
+                                <span className="truncate font-medium">{node.name}</span>
+                              </button>,
+                              ...(collapsed ? [] : renderTree(node.children, depth + 1)),
+                            ];
+                          }
+                          const entry = node.entry;
+                          const badge = statusBadge(entry, true);
+                          const active =
+                            selectedTarget?.path === entry.path && selectedTarget.staged;
+                          return [
+                            <div
+                              key={`staged-${entry.path}`}
+                              className={`group flex items-center gap-1.5 rounded-[7px] py-1 pr-2 text-xs ${
+                                active
+                                  ? "bg-surface-subtle text-ink"
+                                  : "text-ink/85 hover:bg-surface-subtle/60"
+                              }`}
+                              style={{ paddingLeft: `${8 + depth * 12}px` }}
+                            >
+                              <button
+                                className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
+                                onClick={() =>
+                                  setSelectedTarget({
+                                    path: entry.path,
+                                    staged: true,
+                                    untracked: false,
+                                  })
+                                }
+                                type="button"
+                              >
+                                <span className="truncate font-medium">{node.name}</span>
+                              </button>
+                              <button
+                                aria-label={`取消暂存 ${entry.path}`}
+                                className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
+                                onClick={() => handleUnstage([entry.path])}
+                                title="取消暂存"
+                                type="button"
+                              >
+                                <MinusIcon size={12} />
+                              </button>
+                              <span
+                                className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}
+                              >
+                                {badge.label}
+                              </span>
+                            </div>,
+                          ];
+                        });
+                      return renderTree(stagedTree, 0);
+                    })()
+                  : stagedEntries.map((entry) => {
+                      const { name, dir } = splitPathParts(entry.path);
+                      const badge = statusBadge(entry, true);
+                      const active =
+                        selectedTarget?.path === entry.path && selectedTarget.staged;
+                      return (
+                        <div
+                          key={`staged-${entry.path}`}
+                          className={`group flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-xs ${
+                            active
+                              ? "bg-surface-subtle text-ink"
+                              : "text-ink/85 hover:bg-surface-subtle/60"
+                          }`}
+                        >
+                          <button
+                            className="flex min-w-0 flex-1 items-baseline gap-1.5 text-left"
+                            onClick={() =>
+                              setSelectedTarget({
+                                path: entry.path,
+                                staged: true,
+                                untracked: false,
+                              })
+                            }
+                            type="button"
+                          >
+                            <span className="truncate font-medium">{name}</span>
+                            {dir ? (
+                              <span className="truncate text-[10.5px] text-dim">{dir}</span>
+                            ) : null}
+                          </button>
+                          <button
+                            aria-label={`取消暂存 ${entry.path}`}
+                            className="hidden h-5 w-5 place-items-center rounded text-muted group-hover:grid hover:bg-surface hover:text-ink"
+                            onClick={() => handleUnstage([entry.path])}
+                            title="取消暂存"
+                            type="button"
+                          >
+                            <MinusIcon size={12} />
+                          </button>
+                          <span className={`w-4 shrink-0 text-center text-[11px] font-semibold ${badge.colorClass}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+                      );
+                    })}
               </div>
 
               {/* Unstaged / Untracked Changes */}
