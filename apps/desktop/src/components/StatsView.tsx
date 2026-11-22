@@ -10,7 +10,7 @@ import {
 } from "../stats";
 import type { AgentEntry, ModelOption, SessionDetail, SessionRecord, SessionTurn } from "../types";
 import { formatTimestamp, workspaceName } from "../utils";
-import { HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "./icons";
+import { CliIcon, HistoryIcon, RefreshIcon, RouteIcon, StatsIcon, TerminalIcon } from "./icons";
 
 export interface StatsViewProps {
   workspaceInput: string;
@@ -231,14 +231,8 @@ export function StatsView({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <span
-                          className={`grid h-6 w-6 place-items-center rounded-md font-code text-xs font-bold ${
-                            isTop
-                              ? "bg-ink text-white"
-                              : "bg-surface text-muted-strong border border-line"
-                          }`}
-                        >
-                          #{index + 1}
+                        <span className="grid h-6 w-6 shrink-0 place-items-center">
+                          <CliIcon cliId={item.cliId} size={18} />
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-ink">{item.label}</span>

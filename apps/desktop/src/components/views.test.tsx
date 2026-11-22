@@ -505,6 +505,10 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(statsHtml).toContain("CLI 使用频率与对话排行");
     expect(statsHtml).toContain("Codex CLI");
     expect(statsHtml).toContain("Claude Code");
+    expect(statsHtml).toContain('data-cli-icon="codex"');
+    expect(statsHtml).toContain('data-cli-icon="claude"');
+    expect(statsHtml).not.toContain("#1</span>");
+    expect(statsHtml).not.toContain("#2</span>");
     expect(statsHtml).toContain("最高频使用");
     expect(statsHtml).toContain("qwen-3.8-flash");
 
@@ -662,6 +666,36 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
         candidates: [],
         diagnostics: [{ level: "warn", message: "codex executable not found in PATH" }],
       },
+      {
+        id: "pi",
+        label: "Pi",
+        enabled: true,
+        isDefault: false,
+        available: true,
+        command: "pi",
+        path: "/usr/local/bin/pi",
+        version: "0.4.0",
+        models: ["claude-sonnet-4-5"],
+        runtime: "native",
+        source: "path",
+        candidates: [{ path: "/usr/local/bin/pi", runtime: "native", source: "path", version: "0.4.0" }],
+        diagnostics: [],
+      },
+      {
+        id: "omp",
+        label: "OMP",
+        enabled: true,
+        isDefault: false,
+        available: true,
+        command: "omp",
+        path: "/usr/local/bin/omp",
+        version: "1.3.0",
+        models: ["gpt-5-codex"],
+        runtime: "native",
+        source: "path",
+        candidates: [{ path: "/usr/local/bin/omp", runtime: "native", source: "path", version: "1.3.0" }],
+        diagnostics: [],
+      },
     ];
 
     const agentsHtml = renderToStaticMarkup(
@@ -680,6 +714,14 @@ describe("Decoupled ApiKeyView & ConfigView", () => {
     expect(agentsHtml).toContain("w-[220px]");
     expect(agentsHtml).toContain("Claude Code");
     expect(agentsHtml).toContain("Codex CLI");
+    expect(agentsHtml).toContain("Pi");
+    expect(agentsHtml).toContain("OMP");
+    expect(agentsHtml).toContain('data-cli-icon="claude"');
+    expect(agentsHtml).toContain('data-cli-icon="codex"');
+    expect(agentsHtml).toContain('data-cli-icon="pi"');
+    expect(agentsHtml).toContain('data-cli-icon="omp"');
+    expect(agentsHtml.indexOf('data-cli-icon="codex"')).toBeLessThan(agentsHtml.indexOf("Codex CLI"));
+    expect(agentsHtml.indexOf('data-cli-icon="claude"')).toBeLessThan(agentsHtml.indexOf("Claude Code"));
 
     const terminalHtml = renderToStaticMarkup(
       <RightSidebar
