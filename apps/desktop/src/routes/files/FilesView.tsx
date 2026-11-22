@@ -13,9 +13,10 @@ import {
   RefreshIcon,
 } from "../../components/icons";
 import { getCodeThemePalette, useThemeStore } from "../../stores/themeStore";
-import type { FileTreeEntry, WorkspaceFileContent } from "../../types";
+import type { FileTreeEntry, FolderStyleId, WorkspaceFileContent } from "../../types";
 import { messageOf, workspaceName } from "../../utils";
 import { tokenColor, tokenizeCodeLines } from "../../utils/codeHighlight";
+import { SemanticFolderIcon } from "./folderStyles";
 
 export interface FilesViewProps {
   workspaceInput: string;
@@ -63,6 +64,7 @@ interface TreeRowsProps {
   loadingDirs: ReadonlySet<string>;
   selectedPath: string | null;
   filterQuery: string;
+  folderStyle: FolderStyleId;
   onToggleDir: (path: string) => void;
   onSelectFile: (path: string) => void;
 }
@@ -95,6 +97,7 @@ function TreeRows({
   loadingDirs,
   selectedPath,
   filterQuery,
+  folderStyle,
   onToggleDir,
   onSelectFile,
 }: TreeRowsProps) {
@@ -145,9 +148,11 @@ function TreeRows({
               )}
 
               {entry.isDir ? (
-                <FolderIcon
+                <SemanticFolderIcon
+                  name={entry.name}
+                  isExpanded={isExpanded}
+                  styleId={folderStyle}
                   size={14}
-                  className={isExpanded ? "text-ink" : "text-muted-strong"}
                 />
               ) : (
                 <FileIcon size={14} className={fileAccentClass(entry.extension)} />
@@ -170,6 +175,7 @@ function TreeRows({
                   loadingDirs={loadingDirs}
                   selectedPath={selectedPath}
                   filterQuery={filterQuery}
+                  folderStyle={folderStyle}
                   onToggleDir={onToggleDir}
                   onSelectFile={onSelectFile}
                 />
@@ -413,6 +419,7 @@ export function FilesView({
   );
   const rootLoading = loadingDirs.has("");
   const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
+  const folderStyle = useThemeStore((s) => s.folderStyle);
   const codePalette = useMemo(
     () => getCodeThemePalette(effectiveCodeTheme),
     [effectiveCodeTheme],
@@ -441,7 +448,10 @@ export function FilesView({
       aria-label="Project Files"
     >
       {/* VS Code-style Explorer Sidebar */}
-      <aside className="flex min-h-0 w-[268px] shrink-0 flex-col border-r border-line bg-sidebar">
+      <aside
+        data-folder-style={folderStyle}
+        className="flex min-h-0 w-[268px] shrink-0 flex-col border-r border-line bg-sidebar"
+      >
         <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="text-[10.5px] font-semibold tracking-[0.08em] text-muted uppercase">
@@ -529,6 +539,7 @@ export function FilesView({
               loadingDirs={loadingDirs}
               selectedPath={activeTabPath}
               filterQuery={filterQuery}
+              folderStyle={folderStyle}
               onToggleDir={handleToggleDir}
               onSelectFile={(path) => void handleSelectFile(path)}
             />

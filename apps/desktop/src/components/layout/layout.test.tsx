@@ -10,6 +10,7 @@ import { TerminalPanel } from "./TerminalPanel";
 import { Titlebar } from "./Titlebar";
 import {
   buildWorkspaceWheelList,
+  stabilizeWorkspaceOrder,
   stepWorkspaceIndex,
   WorkspaceSwitcher,
 } from "./WorkspaceSwitcher";
@@ -264,6 +265,7 @@ describe("Layout shell components", () => {
     expect(openSwitcherHtml).toContain("demo-app");
     expect(openSwitcherHtml).toContain("api-server");
     expect(openSwitcherHtml).toContain("1/3");
+    expect(openSwitcherHtml).not.toContain("立即切换");
     expect(openSwitcherHtml).toContain("打开文件夹");
 
     const emptySwitcherHtml = renderToStaticMarkup(
@@ -294,6 +296,42 @@ describe("Layout shell components", () => {
     expect(stepWorkspaceIndex(0, -1, 3)).toBe(2);
     expect(stepWorkspaceIndex(2, 1, 3)).toBe(0);
     expect(stepWorkspaceIndex(1, 1, 3)).toBe(2);
+
+    // Verify stabilizeWorkspaceOrder keeps mounted wheel order stable when active workspace moves to front
+    expect(
+      stabilizeWorkspaceOrder(
+        ["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"],
+        ["/Users/allure/Projects/Hearo", "/Users/allure/Projects/Modu"],
+      ),
+    ).toEqual(["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"]);
+
+    // Handles removals and newly opened folders without reshuffling existing items
+    expect(
+      stabilizeWorkspaceOrder(
+        [
+          "/Users/allure/Projects/Modu",
+          "/Users/allure/Projects/Hearo",
+          "/Users/allure/Projects/OldApp",
+        ],
+        [
+          "/Users/allure/Projects/NewApp",
+          "/Users/allure/Projects/Hearo",
+          "/Users/allure/Projects/Modu",
+        ],
+      ),
+    ).toEqual([
+      "/Users/allure/Projects/NewApp",
+      "/Users/allure/Projects/Modu",
+      "/Users/allure/Projects/Hearo",
+    ]);
+
+    // Initializes directly from incoming list when previous order is empty
+    expect(
+      stabilizeWorkspaceOrder([], [
+        "/Users/allure/Projects/Modu",
+        "/Users/allure/Projects/Hearo",
+      ]),
+    ).toEqual(["/Users/allure/Projects/Modu", "/Users/allure/Projects/Hearo"]);
   });
 
   it("renders RightSidebar in agents, terminal, and closed states", () => {

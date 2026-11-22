@@ -24,6 +24,20 @@ export function buildWorkspaceWheelList(
   return result;
 }
 
+export function stabilizeWorkspaceOrder(
+  prevOrder: readonly string[],
+  nextWorkspaces: readonly string[],
+): string[] {
+  if (prevOrder.length === 0) {
+    return [...nextWorkspaces];
+  }
+  const nextSet = new Set(nextWorkspaces);
+  const kept = prevOrder.filter((ws) => nextSet.has(ws));
+  const keptSet = new Set(kept);
+  const added = nextWorkspaces.filter((ws) => !keptSet.has(ws));
+  return [...added, ...kept];
+}
+
 export function stepWorkspaceIndex(
   currentIndex: number,
   delta: number,
@@ -48,7 +62,6 @@ export interface WorkspaceWheelProps {
 const WHEEL_OFFSETS = [-2, -1, 0, 1, 2] as const;
 const WHEEL_SLOT_HEIGHT = 24;
 const WHEEL_DETENT_PX = 28;
-const WHEEL_SETTLE_DELAY_MS = 480;
 const WHEEL_SPRING = { type: "spring", stiffness: 460, damping: 34, mass: 0.7 } as const;
 
 export function WorkspaceWheel({
@@ -63,34 +76,32 @@ export function WorkspaceWheel({
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
   const lastStepAtRef = useRef(0);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stableOrderRef = useRef<readonly string[]>([]);
+
+  const orderedWorkspaces = useMemo(() => {
+    const next = stabilizeWorkspaceOrder(stableOrderRef.current, workspaces);
+    stableOrderRef.current = next;
+    return next;
+  }, [workspaces]);
 
   const trimmedCurrent = currentWorkspace.trim();
-  const currentIndex = Math.max(0, workspaces.indexOf(trimmedCurrent));
-  const total = workspaces.length;
+  const currentIndex = Math.max(0, orderedWorkspaces.indexOf(trimmedCurrent));
+  const total = orderedWorkspaces.length;
 
   const [virtualStep, setVirtualStep] = useState(currentIndex);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const previewIndex = total > 0 ? ((virtualStep % total) + total) % total : 0;
-  const previewWorkspace = workspaces[previewIndex] ?? trimmedCurrent;
+  const previewWorkspace = orderedWorkspaces[previewIndex] ?? trimmedCurrent;
   const isPendingCommit = total > 1 && previewWorkspace !== trimmedCurrent;
-
-  const clearSettleTimer = useCallback(() => {
-    if (settleTimerRef.current !== null) {
-      clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = null;
-    }
-  }, []);
 
   const commitWorkspace = useCallback(
     (target: string) => {
-      clearSettleTimer();
       if (target && target !== trimmedCurrent && onSelectWorkspace) {
         onSelectWorkspace(target);
       }
     },
-    [clearSettleTimer, onSelectWorkspace, trimmedCurrent],
+    [onSelectWorkspace, trimmedCurrent],
   );
 
   useEffect(() => {
@@ -101,7 +112,6 @@ export function WorkspaceWheel({
 
   // Sync virtualStep if currentWorkspace changes externally (e.g. Open Folder)
   useEffect(() => {
-    clearSettleTimer();
     if (total <= 1) {
       setVirtualStep(0);
       return;
@@ -120,19 +130,7 @@ export function WorkspaceWheel({
       }
       return prev + diff;
     });
-  }, [clearSettleTimer, currentIndex, total]);
-
-  // Deferred workspace loading: only load after the user stops rolling and settles
-  useEffect(() => {
-    clearSettleTimer();
-    if (!isPendingCommit) {
-      return;
-    }
-    settleTimerRef.current = setTimeout(() => {
-      commitWorkspace(previewWorkspace);
-    }, WHEEL_SETTLE_DELAY_MS);
-    return clearSettleTimer;
-  }, [clearSettleTimer, commitWorkspace, isPendingCommit, previewWorkspace]);
+  }, [currentIndex, total, trimmedCurrent]);
 
   const stepBy = useCallback(
     (delta: number) => {
@@ -206,14 +204,14 @@ export function WorkspaceWheel({
 
   const visibleSlots =
     total <= 1
-      ? [{ offset: 0, virtualIndex: 0, workspace: workspaces[0] ?? trimmedCurrent }]
+      ? [{ offset: 0, virtualIndex: 0, workspace: orderedWorkspaces[0] ?? trimmedCurrent }]
       : WHEEL_OFFSETS.map((offset) => {
           const virtualIndex = virtualStep + offset;
           const wsIndex = ((virtualIndex % total) + total) % total;
           return {
             offset,
             virtualIndex,
-            workspace: workspaces[wsIndex] ?? trimmedCurrent,
+            workspace: orderedWorkspaces[wsIndex] ?? trimmedCurrent,
           };
         });
 
@@ -256,8 +254,6 @@ export function WorkspaceWheel({
             const targetOpacity = isCenter ? 1 : distance === 1 ? 0.52 : 0;
             const targetRotateX = offset * -18;
 
-            const isConfirmingDelete = isCenter && pendingDelete === workspace;
-
             return (
               <motion.div
                 key={virtualIndex}
@@ -284,9 +280,15 @@ export function WorkspaceWheel({
                   marginTop: "-14px",
                   transformStyle: "preserve-3d",
                 }}
-                className={`absolute inset-x-2 z-10 flex h-[28px] items-center justify-between gap-1.5 rounded-lg px-2.5 ${
-                  isCenter ? "text-ink" : "text-muted hover:text-ink-soft"
-                }`}
+                className={`absolute inset-x-2 z-10 flex h-[28px] items-center rounded-lg pl-2.5 ${
+                  isPendingCommit
+                    ? "pr-[116px]"
+                    : total > 1
+                      ? "pr-[60px]"
+                      : onDeleteWorkspace
+                        ? "pr-8"
+                        : "pr-2.5"
+                } ${isCenter ? "text-ink" : "text-muted hover:text-ink-soft"}`}
                 title={workspace || (onPickWorkspace ? "点击选择文件夹" : "Workspace")}
               >
                 <button
@@ -320,64 +322,67 @@ export function WorkspaceWheel({
                     {workspace ? workspaceName(workspace) : "未选择文件夹"}
                   </span>
                 </button>
-
-                {isCenter ? (
-                  <span className="flex shrink-0 items-center gap-1">
-                    {total > 1 ? (
-                      isPendingCommit ? (
-                        <span className="rounded bg-ink/10 px-1 py-0.5 font-code text-[9.5px] font-medium text-ink">
-                          ↵
-                        </span>
-                      ) : (
-                        <span className="rounded bg-surface px-1 py-0.5 font-code text-[9.5px] text-muted opacity-0 transition-opacity group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100">
-                          ⌘K
-                        </span>
-                      )
-                    ) : null}
-                    {total > 1 ? (
-                      <span className="font-code text-[10px] text-muted">
-                        {previewIndex + 1}/{total}
-                      </span>
-                    ) : null}
-                    {onDeleteWorkspace && workspace ? (
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (isConfirmingDelete) {
-                            setPendingDelete(null);
-                            clearSettleTimer();
-                            onDeleteWorkspace(workspace);
-                          } else {
-                            setPendingDelete(workspace);
-                          }
-                        }}
-                        aria-label={
-                          isConfirmingDelete
-                            ? `Confirm remove workspace ${workspaceName(workspace)}`
-                            : `Remove workspace ${workspaceName(workspace)}`
-                        }
-                        title={
-                          isConfirmingDelete
-                            ? "Click again to remove workspace & sessions"
-                            : "Remove workspace"
-                        }
-                        className={`grid h-5 place-items-center rounded px-1 transition-all ${
-                          isConfirmingDelete
-                            ? "bg-rose-500/15 font-code text-[9.5px] font-medium text-rose-600 opacity-100 dark:text-rose-400"
-                            : "w-5 text-muted opacity-0 group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100 hover:bg-surface hover:text-rose-500"
-                        }`}
-                      >
-                        {isConfirmingDelete ? "删除?" : <TrashIcon size={11} />}
-                      </button>
-                    ) : null}
-                  </span>
-                ) : null}
               </motion.div>
             );
           })}
         </AnimatePresence>
       </div>
+
+      {/* Fixed right-side actions anchored to the center workspace band */}
+      {total > 1 || (onDeleteWorkspace && previewWorkspace) ? (
+        <div className="absolute top-1/2 right-3 z-30 flex h-[28px] -translate-y-1/2 items-center gap-1">
+          {onDeleteWorkspace && previewWorkspace ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (pendingDelete === previewWorkspace) {
+                  setPendingDelete(null);
+                  onDeleteWorkspace(previewWorkspace);
+                } else {
+                  setPendingDelete(previewWorkspace);
+                }
+              }}
+              aria-label={
+                pendingDelete === previewWorkspace
+                  ? `Confirm remove workspace ${workspaceName(previewWorkspace)}`
+                  : `Remove workspace ${workspaceName(previewWorkspace)}`
+              }
+              title={
+                pendingDelete === previewWorkspace
+                  ? "Click again to remove workspace & sessions"
+                  : "Remove workspace"
+              }
+              className={`grid h-5 place-items-center rounded px-1 transition-all ${
+                pendingDelete === previewWorkspace
+                  ? "bg-rose-500/15 font-code text-[9.5px] font-medium text-rose-600 opacity-100 dark:text-rose-400"
+                  : "w-5 text-muted opacity-0 group-hover/wheel:opacity-100 group-focus-visible/wheel:opacity-100 hover:bg-surface hover:text-rose-500"
+              }`}
+            >
+              {pendingDelete === previewWorkspace ? "删除?" : <TrashIcon size={11} />}
+            </button>
+          ) : null}
+          {total > 1 ? (
+            <span className="font-code text-[10px] text-muted">
+              {previewIndex + 1}/{total}
+            </span>
+          ) : null}
+          {isPendingCommit ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                commitWorkspace(previewWorkspace);
+              }}
+              aria-label={`立即切换到 ${workspaceName(previewWorkspace)}`}
+              title="立即切换工作区 (Enter)"
+              className="inline-flex h-5 cursor-pointer items-center gap-0.5 rounded bg-ink px-1.5 text-[10px] font-medium text-surface transition-opacity hover:opacity-85"
+            >
+              <span>立即切换</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

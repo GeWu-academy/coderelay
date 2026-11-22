@@ -45,6 +45,25 @@ describe("ConfigView", () => {
     expect(html).toContain("Dracula");
     expect(html).toContain("Tokyo Night");
 
+    // Verify Folder Style options
+    expect(html).toContain("文件夹样式");
+    expect(html).toContain("极简干净");
+
+    // Ensure verbose style descriptions have been removed for compact layout
+    expect(html).not.toContain("模 ChatGPT 多风格配色预设");
+    expect(html).not.toContain("ChatGPT 经典纯白，明亮开阔");
+    expect(html).not.toContain("支持上传本地图片作为沉浸背景");
+    expect(html).not.toContain("代码文件浏览器的语法高亮配色");
+    expect(html).not.toContain("文件浏览器目录语义图标与风格预设");
+
+    // Verify Folder Semantic Style preset options
+    expect(html).toContain("文件夹样式");
+    expect(html).toContain("极简干净");
+    expect(html).toContain("语义彩色");
+    expect(html).toContain("语义单色");
+    expect(html).toContain("色标文件夹");
+    expect(html).toContain('data-folder-style="semantic-color"');
+
     // Strictly ensure Decoupling: API Key elements must NOT be coupled into ConfigView
     expect(html).not.toContain("API Key");
     expect(html).not.toContain("jev-api-key");

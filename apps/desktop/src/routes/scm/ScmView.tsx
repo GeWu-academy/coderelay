@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   ArrowDownIcon,
@@ -27,6 +27,13 @@ import type {
   GitSyncAction,
 } from "../../types";
 import { messageOf, workspaceName } from "../../utils";
+import {
+  applyCommitTypePrefix,
+  COMMIT_MESSAGE_PRESETS,
+  COMMIT_TYPE_PRESETS,
+  type CommitType,
+  detectCommitType,
+} from "./commitPresets";
 
 export interface ScmViewProps {
   workspaceInput: string;
@@ -140,6 +147,40 @@ export function ScmView({
 
   const [commitMessage, setCommitMessage] = useState("");
   const [generatingCommit, setGeneratingCommit] = useState(false);
+  const [openCommitMenu, setOpenCommitMenu] = useState<"type" | "preset" | null>(
+    null,
+  );
+  const commitTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const commitMenuRef = useRef<HTMLDivElement | null>(null);
+  const activeCommitType = useMemo(
+    () => detectCommitType(commitMessage),
+    [commitMessage],
+  );
+
+  useEffect(() => {
+    if (!openCommitMenu) {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        commitMenuRef.current &&
+        !commitMenuRef.current.contains(event.target as Node)
+      ) {
+        setOpenCommitMenu(null);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenCommitMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openCommitMenu]);
 
   const [branchPanelOpen, setBranchPanelOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState("");
@@ -290,6 +331,30 @@ export function ScmView({
       }
       setNotice(`已放弃更改: ${entry.path}`);
     });
+  }
+
+  function focusCommitInputAtEnd(nextLength: number) {
+    requestAnimationFrame(() => {
+      const textarea = commitTextareaRef.current;
+      if (!textarea) {
+        return;
+      }
+      textarea.focus();
+      textarea.setSelectionRange(nextLength, nextLength);
+    });
+  }
+
+  function handleSelectCommitType(type: CommitType) {
+    const next = applyCommitTypePrefix(commitMessage, type);
+    setCommitMessage(next);
+    setOpenCommitMenu(null);
+    focusCommitInputAtEnd(next.length);
+  }
+
+  function handleApplyCommitPreset(message: string) {
+    setCommitMessage(message);
+    setOpenCommitMenu(null);
+    focusCommitInputAtEnd(message.length);
   }
 
   function handleCommit() {
@@ -603,9 +668,143 @@ export function ScmView({
                 }
               }}
               placeholder="输入提交信息 (⌘+Enter 提交)..."
+              ref={commitTextareaRef}
               rows={3}
               value={commitMessage}
             />
+            <div className="relative mt-1.5" ref={commitMenuRef}>
+              <div className="flex items-center gap-1.5">
+                <button
+                  aria-expanded={openCommitMenu === "type"}
+                  aria-haspopup="menu"
+                  className={`flex flex-1 items-center justify-between gap-1 rounded-[7px] border px-2 py-1 text-[11px] transition-colors ${
+                    openCommitMenu === "type" || activeCommitType
+                      ? "border-ink/35 bg-surface-subtle text-ink"
+                      : "border-line bg-surface text-muted hover:bg-surface-subtle hover:text-ink"
+                  }`}
+                  onClick={() =>
+                    setOpenCommitMenu((prev) => (prev === "type" ? null : "type"))
+                  }
+                  type="button"
+                >
+                  <span className="truncate">
+                    {activeCommitType ? (
+                      <>
+                        类型:{" "}
+                        <span className="font-mono font-medium text-ink">
+                          {activeCommitType}
+                        </span>
+                      </>
+                    ) : (
+                      "选择类型"
+                    )}
+                  </span>
+                  <ChevronDownIcon
+                    className={`shrink-0 transition-transform ${openCommitMenu === "type" ? "rotate-180" : ""}`}
+                    size={10}
+                  />
+                </button>
+                <button
+                  aria-expanded={openCommitMenu === "preset"}
+                  aria-haspopup="menu"
+                  className={`flex flex-1 items-center justify-between gap-1 rounded-[7px] border px-2 py-1 text-[11px] transition-colors ${
+                    openCommitMenu === "preset"
+                      ? "border-ink/35 bg-surface-subtle text-ink"
+                      : "border-line bg-surface text-muted hover:bg-surface-subtle hover:text-ink"
+                  }`}
+                  onClick={() =>
+                    setOpenCommitMenu((prev) =>
+                      prev === "preset" ? null : "preset",
+                    )
+                  }
+                  type="button"
+                >
+                  <span className="truncate">常用预设</span>
+                  <ChevronDownIcon
+                    className={`shrink-0 transition-transform ${openCommitMenu === "preset" ? "rotate-180" : ""}`}
+                    size={10}
+                  />
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {openCommitMenu === "type" ? (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    aria-label="提交类型快捷前缀"
+                    className="absolute right-0 left-0 z-20 mt-1.5 grid grid-cols-2 gap-1 rounded-[10px] border border-line bg-surface p-1.5 shadow-lg"
+                    exit={{ opacity: 0, y: -4 }}
+                    initial={{ opacity: 0, y: -4 }}
+                    role="menu"
+                    transition={{ duration: 0.12 }}
+                  >
+                    {COMMIT_TYPE_PRESETS.map((item) => {
+                      const selected = activeCommitType === item.type;
+                      return (
+                        <button
+                          className={`flex items-center justify-between gap-1.5 rounded-[6px] px-2 py-1.5 text-left transition-colors ${
+                            selected
+                              ? "bg-ink text-canvas"
+                              : "text-ink hover:bg-surface-subtle"
+                          }`}
+                          key={item.type}
+                          onClick={() => handleSelectCommitType(item.type)}
+                          role="menuitem"
+                          type="button"
+                        >
+                          <span className="font-mono text-[11px] font-medium">
+                            {item.label}
+                          </span>
+                          <span
+                            className={`truncate text-[10.5px] ${
+                              selected ? "text-canvas/75" : "text-muted"
+                            }`}
+                          >
+                            {item.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                ) : null}
+
+                {openCommitMenu === "preset" ? (
+                  <motion.div
+                    animate={{ opacity: 1, y: 0 }}
+                    aria-label="常用提交预设"
+                    className="absolute right-0 left-0 z-20 mt-1.5 flex flex-col gap-0.5 rounded-[10px] border border-line bg-surface p-1.5 shadow-lg"
+                    exit={{ opacity: 0, y: -4 }}
+                    initial={{ opacity: 0, y: -4 }}
+                    role="menu"
+                    transition={{ duration: 0.12 }}
+                  >
+                    {COMMIT_MESSAGE_PRESETS.map((preset) => {
+                      const active = commitMessage.trim() === preset.message;
+                      return (
+                        <button
+                          className={`flex items-center justify-between gap-2 rounded-[6px] px-2 py-1.5 text-left transition-colors ${
+                            active
+                              ? "bg-surface-subtle font-medium text-ink"
+                              : "text-ink hover:bg-surface-subtle"
+                          }`}
+                          key={preset.id}
+                          onClick={() => handleApplyCommitPreset(preset.message)}
+                          role="menuitem"
+                          type="button"
+                        >
+                          <span className="shrink-0 text-[11px] font-medium">
+                            {preset.label}
+                          </span>
+                          <span className="truncate font-mono text-[10.5px] text-muted">
+                            {preset.message}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
             <div className="mt-2 flex items-center gap-1.5">
               <button
                 className="flex items-center justify-center gap-1 rounded-[7px] border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-surface-subtle disabled:opacity-45"

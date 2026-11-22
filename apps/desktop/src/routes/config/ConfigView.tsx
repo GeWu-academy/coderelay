@@ -2,12 +2,26 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { CheckIcon, CodeIcon, ImageIcon, PaletteIcon, RefreshIcon, TrashIcon } from "../../components/icons";
+import {
+  CheckIcon,
+  CodeIcon,
+  FolderIcon,
+  ImageIcon,
+  PaletteIcon,
+  RefreshIcon,
+  TrashIcon,
+} from "../../components/icons";
 import { useNavigationStore } from "../../stores/navigationStore";
 import { getCodeThemePalette, useThemeStore } from "../../stores/themeStore";
 import { useWorkbenchStore } from "../../stores/workbenchStore";
-import { CODE_THEME_PRESETS, THEME_PRESETS, type ConfigSource } from "../../types";
+import {
+  CODE_THEME_PRESETS,
+  FOLDER_STYLE_PRESETS,
+  THEME_PRESETS,
+  type ConfigSource,
+} from "../../types";
 import { messageOf } from "../../utils";
+import { SemanticFolderIcon } from "../files/folderStyles";
 
 export interface ConfigViewProps {
   configPath?: string;
@@ -20,6 +34,13 @@ export interface ConfigViewProps {
 
 const ICON_BTN_CLASS =
   "grid h-7 w-7 shrink-0 place-items-center rounded-[7px] bg-transparent text-muted transition-colors duration-140 enabled:hover:bg-surface-subtle enabled:hover:text-ink disabled:opacity-35";
+
+const PILL_BASE_CLASS =
+  "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition-colors duration-140";
+const PILL_ACTIVE_CLASS =
+  "border-ink bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]";
+const PILL_IDLE_CLASS =
+  "border-line bg-surface/40 text-muted-strong hover:border-line-strong hover:bg-surface hover:text-ink";
 
 export function ConfigView({
   configPath: controlledPath,
@@ -100,11 +121,12 @@ export function ConfigView({
   const handleReload = onLoadConfigSource ?? (() => void loadInternalConfig());
   const handleSave = onSaveConfig ?? (() => void saveInternalConfig());
   const currentPreset = useThemeStore((s) => s.preset);
-  const effectiveTheme = useThemeStore((s) => s.effectiveTheme);
   const setPreset = useThemeStore((s) => s.setPreset);
   const currentCodeTheme = useThemeStore((s) => s.codeTheme);
   const effectiveCodeTheme = useThemeStore((s) => s.effectiveCodeTheme);
   const setCodeTheme = useThemeStore((s) => s.setCodeTheme);
+  const currentFolderStyle = useThemeStore((s) => s.folderStyle);
+  const setFolderStyle = useThemeStore((s) => s.setFolderStyle);
   const customBackground = useThemeStore((s) => s.customBackground);
   const customBackgroundOpacity = useThemeStore((s) => s.customBackgroundOpacity);
   const setCustomBackground = useThemeStore((s) => s.setCustomBackground);
@@ -163,15 +185,6 @@ export function ConfigView({
     event.target.value = "";
   };
 
-  const activePreset =
-    THEME_PRESETS.find((p) => p.id === currentPreset) ?? THEME_PRESETS[0];
-  const activeCodeTheme =
-    CODE_THEME_PRESETS.find((p) => p.id === currentCodeTheme) ??
-    CODE_THEME_PRESETS[0];
-  const resolvedCodePreset =
-    CODE_THEME_PRESETS.find((p) => p.id === effectiveCodeTheme) ??
-    CODE_THEME_PRESETS[1];
-
   return (
     <motion.section
       key="config"
@@ -217,146 +230,175 @@ export function ConfigView({
           </div>
         ) : null}
 
-        {/* Theme Presets Selection (ChatGPT Style) */}
+        {/* Appearance & Style Settings (Compact) */}
         <section
-          className="flex flex-col gap-3 rounded-xl border border-line bg-sidebar p-3.5"
-          aria-label="主题预设"
+          className="flex flex-col divide-y divide-line/60 rounded-xl border border-line bg-sidebar px-3.5 py-1"
+          aria-label="外观样式"
         >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <PaletteIcon size={16} />
-              <span className="text-xs font-semibold tracking-[-0.01em] text-ink">
-                主题外观
-              </span>
-              <span className="text-[11px] text-muted">
-                模 ChatGPT 多风格配色预设，默认纯白
-              </span>
+          {/* 主题外观 */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-medium text-ink">
+              <PaletteIcon size={14} />
+              <span>主题外观</span>
             </div>
-            <span className="font-code text-[11px] text-muted-strong">
-              当前：{activePreset?.name ?? "默认白"}
-              {activePreset?.subtitle ? ` (${activePreset.subtitle})` : ""}
-              {currentPreset === "system" ? ` → ${effectiveTheme}` : ""}
-            </span>
-          </div>
-
-          <div
-            className="grid grid-cols-3 gap-2.5 max-[860px]:grid-cols-2 max-[560px]:grid-cols-1"
-            role="radiogroup"
-            aria-label="选择主题外观预设"
-          >
-            {THEME_PRESETS.map((preset) => {
-              const isSelected = currentPreset === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => setPreset(preset.id)}
-                  className={`group relative flex flex-col gap-2 rounded-[11px] border p-2.5 text-left transition-all duration-140 ${
-                    isSelected
-                      ? "border-ink bg-surface shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
-                      : "border-line bg-surface/50 hover:border-line-strong hover:bg-surface"
-                  }`}
-                >
-                  {/* Miniature UI Mockup */}
-                  <div
-                    className="relative flex h-14 w-full overflow-hidden rounded-[7px] border border-line"
-                    style={{ backgroundColor: preset.preview.canvas }}
+            <div
+              className="flex flex-1 flex-wrap items-center gap-1.5"
+              role="radiogroup"
+              aria-label="选择主题外观预设"
+            >
+              {THEME_PRESETS.map((preset) => {
+                const isSelected = currentPreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setPreset(preset.id)}
+                    className={`${PILL_BASE_CLASS} ${isSelected ? PILL_ACTIVE_CLASS : PILL_IDLE_CLASS}`}
                   >
-                    {/* Rail & Sidebar mockup */}
-                    <div
-                      className="flex w-1/3 flex-col gap-1 border-r border-line p-1.5"
-                      style={{ backgroundColor: preset.preview.sidebar }}
-                    >
-                      <div
-                        className="h-1.5 w-3/4 rounded-full opacity-45"
-                        style={{ backgroundColor: preset.preview.ink }}
+                    <span className="inline-flex h-3.5 w-3.5 shrink-0 overflow-hidden rounded-full border border-line-strong">
+                      <span
+                        className="h-full w-1/2"
+                        style={{ backgroundColor: preset.preview.sidebar }}
                       />
-                      <div
-                        className="h-1.5 w-1/2 rounded-full opacity-25"
-                        style={{ backgroundColor: preset.preview.ink }}
+                      <span
+                        className="h-full w-1/2"
+                        style={{ backgroundColor: preset.preview.canvas }}
                       />
-                      <div
-                        className="mt-auto h-1.5 w-2/3 rounded-full opacity-35"
-                        style={{ backgroundColor: preset.preview.ink }}
-                      />
-                    </div>
-
-                    {/* Canvas & message mockup */}
-                    <div className="relative flex flex-1 flex-col justify-between p-1.5">
-                      <div className="flex flex-col gap-1">
-                        <div
-                          className="h-1.5 w-2/5 rounded-full opacity-65"
-                          style={{ backgroundColor: preset.preview.ink }}
-                        />
-                        <div
-                          className="h-1.5 w-4/5 rounded-full opacity-35"
-                          style={{ backgroundColor: preset.preview.ink }}
-                        />
-                      </div>
-                      <div
-                        className="h-2.5 w-full rounded border"
-                        style={{
-                          backgroundColor: preset.preview.surface,
-                          borderColor: preset.preview.border,
-                        }}
-                      />
-                    </div>
-
-                    {/* Active check badge */}
-                    {isSelected ? (
-                      <div className="absolute top-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-ink text-canvas shadow-xs">
-                        <CheckIcon size={10} />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Preset Label & Description */}
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-semibold text-ink">
-                        {preset.name}
-                      </span>
-                      <span className="rounded bg-surface-subtle px-1.5 py-0.5 font-code text-[10px] text-muted-strong">
-                        {preset.subtitle}
-                      </span>
-                    </div>
-                    <p className="line-clamp-1 text-[11px] leading-tight text-muted">
-                      {preset.description}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
+                    </span>
+                    <span>{preset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* 自定义背景图配置 */}
-          <div className="mt-1 flex flex-col gap-2.5 border-t border-line/60 pt-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <ImageIcon size={15} />
-                <span className="text-xs font-semibold text-ink">自定义背景图</span>
-                <span className="text-[11px] text-muted">支持上传本地图片作为沉浸背景</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  aria-label="上传背景图片文件"
-                  className="hidden"
-                  onChange={handleBackgroundUpload}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface-hover"
-                >
-                  <ImageIcon size={13} />
-                  <span>{customBackground ? "更换背景" : "上传图片"}</span>
-                </button>
-                {customBackground ? (
+          {/* 代码颜色风格 */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-medium text-ink">
+              <CodeIcon size={14} />
+              <span>代码颜色风格</span>
+            </div>
+            <div
+              className="flex flex-1 flex-wrap items-center gap-1.5"
+              role="radiogroup"
+              aria-label="选择代码颜色风格"
+            >
+              {CODE_THEME_PRESETS.map((codePreset) => {
+                const isSelected = currentCodeTheme === codePreset.id;
+                const previewPalette =
+                  codePreset.id === "auto"
+                    ? getCodeThemePalette(effectiveCodeTheme)
+                    : codePreset.palette;
+                return (
+                  <button
+                    key={codePreset.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setCodeTheme(codePreset.id)}
+                    className={`${PILL_BASE_CLASS} ${isSelected ? PILL_ACTIVE_CLASS : PILL_IDLE_CLASS}`}
+                  >
+                    <span
+                      className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-line-strong"
+                      style={{ backgroundColor: previewPalette.background }}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: previewPalette.keyword }}
+                      />
+                    </span>
+                    <span>{codePreset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 文件夹样式 */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-medium text-ink">
+              <FolderIcon size={14} />
+              <span>文件夹样式</span>
+            </div>
+            <div
+              className="flex flex-1 flex-wrap items-center gap-1.5"
+              role="radiogroup"
+              aria-label="选择文件夹样式预设"
+            >
+              {FOLDER_STYLE_PRESETS.map((folderPreset) => {
+                const isSelected = currentFolderStyle === folderPreset.id;
+                return (
+                  <button
+                    key={folderPreset.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setFolderStyle(folderPreset.id)}
+                    className={`${PILL_BASE_CLASS} ${isSelected ? PILL_ACTIVE_CLASS : PILL_IDLE_CLASS}`}
+                  >
+                    <SemanticFolderIcon
+                      name="apps"
+                      isExpanded={false}
+                      styleId={folderPreset.id}
+                      size={13}
+                    />
+                    <span>{folderPreset.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 自定义背景图 */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 text-xs font-medium text-ink">
+              <ImageIcon size={14} />
+              <span>自定义背景图</span>
+            </div>
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                aria-label="上传背景图片文件"
+                className="hidden"
+                onChange={handleBackgroundUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-line-strong hover:bg-surface-hover"
+              >
+                <ImageIcon size={13} />
+                <span>{customBackground ? "更换背景" : "上传图片"}</span>
+              </button>
+              {customBackground ? (
+                <>
+                  <div
+                    data-testid="bg-preview-thumbnail"
+                    className="h-6 w-10 shrink-0 overflow-hidden rounded border border-line bg-cover bg-center"
+                    style={{ backgroundImage: `url(${customBackground})` }}
+                  />
+                  <div className="flex min-w-[160px] flex-1 items-center gap-2">
+                    <label htmlFor="bg-opacity-slider" className="shrink-0 text-xs text-muted">
+                      不透明度
+                    </label>
+                    <input
+                      id="bg-opacity-slider"
+                      type="range"
+                      min="5"
+                      max="60"
+                      step="1"
+                      value={Math.round(customBackgroundOpacity * 100)}
+                      onChange={(e) => setCustomBackgroundOpacity(Number(e.target.value) / 100)}
+                      className="h-1.5 flex-1 cursor-pointer accent-accent"
+                    />
+                    <span className="w-8 font-code text-right text-xs text-muted-strong">
+                      {Math.round(customBackgroundOpacity * 100)}%
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setCustomBackground(null)}
@@ -366,135 +408,9 @@ export function ConfigView({
                     <TrashIcon size={12} />
                     <span>清除</span>
                   </button>
-                ) : null}
-              </div>
+                </>
+              ) : null}
             </div>
-
-            {customBackground ? (
-              <div className="flex items-center gap-4 rounded-lg border border-line bg-surface/40 p-2">
-                <div
-                  data-testid="bg-preview-thumbnail"
-                  className="h-10 w-16 shrink-0 overflow-hidden rounded border border-line bg-cover bg-center"
-                  style={{ backgroundImage: `url(${customBackground})` }}
-                />
-                <div className="flex flex-1 items-center gap-3">
-                  <label htmlFor="bg-opacity-slider" className="shrink-0 text-xs text-muted">
-                    不透明度
-                  </label>
-                  <input
-                    id="bg-opacity-slider"
-                    type="range"
-                    min="5"
-                    max="60"
-                    step="1"
-                    value={Math.round(customBackgroundOpacity * 100)}
-                    onChange={(e) => setCustomBackgroundOpacity(Number(e.target.value) / 100)}
-                    className="h-1.5 flex-1 cursor-pointer accent-accent"
-                  />
-                  <span className="w-9 font-code text-right text-xs text-muted-strong">
-                    {Math.round(customBackgroundOpacity * 100)}%
-                  </span>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        {/* Code Syntax Color Style Selection */}
-        <section
-          className="flex flex-col gap-3 rounded-xl border border-line bg-sidebar p-3.5"
-          aria-label="代码颜色风格"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <CodeIcon size={16} />
-              <span className="text-xs font-semibold tracking-[-0.01em] text-ink">
-                代码颜色风格
-              </span>
-              <span className="text-[11px] text-muted">
-                代码文件浏览器的语法高亮配色
-              </span>
-            </div>
-            <span className="font-code text-[11px] text-muted-strong">
-              当前：{activeCodeTheme?.name ?? "跟随主题"}
-              {currentCodeTheme === "auto"
-                ? ` → ${resolvedCodePreset?.name ?? "GitHub Light"}`
-                : ""}
-            </span>
-          </div>
-
-          <div
-            className="grid grid-cols-3 gap-2.5 max-[860px]:grid-cols-2 max-[560px]:grid-cols-1"
-            role="radiogroup"
-            aria-label="选择代码颜色风格"
-          >
-            {CODE_THEME_PRESETS.map((codePreset) => {
-              const isSelected = currentCodeTheme === codePreset.id;
-              const previewPalette =
-                codePreset.id === "auto"
-                  ? getCodeThemePalette(effectiveCodeTheme)
-                  : codePreset.palette;
-              return (
-                <button
-                  key={codePreset.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => setCodeTheme(codePreset.id)}
-                  className={`group relative flex flex-col gap-2 rounded-[11px] border p-2.5 text-left transition-all duration-140 ${
-                    isSelected
-                      ? "border-ink bg-surface shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)]"
-                      : "border-line bg-surface/50 hover:border-line-strong hover:bg-surface"
-                  }`}
-                >
-                  {/* Miniature Code Snippet Preview */}
-                  <div
-                    className="relative flex h-14 w-full flex-col justify-center gap-0.5 overflow-hidden rounded-[7px] border border-line px-2.5 py-1.5 font-code text-[10px] leading-[1.35]"
-                    style={{
-                      backgroundColor: previewPalette.background,
-                      color: previewPalette.foreground,
-                    }}
-                  >
-                    <div className="truncate">
-                      <span style={{ color: previewPalette.comment }}>{"// syntax"}</span>
-                    </div>
-                    <div className="truncate">
-                      <span style={{ color: previewPalette.keyword }}>fn </span>
-                      <span style={{ color: previewPalette.func }}>relay</span>
-                      <span>(</span>
-                      <span style={{ color: previewPalette.type }}>Str</span>
-                      <span>) {"{"}</span>
-                    </div>
-                    <div className="truncate pl-2">
-                      <span style={{ color: previewPalette.keyword }}>return </span>
-                      <span style={{ color: previewPalette.string }}>"ok"</span>
-                      <span>;</span>
-                    </div>
-
-                    {isSelected ? (
-                      <div className="absolute top-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-ink text-canvas shadow-xs">
-                        <CheckIcon size={10} />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Preset Label & Description */}
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-semibold text-ink">
-                        {codePreset.name}
-                      </span>
-                      <span className="rounded bg-surface-subtle px-1.5 py-0.5 font-code text-[10px] text-muted-strong">
-                        {codePreset.subtitle}
-                      </span>
-                    </div>
-                    <p className="line-clamp-1 text-[11px] leading-tight text-muted">
-                      {codePreset.description}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
           </div>
         </section>
 

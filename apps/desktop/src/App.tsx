@@ -54,7 +54,6 @@ export function App() {
   const preview = useWorkbenchStore((s) => s.preview);
   const recentWorkspaces = useWorkbenchStore((s) => s.recentWorkspaces);
   const sessions = useWorkbenchStore((s) => s.sessions);
-  const sessionDetail = useWorkbenchStore((s) => s.sessionDetail);
   const workspaceInput = useWorkbenchStore((s) => s.workspaceInput);
   const selectedAgentId = useWorkbenchStore((s) => s.form.agent);
   const selectedModelId = useWorkbenchStore((s) => s.form.model);
@@ -70,7 +69,6 @@ export function App() {
   const openSessionAndNavigate = useWorkbenchStore((s) => s.openSessionAndNavigate);
   const deleteSession = useWorkbenchStore((s) => s.deleteSession);
   const deleteWorkspaceSessions = useWorkbenchStore((s) => s.deleteWorkspaceSessions);
-  const continueSession = useWorkbenchStore((s) => s.continueSession);
   const selectAgent = useWorkbenchStore((s) => s.selectAgent);
 
   useEffect(() => {
@@ -125,10 +123,8 @@ export function App() {
             workspaceInput={workspaceInput}
             sessions={sessions}
             activeSessionId={activeSessionId}
-            sessionDetail={sessionDetail}
             onRefreshSessions={() => void refreshSessions()}
             onOpenSession={openSessionAndNavigate}
-            onContinueSession={continueSession}
           />
         );
       case "stats":
